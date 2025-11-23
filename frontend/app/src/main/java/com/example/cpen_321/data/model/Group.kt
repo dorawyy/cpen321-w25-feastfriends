@@ -40,8 +40,8 @@ data class Group(
     val status: GroupStatus? = null,
 
     // ADD THESE FIELDS:
-    @SerializedName("cuisine")
-    val cuisine: String? = null,
+    @SerializedName("cuisines")
+    val cuisines: List<String>? = null,  // ← Change to array
 
     @SerializedName("averageBudget")
     val averageBudget: Double? = null,

@@ -198,15 +198,12 @@ private fun VoteScreenEffects(
             Log.d("VoteDebug", "Location: $latitude, $longitude")
 
             // Use the GROUP's cuisine preference (from the room)
-            val cuisineTypes = if (!group.cuisine.isNullOrBlank()) {
-                listOf(group.cuisine) // Single cuisine from room
-            } else {
-                emptyList() // No cuisine filter
-            }
+            // Use ALL common cuisines
+            val cuisineTypes = group.cuisines ?: emptyList()
 
             val radius = ((group.averageRadius ?: 5.0) * 1000).toInt() // Convert km to meters
 
-            Log.d("VoteDebug", "Group's cuisine: ${group.cuisine}")
+            Log.d("VoteDebug", "Group's cuisines: $cuisineTypes")
             Log.d("VoteDebug", "Group's budget: ${group.averageBudget}")
             Log.d("VoteDebug", "Group's radius: ${group.averageRadius} km")
 
