@@ -9,22 +9,27 @@ export class GroupService {
    * Get group status
    */
   async getGroupStatus(groupId: string): Promise<GroupStatusResponse & { groupId: string }> {
-    const group = await Group.findById(groupId);
+  const group = await Group.findById(groupId);
 
-    if (!group) {
-      throw new Error('Group not found');
-    }
+  if (!group) {
+    throw new Error('Group not found');
+  }
 
-    return {
-      groupId: group._id.toString(), // ← ADD THIS LINE
-      roomId: group.roomId,
-      completionTime: group.completionTime.getTime(),
-      numMembers: group.members.length,
-      users: group.members,
-      restaurantSelected: group.restaurantSelected,
-      restaurant: group.restaurant || undefined,
-      status: this.getGroupStatusString(group),
-    };
+  return {
+    groupId: group._id.toString(),
+    roomId: group.roomId,
+    completionTime: group.completionTime.getTime(),
+    numMembers: group.members.length,
+    users: group.members,
+    restaurantSelected: group.restaurantSelected,
+    restaurant: group.restaurant || undefined,
+    status: this.getGroupStatusString(group),
+    // ✅ ADD THESE MISSING FIELDS:
+    cuisine: group.cuisine,
+    averageBudget: group.averageBudget,
+    averageRadius: group.averageRadius,
+  };
+
 }
 
   /**

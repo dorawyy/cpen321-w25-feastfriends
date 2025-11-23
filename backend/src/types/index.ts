@@ -96,6 +96,10 @@ export interface GroupStatusResponse {
   restaurantSelected: boolean;
   restaurant?: RestaurantType;
   status: 'voting' | 'matched' | 'completed' | 'disbanded';
+  // ADD THESE:
+  cuisine?: string;
+  averageBudget?: number;
+  averageRadius?: number;
 }
 
 export interface RestaurantType {

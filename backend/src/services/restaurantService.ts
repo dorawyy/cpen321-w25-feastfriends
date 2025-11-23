@@ -43,40 +43,85 @@ export class RestaurantService {
       }
 
       console.log('✅ Using Google Places API with key');
+      console.log('🔍 Cuisine filters:', cuisineTypes);
 
-      // Build the search query
-      const keyword = cuisineTypes && cuisineTypes.length > 0 ? cuisineTypes.join(' ') : 'restaurant';
-      
-      const response = await axios.get(
-        'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
-        {
-          params: {
-            location: `${latitude},${longitude}`,
-            radius: radius,
-            type: 'restaurant',
-            keyword: keyword,
-            key: this.GOOGLE_PLACES_API_KEY,
-          },
+      let allResults: GooglePlace[] = [];
+
+      if (cuisineTypes && cuisineTypes.length > 0) {
+        // Make separate API call for EACH cuisine type for better accuracy
+        for (const cuisine of cuisineTypes) {
+          console.log(`📡 Searching for: ${cuisine}`);
+          
+          const response = await axios.get(
+            'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+            {
+              params: {
+                location: `${latitude},${longitude}`,
+                radius: radius,
+                type: 'restaurant',
+                keyword: cuisine,
+                key: this.GOOGLE_PLACES_API_KEY,
+              },
+            }
+          );
+
+          console.log(`📡 Google API Response for "${cuisine}":`, response.data.status);
+
+          if (response.data.status === 'OK') {
+            const results = response.data.results || [];
+            console.log(`  Found ${results.length} restaurants for ${cuisine}`);
+            allResults = [...allResults, ...results];
+          } else if (response.data.status !== 'ZERO_RESULTS') {
+            console.warn(`  Warning for ${cuisine}:`, response.data.status);
+          }
         }
-      );
 
-      console.log('📡 Google API Response Status:', response.data.status);
+        // Remove duplicates based on place_id
+        const uniquePlaces = new Map<string, GooglePlace>();
+        allResults.forEach(place => {
+          if (!uniquePlaces.has(place.place_id)) {
+            uniquePlaces.set(place.place_id, place);
+          }
+        });
+        
+        allResults = Array.from(uniquePlaces.values());
+        console.log(`🍽️ Total unique restaurants: ${allResults.length}`);
+        
+      } else {
+        // No cuisine filter - search all restaurants
+        console.log('📡 Searching all restaurants (no cuisine filter)');
+        
+        const response = await axios.get(
+          'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+          {
+            params: {
+              location: `${latitude},${longitude}`,
+              radius: radius,
+              type: 'restaurant',
+              key: this.GOOGLE_PLACES_API_KEY,
+            },
+          }
+        );
 
-      if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-        throw new AppError(`Google Places API error: ${response.data.status}`, 500);
+        console.log('📡 Google API Response Status:', response.data.status);
+
+        if (response.data.status === 'OK') {
+          allResults = response.data.results || [];
+        } else if (response.data.status !== 'ZERO_RESULTS') {
+          throw new AppError(`Google Places API error: ${response.data.status}`, 500);
+        }
       }
-
-      let results: GooglePlace[] = Array.isArray(response.data.results) 
-        ? (response.data.results as GooglePlace[])
-        : [];
-      console.log(`🍽️ Found ${results.length} restaurants from Google Places`);
 
       // Filter by price level if specified
       if (priceLevel) {
-        results = results.filter((place: GooglePlace) => place.price_level === priceLevel);
+        const beforeFilter = allResults.length;
+        allResults = allResults.filter((place: GooglePlace) => place.price_level === priceLevel);
+        console.log(`💰 Price filter: ${beforeFilter} → ${allResults.length} restaurants`);
       }
 
-      return results.map((place: GooglePlace) => this.formatPlaceData(place));
+      console.log(`✅ Returning ${allResults.length} restaurants`);
+      return allResults.map((place: GooglePlace) => this.formatPlaceData(place));
+      
     } catch (error: unknown) {
       if (error instanceof AppError) throw error;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -110,7 +155,6 @@ export class RestaurantService {
       if (response.data.status !== 'OK') {
         throw new AppError(`Restaurant not found: ${response.data.status}`, 404);
       }
-
 
       const place = response.data.result as GooglePlace;
       return this.formatPlaceData(place);

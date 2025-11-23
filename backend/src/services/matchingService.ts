@@ -325,58 +325,65 @@ async leaveRoom(userId: string, roomId: string): Promise<void> {
   console.log(`✅ User ${userId} successfully left room ${roomId}`);
 }
 
-  /**
-   * Create a group from a full room
-   */
-  private async createGroupFromRoom(roomId: string): Promise<void> {
-    const room = (await Room.findById(roomId)) as unknown as IRoomDocument | null;
-    if (!room) {
-      throw new Error('Room not found');
+ /**
+ * Create a group from a full room
+ */
+private async createGroupFromRoom(roomId: string): Promise<void> {
+  const room = (await Room.findById(roomId)) as unknown as IRoomDocument | null;
+  if (!room) {
+    throw new Error('Room not found');
+  }
+
+  // Update room status
+  room.status = RoomStatus.MATCHED;
+  await room.save();
+
+  // Create group WITH ROOM PREFERENCES
+  const completionTime = new Date(Date.now() + this.VOTING_TIME);
+  
+  const group = await Group.create({
+    roomId: room._id.toString(),
+    completionTime,
+    maxMembers: room.members.length,
+    members: room.members,
+    restaurantSelected: false,
+    // ✅ COPY PREFERENCES FROM ROOM:
+    cuisine: room.cuisine,
+    averageBudget: room.averageBudget,
+    averageRadius: room.averageRadius,
+  });
+
+  console.log(`✅ Created group: ${group._id.toString()} from room: ${roomId}`);
+  console.log(`   🍽️ Group cuisine: ${group.cuisine}`);
+  console.log(`   💰 Group budget: ${group.averageBudget}`);
+  console.log(`   📍 Group radius: ${group.averageRadius} km`);
+
+  // Update all users
+  await User.updateMany(
+    { _id: { $in: room.members } },
+    {
+      status: UserStatus.IN_GROUP,
+      groupId: group._id.toString(),
+      roomId: undefined,
     }
+  );
 
-    // Update room status
-    room.status = RoomStatus.MATCHED;
-    await room.save();
+  // Emit group ready to all members
+  socketManager.emitGroupReady(
+    roomId,
+    group._id.toString(),
+    room.members
+  );
 
-    // Create group
-    const completionTime = new Date(Date.now() + this.VOTING_TIME); //with time for voting
-    
-    const group = await Group.create({
-      roomId: room._id.toString(),
-      completionTime,
-      maxMembers: room.members.length,
-      members: room.members,
-      restaurantSelected: false,
-    });
-
-    console.log(`✅ Created group: ${group._id.toString()} from room: ${roomId}`);
-
-    // Update all users
-    await User.updateMany(
-      { _id: { $in: room.members } },
-      {
-        status: UserStatus.IN_GROUP,
-        groupId: group._id.toString(),
-        roomId: undefined,
-      }
-    );
-
-    // Emit group ready to all members
-    socketManager.emitGroupReady(
-      roomId,
-      group._id.toString(),
-      room.members
-    );
-
-    // Send push notifications
-    for (const memberId of room.members) {
-      try {
-        await notifyRoomMatched(memberId, roomId, group._id.toString());
-      } catch (error) {
-        console.error(`Failed to notify user ${memberId}:`, error);
-      }
+  // Send push notifications
+  for (const memberId of room.members) {
+    try {
+      await notifyRoomMatched(memberId, roomId, group._id.toString());
+    } catch (error) {
+      console.error(`Failed to notify user ${memberId}:`, error);
     }
   }
+}
 
   /**
    * Get room status

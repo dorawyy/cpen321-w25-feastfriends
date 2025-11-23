@@ -26,6 +26,14 @@ export class GroupController {
         return;
       }
 
+      console.log(`🐛 getGroupStatus DEBUG:`, {
+        groupId: group?._id,
+        cuisine: group?.cuisine,
+        averageBudget: group?.averageBudget,
+        averageRadius: group?.averageRadius,
+        fullGroupJSON: group?.toJSON()
+      });
+
       const groupId = String(group._id);
       const status = await groupService.getGroupStatus(groupId);
 
