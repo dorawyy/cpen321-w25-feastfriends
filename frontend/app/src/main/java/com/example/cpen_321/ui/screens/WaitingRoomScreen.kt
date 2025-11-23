@@ -37,12 +37,21 @@ import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.UserProfile
 import com.example.cpen_321.ui.viewmodels.MatchViewModel
 import kotlinx.coroutines.delay
-
+import kotlinx.coroutines.launch
 @Composable
 fun WaitingRoomScreen(
     navController: NavController,
     viewModel: MatchViewModel = hiltViewModel()
 ) {
+    // ✅ ADD THIS at the very top
+    val viewModelHashCode = viewModel.hashCode()
+    LaunchedEffect(Unit) {
+        Log.d("WaitingRoom", "🟢 ViewModel instance: $viewModelHashCode")
+        Log.d("WaitingRoom", "🟢 ViewModel class: ${viewModel::class.java.simpleName}")
+    }
+
+    val scope = rememberCoroutineScope()  // ✅ Add this at the top
+
     val currentRoom by viewModel.currentRoom.collectAsState()
     val roomMembers by viewModel.roomMembers.collectAsState()
     val timeRemaining by viewModel.timeRemaining.collectAsState()
@@ -50,12 +59,21 @@ fun WaitingRoomScreen(
     val groupId by viewModel.groupId.collectAsState()
     val roomExpired by viewModel.roomExpired.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val leaveRoomSuccess by viewModel.leaveRoomSuccess.collectAsState()
 
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showFailureDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val minNumberOfPeople = 2
+
+    // Add this effect
+    LaunchedEffect(leaveRoomSuccess) {
+        if (leaveRoomSuccess) {
+            navController.popBackStack()
+            viewModel.clearLeaveRoomSuccess() // Reset the state
+        }
+    }
 
     WaitingRoomEffects(
         currentRoom = currentRoom,
@@ -107,8 +125,27 @@ fun WaitingRoomScreen(
         onDismiss = { showLeaveDialog = false },
         onConfirm = {
             showLeaveDialog = false
-            viewModel.leaveRoom()
-            navController.popBackStack()
+            Log.d("WaitingRoom", "Leave confirmed, calling leaveRoom()")
+
+
+            // ✅ ADD THESE CHECKS
+            Log.d("WaitingRoom", "ViewModel instance: $viewModel")
+            Log.d("WaitingRoom", "ViewModel is null? ${viewModel == null}")
+            Log.d("WaitingRoom", "Current room: ${viewModel.currentRoom.value}")
+
+            try {
+                viewModel.leaveRoom()
+                Log.d("WaitingRoom", "leaveRoom() returned successfully")
+            } catch (e: Exception) {
+                Log.e("WaitingRoom", "ERROR calling leaveRoom: ${e.message}", e)
+            }
+
+            scope.launch {
+                delay(500)
+                Log.d("WaitingRoom", "Navigating back")
+                navController.popBackStack()
+            }
+
         }
     )
 
@@ -701,7 +738,9 @@ private fun LeaveRoomDialog(
                 Text("Are you sure you want to leave? You'll lose your spot in this room.")
             },
             confirmButton = {
-                TextButton(onClick = onConfirm) {
+                TextButton(
+                    onClick = onConfirm  // ✅ Just call onConfirm directly
+                ) {
                     Text("Leave", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
                 }
             },

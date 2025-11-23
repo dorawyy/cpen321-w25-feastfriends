@@ -73,6 +73,8 @@ class MatchViewModel @Inject constructor(
     private val _roomExpired = MutableStateFlow(false)
     val roomExpired: StateFlow<Boolean> = _roomExpired.asStateFlow()
 
+    private val _leaveRoomSuccess = MutableStateFlow(false)
+    val leaveRoomSuccess: StateFlow<Boolean> = _leaveRoomSuccess.asStateFlow()
     companion object {
         private const val TAG = "MatchViewModel"
     }
@@ -254,18 +256,38 @@ class MatchViewModel @Inject constructor(
      * Leave current room
      */
     fun leaveRoom() {
+        Log.d(TAG, "🔴 leaveRoom() method ENTERED")
+
         viewModelScope.launch {
-            val roomId = _currentRoom.value?.roomId ?: return@launch
+            // ✅ Try to get roomId from current room, fallback to repository
+            var roomId = _currentRoom.value?.roomId
+
+            if (roomId == null) {
+                // Get from local storage as fallback
+                roomId = matchRepository.getCurrentRoomId()
+                Log.d(TAG, "🔴 Current room was null, got roomId from preferences: $roomId")
+            } else {
+                Log.d(TAG, "🔴 Got roomId from currentRoom: $roomId")
+            }
+
+            if (roomId == null) {
+                Log.e(TAG, "🔴 ERROR: Could not find roomId anywhere!")
+                _errorMessage.value = "Unable to leave room: Room not found"
+                return@launch
+            }
 
             _isLoading.value = true
+            Log.d(TAG, "🔴 Calling matchRepository.leaveRoom($roomId)")
 
             when (val result = matchRepository.leaveRoom(roomId)) {
                 is ApiResult.Success -> {
+                    Log.d(TAG, "🔴 SUCCESS: Leave room API returned success")
+
                     // Unsubscribe from room updates
                     socketManager.unsubscribeFromRoom(roomId)
                     Log.d(TAG, "Unsubscribed from room: $roomId")
 
-                    // FIXED: Stop the timer
+                    // Stop the timer
                     timerJob?.cancel()
 
                     // Clear state
@@ -276,8 +298,8 @@ class MatchViewModel @Inject constructor(
                     _groupId.value = null
                 }
                 is ApiResult.Error -> {
+                    Log.e(TAG, "🔴 ERROR: Leave room failed: ${result.message}")
                     _errorMessage.value = result.message
-                    Log.e(TAG, "Failed to leave room: ${result.message}")
                 }
                 is ApiResult.Loading -> {
                     // Ignore
@@ -502,5 +524,10 @@ class MatchViewModel @Inject constructor(
         socketManager.off("member_left")
 
         Log.d(TAG, "ViewModel cleared")
+    }
+
+    // ✅ NEW: Method to reset the success state
+    fun clearLeaveRoomSuccess() {
+        _leaveRoomSuccess.value = false
     }
 }
