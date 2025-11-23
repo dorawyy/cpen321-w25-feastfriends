@@ -34,7 +34,7 @@ import com.example.cpen_321.ui.viewmodels.RestaurantViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import android.util.Log
 @SuppressLint("MissingPermission")
 @Composable
 fun VoteRestaurantScreen(
@@ -89,14 +89,20 @@ private fun createLocationPermissionLauncher(
 ) = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.RequestMultiplePermissions()
 ) { permissions ->
+    Log.d("LocationDebug", "=== PERMISSION RESULT ===")
+    Log.d("LocationDebug", "Permissions: $permissions")
+
     val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+    Log.d("LocationDebug", "Permission granted: $granted")
 
     if (granted) {
         onPermissionGranted()
         scope.launch {
             try {
-                // Add explicit permission check
+                Log.d("LocationDebug", "Attempting to get location...")
+
                 if (androidx.core.content.ContextCompat.checkSelfPermission(
                         context,
                         Manifest.permission.ACCESS_FINE_LOCATION
@@ -107,21 +113,43 @@ private fun createLocationPermissionLauncher(
                     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 ) {
                     val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+
+                    Log.d("LocationDebug", "LocationManager obtained")
+                    Log.d("LocationDebug", "GPS enabled: ${locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)}")
+                    Log.d("LocationDebug", "Network enabled: ${locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)}")
+
                     val location = withContext(Dispatchers.IO) {
-                        locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                            ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                        val gpsLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                        val networkLocation = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+
+                        Log.d("LocationDebug", "GPS location: $gpsLocation")
+                        Log.d("LocationDebug", "Network location: $networkLocation")
+
+                        gpsLocation ?: networkLocation
                     }
-                    location?.let {
-                        onLocationReceived(Pair(it.latitude, it.longitude))
+
+                    if (location != null) {
+                        Log.d("LocationDebug", "✅ Location found: ${location.latitude}, ${location.longitude}")
+                        onLocationReceived(Pair(location.latitude, location.longitude))
+                    } else {
+                        Log.e("LocationDebug", "❌ Both GPS and Network locations are NULL")
+                        // Use default location (UBC) as fallback
+                        Log.d("LocationDebug", "Using fallback location (UBC)")
+                        onLocationReceived(Pair(49.2606, -123.2460))
                     }
+                } else {
+                    Log.e("LocationDebug", "Permission check failed after grant")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("VoteRestaurantScreen", "Location error", e)
+                Log.e("LocationDebug", "Exception getting location", e)
+                // Use fallback location
+                onLocationReceived(Pair(49.2606, -123.2460))
             }
         }
+    } else {
+        Log.e("LocationDebug", "Permission denied")
     }
 }
-
 @Composable
 private fun VoteScreenEffects(
     groupViewModel: GroupViewModel,
@@ -160,14 +188,34 @@ private fun VoteScreenEffects(
     }
 
     LaunchedEffect(userLocation, currentGroup) {
-        if (userLocation != null && currentGroup != null) {
+        // Create local copy to allow smart casting
+        val group = currentGroup
+
+        if (userLocation != null && group != null) {
             val (latitude, longitude) = userLocation
+
+            Log.d("VoteDebug", "=== SEARCHING RESTAURANTS ===")
+            Log.d("VoteDebug", "Location: $latitude, $longitude")
+
+            // Use the GROUP's cuisine preference (from the room)
+            val cuisineTypes = if (!group.cuisine.isNullOrBlank()) {
+                listOf(group.cuisine) // Single cuisine from room
+            } else {
+                emptyList() // No cuisine filter
+            }
+
+            val radius = ((group.averageRadius ?: 5.0) * 1000).toInt() // Convert km to meters
+
+            Log.d("VoteDebug", "Group's cuisine: ${group.cuisine}")
+            Log.d("VoteDebug", "Group's budget: ${group.averageBudget}")
+            Log.d("VoteDebug", "Group's radius: ${group.averageRadius} km")
+
             restaurantViewModel.searchRestaurants(
                 latitude = latitude,
                 longitude = longitude,
-                radius = 5000,
-                cuisineTypes = listOf(),
-                priceLevel = null
+                radius = radius,
+                cuisineTypes = cuisineTypes,
+                priceLevel = null // Could also use budget to price level conversion
             )
         }
     }

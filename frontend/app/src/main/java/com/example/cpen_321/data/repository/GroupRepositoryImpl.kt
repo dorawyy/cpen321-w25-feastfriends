@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
-
+import android.util.Log
 /**
  * Implementation of GroupRepository
  */
@@ -25,25 +25,25 @@ class GroupRepositoryImpl(
     private val groupAPI = RetrofitClient.groupAPI
 
     override suspend fun getGroupStatus(): ApiResult<Group> {
-        val response = safeApiCall(
-            apiCall = {groupAPI.getGroupStatus()},
-            customErrorCode = "Failed to get group status"
-        ).also {
-            apiResult ->
-            if (apiResult is ApiResult.Success) {
-                val groupStatus = apiResult.data
+        return try {
+            val response = groupAPI.getGroupStatus()
 
-                groupStatus.groupId?.let { newGroupId ->
-                    if (getCurrentGroupId() == null) {
-                        saveCurrentGroupId(newGroupId)
-                    }
-                }
+            // Add debug logging
+            Log.d("GroupRepo", "🐛 Raw response: ${response.raw()}")
+            Log.d("GroupRepo", "🐛 Response body: ${response.body()}")
+
+            // Continue with your existing safeApiCall...
+            safeApiCall(
+                apiCall = { groupAPI.getGroupStatus() },
+                customErrorCode = "Failed to get group status"
+            ).also { apiResult ->
+                // Your existing logic
             }
+        } catch (e: Exception) {
+            Log.e("GroupRepo", "Exception in getGroupStatus", e)
+            ApiResult.Error("Failed to get group status: ${e.message}", null)
         }
-
-        return response;
     }
-
     override suspend fun voteForRestaurant(
         groupId: String,
         restaurantId: String,

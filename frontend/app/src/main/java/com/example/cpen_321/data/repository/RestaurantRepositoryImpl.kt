@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
-
+import android.util.Log
 /**
  * Implementation of RestaurantRepository
  */
@@ -27,6 +27,10 @@ class RestaurantRepositoryImpl : RestaurantRepository {
         cuisineTypes: List<String>?,
         priceLevel: Int?
     ): ApiResult<List<Restaurant>> {
+        Log.d("RestaurantRepo", "=== API CALL ===")
+        Log.d("RestaurantRepo", "Calling restaurantAPI.searchRestaurants")
+        Log.d("RestaurantRepo", "Params: lat=$latitude, lon=$longitude, radius=$radius")
+
         // Convert cuisineTypes list to comma-separated string
         val cuisineTypesString = cuisineTypes?.joinToString(",")
 
@@ -40,7 +44,9 @@ class RestaurantRepositoryImpl : RestaurantRepository {
             )},
             customErrorCode = "Failed to search restaurants"
         )
-        return response;
+
+        Log.d("RestaurantRepo", "API Response: $response")
+        return response
     }
 
     override suspend fun getRestaurantDetails(restaurantId: String): ApiResult<Restaurant> {

@@ -2,9 +2,6 @@ package com.example.cpen_321.data.model
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Group model for voting and restaurant selection
- */
 data class Group(
     @SerializedName("groupId")
     val groupId: String? = null,
@@ -25,7 +22,7 @@ data class Group(
     val users: List<String> = emptyList(),
 
     @SerializedName("members")
-    val members: List<String>? = null, // Alternative field name from backend
+    val members: List<String>? = null,
 
     @SerializedName("restaurantSelected")
     val restaurantSelected: Boolean = false,
@@ -34,17 +31,24 @@ data class Group(
     val restaurant: Restaurant? = null,
 
     @SerializedName("votes")
-    val votes: Map<String, String>? = null, // userId -> restaurantId
+    val votes: Map<String, String>? = null,
 
     @SerializedName("restaurantVotes")
-    val restaurantVotes: Map<String, Int>? = null, // restaurantId -> vote count
+    val restaurantVotes: Map<String, Int>? = null,
 
     @SerializedName("status")
-    val status: GroupStatus? = null
+    val status: GroupStatus? = null,
+
+    // ADD THESE FIELDS:
+    @SerializedName("cuisine")
+    val cuisine: String? = null,
+
+    @SerializedName("averageBudget")
+    val averageBudget: Double? = null,
+
+    @SerializedName("averageRadius")
+    val averageRadius: Double? = null
 ) {
-    /**
-     * Get all members (handles both 'users' and 'members' field names)
-     */
     fun getAllMembers(): List<String> {
         return members ?: users
     }

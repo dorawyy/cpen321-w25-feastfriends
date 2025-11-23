@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+import android.util.Log
 /**
  * ViewModel for restaurant search and recommendations
  */
@@ -48,6 +48,11 @@ class RestaurantViewModel @Inject constructor(
         priceLevel: Int? = null
     ) {
         viewModelScope.launch {
+            Log.d("RestaurantDebug", "=== SEARCH RESTAURANTS ===")
+            Log.d("RestaurantDebug", "Latitude: $latitude")
+            Log.d("RestaurantDebug", "Longitude: $longitude")
+            Log.d("RestaurantDebug", "Radius: $radius")
+
             _isLoading.value = true
             _errorMessage.value = null
 
@@ -59,14 +64,16 @@ class RestaurantViewModel @Inject constructor(
                 priceLevel = priceLevel
             )) {
                 is ApiResult.Success -> {
+                    Log.d("RestaurantDebug", "✅ Success: ${result.data.size} restaurants found")
                     _restaurants.value = result.data
                 }
                 is ApiResult.Error -> {
+                    Log.e("RestaurantDebug", "❌ Error: ${result.message}")
                     _errorMessage.value = result.message
                     _restaurants.value = emptyList()
                 }
                 is ApiResult.Loading -> {
-                    // Already handled
+                    Log.d("RestaurantDebug", "Loading...")
                 }
             }
 
