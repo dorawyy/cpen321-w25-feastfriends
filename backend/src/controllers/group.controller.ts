@@ -28,7 +28,7 @@ export class GroupController {
 
       console.log(`🐛 getGroupStatus DEBUG:`, {
         groupId: group?._id,
-        cuisine: group?.cuisine,
+        cuisines: group?.cuisines,
         averageBudget: group?.averageBudget,
         averageRadius: group?.averageRadius,
         fullGroupJSON: group?.toJSON()

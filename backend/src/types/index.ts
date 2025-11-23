@@ -97,7 +97,7 @@ export interface GroupStatusResponse {
   restaurant?: RestaurantType;
   status: 'voting' | 'matched' | 'completed' | 'disbanded';
   // ADD THESE:
-  cuisine?: string;
+  cuisines?: string[];
   averageBudget?: number;
   averageRadius?: number;
 }

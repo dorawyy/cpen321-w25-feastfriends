@@ -15,44 +15,43 @@ export class MatchingService {
    * Find the best matching room based on preferences
    */
   private async findBestMatchingRoom(userPreferences: {
-    cuisines: string[];
-    budget: number;
-    radiusKm: number;
-  }): Promise<IRoomDocument | null> {
-    // Get all available rooms
-    const availableRooms = await Room.find({
-      status: RoomStatus.WAITING,
-      completionTime: { $gt: new Date() },
-      $expr: { $lt: [{ $size: '$members' }, this.MAX_MEMBERS] }
-    }) as unknown as IRoomDocument[];
+     cuisines: string[];
+  budget: number;
+  radiusKm: number;
+}): Promise<IRoomDocument | null> {
+  const availableRooms = await Room.find({
+    status: RoomStatus.WAITING,
+    completionTime: { $gt: new Date() },
+    $expr: { $lt: [{ $size: '$members' }, this.MAX_MEMBERS] }
+  }) as unknown as IRoomDocument[];
 
-    if (availableRooms.length === 0) {
-      return null;
+  if (availableRooms.length === 0) {
+    return null;
+  }
+
+  const scoredRooms = availableRooms.map(room => {
+    let score = 0;
+    
+    // ✅ NEW: Cuisine match - count common cuisines
+    if (room.cuisines && room.cuisines.length > 0) {
+      const commonCuisines = room.cuisines.filter(cuisine => 
+        userPreferences.cuisines.includes(cuisine)
+      );
+      // Give points for each common cuisine
+      score += commonCuisines.length * 20;
     }
-
-    // Score each room
-    const scoredRooms = availableRooms.map(room => {
-      let score = 0;
-      
-      // Cuisine match (50 points if ANY cuisine matches)
-      if (room.cuisine && userPreferences.cuisines.includes(room.cuisine)) {
-        score += 50;
-      }
-      
-      // Budget similarity (up to 30 points)
-      // Closer budgets get higher scores
-      const budgetDiff = Math.abs((room.averageBudget || 0) - userPreferences.budget);
-      const budgetScore = Math.max(0, 30 - budgetDiff);
-      score += budgetScore;
-      
-      // Radius similarity (up to 20 points)
-      // Closer radius preferences get higher scores
-      const radiusDiff = Math.abs((room.averageRadius || 5) - userPreferences.radiusKm);
-      const radiusScore = Math.max(0, 20 - (radiusDiff * 2));
-      score += radiusScore;
-      
-      return { room, score };
-    });
+    
+    // Budget and radius scoring (keep existing logic)
+    const budgetDiff = Math.abs((room.averageBudget || 0) - userPreferences.budget);
+    const budgetScore = Math.max(0, 30 - budgetDiff);
+    score += budgetScore;
+    
+    const radiusDiff = Math.abs((room.averageRadius || 5) - userPreferences.radiusKm);
+    const radiusScore = Math.max(0, 20 - (radiusDiff * 2));
+    score += radiusScore;
+    
+    return { room, score };
+  });
 
     // Sort by score (highest first)
     scoredRooms.sort((a, b) => b.score - a.score);
@@ -176,17 +175,18 @@ export class MatchingService {
         maxMembers: this.MAX_MEMBERS,
         members: [userId],
         status: RoomStatus.WAITING,
-        cuisine: matchingPreferences.cuisines[0] || null, // Primary cuisine
+        cuisine: matchingPreferences.cuisines,
         averageBudget: matchingPreferences.budget,
         averageRadius: matchingPreferences.radiusKm,
       })) as unknown as IRoomDocument;
 
-      console.log(`✅ Created new room: ${room._id.toString()} (cuisine: ${room.cuisine})`);
+      console.log(`✅ Created new room: ${room._id.toString()} (cuisine: ${room.cuisines})`);
       console.log(`   🕐 Room expires in: ${(room.completionTime.getTime() - Date.now()) / 1000}s`); // ✅ ADD THIS LINE
     } else {
       // Add user to existing room
       room.members.push(userId);
-      
+      await this.updateRoomCuisinePreferences(room);
+
       // Update room averages
       await this.updateRoomAverages(room);
       
@@ -325,6 +325,43 @@ async leaveRoom(userId: string, roomId: string): Promise<void> {
   console.log(`✅ User ${userId} successfully left room ${roomId}`);
 }
 
+private async updateRoomCuisinePreferences(room: IRoomDocument): Promise<void> {
+  const users = await User.find({ _id: { $in: room.members } });
+  
+  // Find cuisines that ALL users have in common
+  let commonCuisines = users[0]?.preference || [];
+  
+  users.slice(1).forEach(user => {
+    if (user.preference) {
+      commonCuisines = commonCuisines.filter(cuisine => 
+        user.preference.includes(cuisine)
+      );
+    }
+  });
+
+  // ✅ NEW: Handle empty common cuisines
+  if (commonCuisines.length === 0) {
+    // Fall back to most popular cuisines or all user preferences combined
+    const allPreferences = users.flatMap(user => user.preference || []);
+    const uniquePreferences = [...new Set(allPreferences)];
+    
+    if (uniquePreferences.length > 0) {
+      // Use all unique preferences (broader search)
+      commonCuisines = uniquePreferences;
+      console.log(`🍽️ No common cuisines found. Using all user preferences: [${commonCuisines.join(', ')}]`);
+    } else {
+      // Ultimate fallback to popular cuisines
+      commonCuisines = ['Italian', 'Chinese', 'American', 'Japanese'];
+      console.log(`🍽️ No user preferences found. Using default popular cuisines: [${commonCuisines.join(', ')}]`);
+    }
+  }
+  
+  room.cuisines = commonCuisines;
+  
+  console.log(`🍽️ Updated room ${room._id} cuisines to: [${commonCuisines.join(', ')}]`);
+  console.log(`   Users have these in common from: ${users.map(u => u.preference?.join(',')).join(' & ')}`);
+}
+
  /**
  * Create a group from a full room
  */
@@ -342,19 +379,19 @@ private async createGroupFromRoom(roomId: string): Promise<void> {
   const completionTime = new Date(Date.now() + this.VOTING_TIME);
   
   const group = await Group.create({
-    roomId: room._id.toString(),
-    completionTime,
-    maxMembers: room.members.length,
-    members: room.members,
-    restaurantSelected: false,
-    // ✅ COPY PREFERENCES FROM ROOM:
-    cuisine: room.cuisine,
-    averageBudget: room.averageBudget,
-    averageRadius: room.averageRadius,
-  });
+  roomId: room._id.toString(),
+  completionTime,
+  maxMembers: room.members.length,
+  members: room.members,
+  restaurantSelected: false,
+  cuisines: room.cuisines, // ← Copy cuisines array
+  averageBudget: room.averageBudget,
+  averageRadius: room.averageRadius,
+});
 
-  console.log(`✅ Created group: ${group._id.toString()} from room: ${roomId}`);
-  console.log(`   🍽️ Group cuisine: ${group.cuisine}`);
+console.log(`✅ Created group: ${group._id.toString()} from room: ${roomId}`);
+console.log(`   🍽️ Group cuisines: [${group.cuisines.join(', ')}]`);
+
   console.log(`   💰 Group budget: ${group.averageBudget}`);
   console.log(`   📍 Group radius: ${group.averageRadius} km`);
 

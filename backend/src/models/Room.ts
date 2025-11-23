@@ -9,13 +9,13 @@ export enum RoomStatus {
 
 // Base Room interface
 export interface IRoom {
-  completionTime: Date; // When the room expires or completes
-  maxMembers: number; // Maximum number of members (e.g., 4)
-  members: string[]; // Array of user IDs
+  completionTime: Date;
+  maxMembers: number;
+  members: string[];
   status: RoomStatus;
-  cuisine?: string; // Cuisine preference for this room
-  averageBudget?: number; // Average budget of members
-  averageRadius?: number; // Average radius of members
+  cuisines: string[];  // ← Change from single cuisine to array
+  averageBudget?: number;
+  averageRadius?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,9 +65,9 @@ const RoomSchema = new Schema<IRoom, IRoomModel, IRoomMethods>(
       enum: Object.values(RoomStatus),
       default: RoomStatus.WAITING
     },
-    cuisine: {
-      type: String,
-      default: null
+    cuisines: {  // ← Change from cuisine to cuisines
+      type: [String],
+      default: []
     },
     averageBudget: {
       type: Number,

@@ -25,71 +25,34 @@ interface GooglePlace {
 export class RestaurantService {
   private readonly GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || '';
 
-  /**
-   * Search for restaurants near a location
-   */
-  async searchRestaurants(
-    latitude: number,
-    longitude: number,
-    radius: number = 5000, // in meters
-    cuisineTypes?: string[],
-    priceLevel?: number
-  ): Promise<RestaurantType[]> {
-    try {
-      // If no API key, return mock data
-      if (!this.GOOGLE_PLACES_API_KEY) {
-        console.warn('⚠️  No Google Places API key - returning mock data');
-        return this.getMockRestaurants();
-      }
+ async searchRestaurants(
+  latitude: number,
+  longitude: number,
+  radius: number = 5000,
+  cuisineTypes?: string[],
+  priceLevel?: number,
+  limit: number = 20
+): Promise<RestaurantType[]> {
+  try {
+    // If no API key, return mock data
+    if (!this.GOOGLE_PLACES_API_KEY) {
+      console.warn('⚠️  No Google Places API key - returning mock data');
+      return this.getMockRestaurants();
+    }
 
-      console.log('✅ Using Google Places API with key');
-      console.log('🔍 Cuisine filters:', cuisineTypes);
+    console.log('✅ Using Google Places API with key');
+    console.log('🔍 Cuisine filters:', cuisineTypes);
+    console.log('🎯 Target limit:', limit);
 
-      let allResults: GooglePlace[] = [];
+    let allResults: GooglePlace[] = [];
 
-      if (cuisineTypes && cuisineTypes.length > 0) {
-        // Make separate API call for EACH cuisine type for better accuracy
-        for (const cuisine of cuisineTypes) {
-          console.log(`📡 Searching for: ${cuisine}`);
-          
-          const response = await axios.get(
-            'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
-            {
-              params: {
-                location: `${latitude},${longitude}`,
-                radius: radius,
-                type: 'restaurant',
-                keyword: cuisine,
-                key: this.GOOGLE_PLACES_API_KEY,
-              },
-            }
-          );
+    if (cuisineTypes && cuisineTypes.length > 0) {
+      // ✅ Store results per cuisine separately
+      let cuisineResults = new Map<string, GooglePlace[]>();
 
-          console.log(`📡 Google API Response for "${cuisine}":`, response.data.status);
-
-          if (response.data.status === 'OK') {
-            const results = response.data.results || [];
-            console.log(`  Found ${results.length} restaurants for ${cuisine}`);
-            allResults = [...allResults, ...results];
-          } else if (response.data.status !== 'ZERO_RESULTS') {
-            console.warn(`  Warning for ${cuisine}:`, response.data.status);
-          }
-        }
-
-        // Remove duplicates based on place_id
-        const uniquePlaces = new Map<string, GooglePlace>();
-        allResults.forEach(place => {
-          if (!uniquePlaces.has(place.place_id)) {
-            uniquePlaces.set(place.place_id, place);
-          }
-        });
-        
-        allResults = Array.from(uniquePlaces.values());
-        console.log(`🍽️ Total unique restaurants: ${allResults.length}`);
-        
-      } else {
-        // No cuisine filter - search all restaurants
-        console.log('📡 Searching all restaurants (no cuisine filter)');
+      // Make separate API call for each cuisine
+      for (const cuisine of cuisineTypes) {
+        console.log(`📡 Searching for: ${cuisine}`);
         
         const response = await axios.get(
           'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
@@ -98,38 +61,130 @@ export class RestaurantService {
               location: `${latitude},${longitude}`,
               radius: radius,
               type: 'restaurant',
+              keyword: cuisine,
               key: this.GOOGLE_PLACES_API_KEY,
             },
           }
         );
 
-        console.log('📡 Google API Response Status:', response.data.status);
+        console.log(`📡 Google API Response for "${cuisine}":`, response.data.status);
 
         if (response.data.status === 'OK') {
-          allResults = response.data.results || [];
+          const results = response.data.results || [];
+          console.log(`  Found ${results.length} restaurants for ${cuisine}`);
+          cuisineResults.set(cuisine, results);
         } else if (response.data.status !== 'ZERO_RESULTS') {
-          throw new AppError(`Google Places API error: ${response.data.status}`, 500);
+          console.warn(`  Warning for ${cuisine}:`, response.data.status);
         }
       }
 
-      // Filter by price level if specified
-      if (priceLevel) {
-        const beforeFilter = allResults.length;
-        allResults = allResults.filter((place: GooglePlace) => place.price_level === priceLevel);
-        console.log(`💰 Price filter: ${beforeFilter} → ${allResults.length} restaurants`);
-      }
-
-      console.log(`✅ Returning ${allResults.length} restaurants`);
-      return allResults.map((place: GooglePlace) => this.formatPlaceData(place));
+      // ✅ Interleave results to ensure variety from each cuisine
+      allResults = this.interleaveResults(cuisineResults, limit * 2); // Get more to account for filtering
       
-    } catch (error: unknown) {
-      if (error instanceof AppError) throw error;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Failed to search restaurants:', errorMessage);
-      // Return mock data on error
-      return this.getMockRestaurants();
+    } else {
+      // No cuisine filter - search all restaurants
+      console.log('📡 Searching all restaurants (no cuisine filter)');
+      
+      const response = await axios.get(
+        'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+        {
+          params: {
+            location: `${latitude},${longitude}`,
+            radius: radius,
+            type: 'restaurant',
+            key: this.GOOGLE_PLACES_API_KEY,
+          },
+        }
+      );
+
+      console.log('📡 Google API Response Status:', response.data.status);
+
+      if (response.data.status === 'OK') {
+        allResults = response.data.results || [];
+      } else if (response.data.status !== 'ZERO_RESULTS') {
+        throw new AppError(`Google Places API error: ${response.data.status}`, 500);
+      }
     }
+
+    // ✅ Remove duplicates based on place_id
+    const uniquePlaces = new Map<string, GooglePlace>();
+    allResults.forEach(place => {
+      if (!uniquePlaces.has(place.place_id)) {
+        uniquePlaces.set(place.place_id, place);
+      }
+    });
+    
+    allResults = Array.from(uniquePlaces.values());
+    console.log(`🍽️ After deduplication: ${allResults.length} unique restaurants`);
+
+    // ✅ Apply price level filter (if specified)
+    if (priceLevel) {
+      const beforeFilter = allResults.length;
+      allResults = allResults.filter((place: GooglePlace) => place.price_level === priceLevel);
+      console.log(`💰 Price filter: ${beforeFilter} → ${allResults.length} restaurants`);
+    }
+
+    // ✅ Apply final limit
+    allResults = allResults.slice(0, limit);
+
+    console.log(`✅ Final result: ${allResults.length} restaurants (limited to ${limit})`);
+    return allResults.map((place: GooglePlace) => this.formatPlaceData(place));
+    
+  } catch (error: unknown) {
+    if (error instanceof AppError) throw error;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Failed to search restaurants:', errorMessage);
+    // Return mock data on error
+    return this.getMockRestaurants();
   }
+}
+
+/**
+ * Helper method to interleave results from different cuisines
+ * This ensures we get a balanced representation from each cuisine type
+ */
+private interleaveResults(cuisineResults: Map<string, GooglePlace[]>, maxTotal: number): GooglePlace[] {
+  const result: GooglePlace[] = [];
+  const cuisines = Array.from(cuisineResults.keys());
+  
+  if (cuisines.length === 0) {
+    return result;
+  }
+
+  const maxPerCuisine = Math.ceil(maxTotal / cuisines.length);
+  
+  console.log(`🔄 Interleaving results from ${cuisines.length} cuisines (max ${maxPerCuisine} per cuisine)`);
+  
+  // Take turns picking from each cuisine
+  let round = 0;
+  
+  while (result.length < maxTotal && round < maxPerCuisine) {
+    for (const cuisine of cuisines) {
+      const restaurants = cuisineResults.get(cuisine);
+      if (restaurants && restaurants[round]) {
+        result.push(restaurants[round]);
+        if (result.length >= maxTotal) break;
+      }
+    }
+    round++;
+  }
+  
+  // Log the distribution
+  const distribution: Record<string, number> = {};
+  cuisines.forEach(cuisine => {
+    const count = result.filter(place => {
+      // This is a rough check - we can't perfectly determine which cuisine a place came from
+      // after interleaving, but this gives us an idea
+      return cuisineResults.get(cuisine)?.some(r => r.place_id === place.place_id) || false;
+    }).length;
+    distribution[cuisine] = count;
+  });
+  
+  console.log(`🍽️ Interleaved distribution:`, distribution);
+  console.log(`📊 Total restaurants after interleaving: ${result.length}`);
+  
+  return result;
+}
 
   /**
    * Get restaurant details by place ID

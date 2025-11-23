@@ -25,7 +25,7 @@ export class GroupService {
     restaurant: group.restaurant || undefined,
     status: this.getGroupStatusString(group),
     // ✅ ADD THESE MISSING FIELDS:
-    cuisine: group.cuisine,
+    cuisines: group.cuisines,
     averageBudget: group.averageBudget,
     averageRadius: group.averageRadius,
   };

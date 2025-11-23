@@ -23,7 +23,7 @@ export interface IGroup {
   restaurantVotes: Map<string, number>; // Map of restaurantId -> vote count
   
   // ADD THESE FIELDS FROM ROOM:
-  cuisine?: string; // Primary cuisine preference from the room
+  cuisines: string[];  // ← Change from single cuisine to array
   averageBudget?: number; // Average budget from the room
   averageRadius?: number; // Average radius from the room
   
@@ -106,9 +106,9 @@ const GroupSchema = new Schema<IGroup, IGroupModel, IGroupMethods>(
       default: new Map()
     },
     // ADD THESE:
-    cuisine: {
-      type: String,
-      default: null
+    cuisines: {  // ← Change from cuisine to cuisines
+      type: [String],
+      default: []
     },
     averageBudget: {
       type: Number,
