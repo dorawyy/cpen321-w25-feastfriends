@@ -168,8 +168,10 @@ class SocketManager {
 
     // You must make sure your socket connection stores userId on handshake
     for (const [_, socket] of io.sockets.sockets) {
-      if ((socket as { userId?: string }).userId === userId) {
+      // Access the userId from socket.data where it's actually stored
+      if (socket.data?.userId === userId) {
         socket.emit(event, payload);
+        console.log(`✅ Emitted ${event} to user ${userId}`);
         return;
       }
     }

@@ -137,9 +137,43 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
     // ==================== DISCONNECT ====================
 
-    socket.on('disconnect', (reason) => {
-      console.log(`🔌 User disconnected: ${userId} (Reason: ${reason})`);
-    });
+  socket.on('disconnect', async (reason) => {
+  console.log(`🔌 User disconnected: ${userId} (Reason: ${reason})`);
+  userSocketMap.delete(userId);
+  
+  // ✅ CLEANUP: Only clean up waiting rooms on disconnect, NOT groups
+  try {
+    const User = (await import('../models/User')).default;
+    const matchingService = (await import('../services/matchingService')).default;
+    
+    const user = await User.findById(userId);
+    if (!user) return;
+    
+    // If user was in a waiting room, remove them
+    // Waiting rooms are temporary - users shouldn't stay in them after disconnect
+    if (user.roomId) {
+      console.log(`🧹 Disconnect cleanup: Removing user ${userId} from waiting room ${user.roomId}`);
+      try {
+        await matchingService.leaveRoom(userId, user.roomId);
+      } catch (error) {
+        console.error(`Failed to clean up room for user ${userId}:`, error);
+        // Even if leaveRoom fails, clear the user's state
+        user.roomId = undefined;
+        user.status = 1; // UserStatus.ONLINE
+        await user.save();
+      }
+    }
+    
+    // ⚠️ DON'T clean up groups - users should stay in groups across sessions
+    // Groups persist until:
+    // 1. User explicitly leaves
+    // 2. Restaurant is selected and session completes
+    // 3. Group expires (handled by checkExpiredGroups background task)
+    
+  } catch (error) {
+    console.error(`Error during disconnect cleanup for user ${userId}:`, error);
+  }
+});
 
     // ==================== ERROR HANDLING ====================
 

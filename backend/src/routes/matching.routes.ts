@@ -50,4 +50,13 @@ router.get('/users/:roomId', authMiddleware, asyncHandler(async (req, res, next)
   await matchingController.getRoomUsers(req, res, next);
 }));
 
+/**
+ * @route   POST /api/matching/cleanup
+ * @desc    Clean up stale user state before joining matching
+ * @access  Private
+ */
+router.post('/cleanup', authMiddleware, asyncHandler(async (req, res, next) => {
+  await matchingController.cleanupUserState(req, res, next);
+}));
+
 export default router;

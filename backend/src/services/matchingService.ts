@@ -76,28 +76,86 @@ export class MatchingService {
    */
   async joinMatching(
     userId: string,
-    preferences: {
-      cuisine?: string[];
-      budget?: number;
-      radiusKm?: number;
-    }
-  ): Promise<{ roomId: string; room: IRoomDocument }> {
-    // Get user
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+  preferences: {
+    cuisine?: string[];
+    budget?: number;
+    radiusKm?: number;
+  }
+): Promise<{ roomId: string; room: IRoomDocument }> {
+  console.log(`🎯 joinMatching START: User ${userId} joining with preferences:`, preferences);
 
-    // Check if user is already in a room or group
-    if (user.roomId || user.groupId) {
-      throw new Error('User is already in a room or group');
-    }
+  // Get user
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
 
-    // Update user preferences if provided
-    if (preferences.budget !== undefined) user.budget = preferences.budget;
-    if (preferences.radiusKm !== undefined) user.radiusKm = preferences.radiusKm;
-    if (preferences.cuisine !== undefined) user.preference = preferences.cuisine;
+  // ✅ FIX: Different handling for rooms vs groups
+  let needsSave = false;
+
+  // Check room status
+  if (user.roomId) {
+    const existingRoom = await Room.findById(user.roomId);
+    if (!existingRoom || existingRoom.status !== RoomStatus.WAITING) {
+      // Room doesn't exist or is no longer active - clear it
+      console.log(`🧹 Clearing stale roomId ${user.roomId} for user ${userId}`);
+      user.roomId = undefined;
+      needsSave = true;
+    } else if (existingRoom.members.includes(userId)) {
+      // User is legitimately in an active room
+      throw new Error('User is already in an active room. Please leave the room first.');
+    } else {
+      // Room exists but user is not in it - clear the reference
+      console.log(`🧹 Clearing invalid roomId ${user.roomId} for user ${userId} (not in member list)`);
+      user.roomId = undefined;
+      needsSave = true;
+    }
+  }
+
+  // ⚠️ CRITICAL: Check if user is in an ACTIVE group - block if yes
+  if (user.groupId) {
+    const existingGroup = await Group.findById(user.groupId);
+    
+    // Only clear groupId if group is truly invalid/completed
+    if (!existingGroup) {
+      // Group doesn't exist - clear it
+      console.log(`🧹 Clearing non-existent groupId ${user.groupId} for user ${userId}`);
+      user.groupId = undefined;
+      needsSave = true;
+    } else if (!existingGroup.members.includes(userId)) {
+      // User is not in the group member list - clear it
+      console.log(`🧹 Clearing invalid groupId ${user.groupId} for user ${userId} (not in member list)`);
+      user.groupId = undefined;
+      needsSave = true;
+    } else if (existingGroup.restaurantSelected) {
+      // Restaurant already selected - group session should be complete
+      // But user hasn't left yet - this is allowed, just log it
+      console.log(`ℹ️ User ${userId} is in completed group ${user.groupId} but hasn't left yet`);
+      // Don't block matching - allow them to join a new session while still technically in old group
+      // The old group will be cleaned up eventually
+    } else if (new Date() > existingGroup.completionTime) {
+      // Group has expired (voting time ended)
+      console.log(`ℹ️ User ${userId} is in expired group ${user.groupId}`);
+      // Don't block - expired groups will be cleaned up by background task
+    } else {
+      // ❌ Group is ACTIVE (voting ongoing, not expired, restaurant not selected)
+      // User should NOT be able to join matching while in an active group
+      throw new Error('You are already in an active group. Please complete or leave your current group before joining matching.');
+    }
+  }
+
+  // Reset status if needed
+  if (needsSave) {
+    user.status = UserStatus.ONLINE;
     await user.save();
+    console.log(`✅ Cleaned up stale state for user ${userId}`);
+  }
+
+  // Update user preferences if provided
+  if (preferences.budget !== undefined) user.budget = preferences.budget;
+  if (preferences.radiusKm !== undefined) user.radiusKm = preferences.radiusKm;
+  if (preferences.cuisine !== undefined) user.preference = preferences.cuisine;
+  await user.save();
 
     // Prepare matching criteria
     const matchingPreferences = {
@@ -189,69 +247,82 @@ export class MatchingService {
   }
 
   /**
-   * Leave a room
-   */
-  async leaveRoom(userId: string, roomId: string): Promise<void> {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+ * Leave a room
+ */
+async leaveRoom(userId: string, roomId: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
 
-    const room = (await Room.findById(roomId)) as unknown as IRoomDocument | null;
+  const room = (await Room.findById(roomId)) as unknown as IRoomDocument | null;
+  
+  // ✅ FIXED: If room doesn't exist, just clear the user's roomID
+  if (!room) {
+    console.log(`Room ${roomId} not found - clearing user's roomID anyway`);
     
-    // ✅ FIXED: If room doesn't exist, just clear the user's roomID
-    if (!room) {
-      console.log(`Room ${roomId} not found - clearing user's roomID anyway`);
-      
-      // Clear user's roomID even if room doesn't exist
-      if (user.roomId) {
-        user.roomId = undefined;
-        user.status = UserStatus.ONLINE;
-        await user.save();
-        console.log(`✅ Cleared stale roomID for user ${userId}`);
-      }
-      
-      // Don't throw error - this is expected when cleaning up stale state
-      return;
+    // Clear user's roomID even if room doesn't exist
+    if (user.roomId) {
+      user.roomId = undefined;
+      user.status = UserStatus.ONLINE;
+      await user.save();
+      console.log(`✅ Cleared stale roomID for user ${userId}`);
     }
-
-    // Room exists - proceed with normal leave logic
-    // Remove user from room
-    room.members = room.members.filter(id => id !== userId);
     
-    // Update user status
-    user.status = UserStatus.ONLINE;
-    user.roomId = undefined;
-    await user.save();
+    // Don't throw error - this is expected when cleaning up stale state
+    return;
+  }
 
-    // Emit member left notification
+  // Room exists - proceed with normal leave logic
+  // ✅ CRITICAL: Remove user from room's member array
+  room.members = room.members.filter(id => id !== userId);
+  console.log(`✅ Removed user ${userId} from room ${roomId}, remaining members: ${room.members.length}`);
+  
+  // Update user status
+  user.status = UserStatus.ONLINE;
+  user.roomId = undefined;
+  await user.save();
+
+  // ✅ CRITICAL: Delete room if empty, otherwise update it
+  if (room.members.length === 0) {
+    await Room.findByIdAndDelete(roomId);
+    console.log(`🗑️ Deleted empty room: ${roomId}`);
+    return; // Exit early - no need to emit updates for deleted room
+  }
+
+  // Room still has members - update and notify
+  await this.updateRoomAverages(room);
+  await room.save();
+  console.log(`✅ Saved room ${roomId} with ${room.members.length} members`);
+
+  // Emit member left notification to remaining members
+  try {
     socketManager.emitMemberLeft(
       roomId,
       userId,
       user.name,
       room.members.length
     );
-
-    if (room.members.length === 0) {
-      // Delete empty room
-      await Room.findByIdAndDelete(roomId);
-      console.log(`🗑️ Deleted empty room: ${roomId}`);
-    } else {
-      // Update room averages and save
-      await this.updateRoomAverages(room);
-      await room.save();
-      
-      // ✅ FIXED: Use completionTime (not expiresAt) - this is the correct field name
-      socketManager.emitRoomUpdate(
-        roomId,
-        room.members,
-        room.completionTime,  // ✅ CORRECTED: Use completionTime
-        room.status
-      );
-    }
-
-    console.log(`✅ User ${userId} left room ${roomId}`);
+    console.log(`📤 Emitted member_left for room ${roomId}`);
+  } catch (error) {
+    console.error('Failed to emit member left:', error);
   }
+
+  // Emit room update with correct data
+  try {
+    socketManager.emitRoomUpdate(
+      roomId,
+      room.members,
+      room.completionTime,
+      room.status
+    );
+    console.log(`📤 Emitted room_update for room ${roomId}`);
+  } catch (error) {
+    console.error('Failed to emit room update:', error);
+  }
+
+  console.log(`✅ User ${userId} successfully left room ${roomId}`);
+}
 
   /**
    * Create a group from a full room

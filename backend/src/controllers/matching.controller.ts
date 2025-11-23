@@ -111,6 +111,90 @@ export class MatchingController {
       next(error);
     }
   }
+
+  /**
+ * POST /api/matching/cleanup
+ * Clean up stale user state before joining matching
+ * Only cleans waiting rooms and invalid groups, NOT active groups
+ */
+async cleanupUserState(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!ensureAuthenticated(req, res)) return;
+    const userId = req.user.userId;
+
+    const User = (await import('../models/User')).default;
+    const Room = (await import('../models/Room')).default;
+    const Group = (await import('../models/Group')).default;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        Status: 404,
+        Message: { error: 'User not found' },
+        Body: null
+      });
+      return;
+    }
+
+    let cleaned = false;
+    let hasActiveGroup = false;
+
+    // Always clean stale rooms - rooms don't persist across sessions
+    if (user.roomId) {
+      const room = await Room.findById(user.roomId);
+      if (!room || room.status !== 'waiting' || !room.members.includes(userId)) {
+        console.log(`🧹 Cleanup: Clearing stale roomId ${user.roomId}`);
+        user.roomId = undefined;
+        cleaned = true;
+      }
+    }
+
+    // Only clean INVALID groups - preserve active groups
+    if (user.groupId) {
+      const group = await Group.findById(user.groupId);
+      
+      if (!group) {
+        // Group doesn't exist - safe to clean
+        console.log(`🧹 Cleanup: Clearing non-existent groupId ${user.groupId}`);
+        user.groupId = undefined;
+        cleaned = true;
+      } else if (!group.members.includes(userId)) {
+        // User not in group - safe to clean
+        console.log(`🧹 Cleanup: Clearing invalid groupId ${user.groupId} (not in member list)`);
+        user.groupId = undefined;
+        cleaned = true;
+      } else if (group.restaurantSelected || new Date() > group.completionTime) {
+        // Group completed or expired - but don't auto-clean
+        // Let user explicitly leave when ready
+        console.log(`ℹ️ User ${userId} has completed/expired group ${user.groupId} - not auto-cleaning`);
+        hasActiveGroup = false; // Not truly "active" anymore
+      } else {
+        // Group is still active
+        console.log(`ℹ️ User ${userId} has active group ${user.groupId} - preserving`);
+        hasActiveGroup = true;
+      }
+    }
+
+    if (cleaned) {
+      user.status = 1; // UserStatus.ONLINE
+      await user.save();
+    }
+
+    res.status(200).json({
+      Status: 200,
+      Message: { 
+        text: cleaned ? 'State cleaned up' : (hasActiveGroup ? 'User in active group' : 'No cleanup needed')
+      },
+      Body: { 
+        cleaned, 
+        hasActiveGroup,
+        status: user.status 
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 }
 
 export const matchingController = new MatchingController();
