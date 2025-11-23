@@ -182,6 +182,7 @@ export class MatchingService {
       })) as unknown as IRoomDocument;
 
       console.log(`✅ Created new room: ${room._id.toString()} (cuisine: ${room.cuisine})`);
+      console.log(`   🕐 Room expires in: ${(room.completionTime.getTime() - Date.now()) / 1000}s`); // ✅ ADD THIS LINE
     } else {
       // Add user to existing room
       room.members.push(userId);
@@ -414,48 +415,64 @@ async leaveRoom(userId: string, roomId: string): Promise<void> {
   }
 
   /**
-   * Check and expire old rooms (background task)
-   */
-  async checkExpiredRooms(): Promise<void> {
-    const expiredRooms = await Room.find({
-      status: RoomStatus.WAITING,
-      completionTime: { $lt: new Date() },
-    }) as unknown as IRoomDocument[];
+ * Check and expire old rooms (background task)
+ */
+async checkExpiredRooms(): Promise<void> {
+  console.log('🔍 Running checkExpiredRooms background task...');
+  
+  const now = new Date();
+  console.log(`   Current time: ${now.toISOString()}`);
+  
+  const expiredRooms = await Room.find({
+    status: RoomStatus.WAITING,
+    completionTime: { $lt: now },
+  }) as unknown as IRoomDocument[];
 
-    for (const room of expiredRooms) {
-      // Check if room has enough members
-      if (room.members.length >= this.MIN_MEMBERS) {
-        // Create group even if not full
-        await this.createGroupFromRoom(room._id.toString());
-      } else {
-        // Expire the room
-        room.status = RoomStatus.EXPIRED;
-        await room.save();
+  console.log(`   Found ${expiredRooms.length} expired room(s)`);
 
-        // Update users
-        await User.updateMany(
-          { _id: { $in: room.members } },
-          {
-            status: UserStatus.ONLINE,
-            roomId: undefined,
-          }
-        );
+  for (const room of expiredRooms) {
+    const timeSinceExpiry = (now.getTime() - room.completionTime.getTime()) / 1000;
+    console.log(`   ⏰ Room ${room._id} expired ${timeSinceExpiry}s ago, has ${room.members.length}/${this.MIN_MEMBERS} members`);
+    
+    // Check if room has enough members
+    if (room.members.length >= this.MIN_MEMBERS) {
+      console.log(`   ✅ Creating group from room ${room._id} with ${room.members.length} members`);
+      // Create group even if not full
+      await this.createGroupFromRoom(room._id.toString());
+    } else {
+      console.log(`   ❌ Room ${room._id} doesn't have enough members - expiring it`);
+      // Expire the room
+      room.status = RoomStatus.EXPIRED;
+      await room.save();
 
-        // Notify members
-        socketManager.emitRoomExpired(room._id.toString(), 'Not enough members');
-
-        for (const memberId of room.members) {
-          try {
-            await notifyRoomExpired(memberId, room._id.toString());
-          } catch (error) {
-            console.error(`Failed to notify user ${memberId}:`, error);
-          }
+      // Update users
+      await User.updateMany(
+        { _id: { $in: room.members } },
+        {
+          status: UserStatus.ONLINE,
+          roomId: undefined,
         }
+      );
 
-        console.log(`⏰ Expired room: ${room._id.toString()}`);
+      // Notify members
+      socketManager.emitRoomExpired(room._id.toString(), 'Not enough members');
+
+      for (const memberId of room.members) {
+        try {
+          await notifyRoomExpired(memberId, room._id.toString());
+        } catch (error) {
+          console.error(`Failed to notify user ${memberId}:`, error);
+        }
       }
+
+      console.log(`⏰ Expired room: ${room._id.toString()}`);
     }
   }
+  
+  if (expiredRooms.length === 0) {
+    console.log('   ✅ No expired rooms found');
+  }
+}
 }
 
 export default new MatchingService();
