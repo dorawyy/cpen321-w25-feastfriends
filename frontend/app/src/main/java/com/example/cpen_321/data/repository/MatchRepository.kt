@@ -42,4 +42,18 @@ interface MatchRepository {
      * Get current room ID from local storage
      */
     fun getCurrentRoomId(): String?
+
+
+    // ✅ ADD THIS
+    /**
+     * Clean up stale user state before joining matching
+     */
+    suspend fun cleanupUserState(): ApiResult<CleanupStateData>
 }
+
+// ✅ ADD THIS DATA CLASS at the bottom of the file (outside the interface)
+data class CleanupStateData(
+    val cleaned: Boolean,
+    val hasActiveGroup: Boolean,
+    val status: Int
+)

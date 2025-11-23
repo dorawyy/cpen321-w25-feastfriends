@@ -118,39 +118,33 @@ class MatchRepositoryImpl(
     }
 
     override suspend fun leaveRoom(roomId: String): ApiResult<String> {
-
         val response = safeApiCall(
             apiCall = { matchAPI.leaveRoom(roomId, LeaveRoomRequest()) },
             customErrorCode = "Failed to leave room"
         ).also { apiResult ->
-                // Use 'when' for an exhaustive check of the ApiResult
-                when (apiResult) {
-                    is ApiResult.Success -> {
-                        // This is the primary success path.
-                        saveCurrentRoomId(null)
-                        Log.d(TAG, "Left room successfully: $roomId")
-                    }
-                    is ApiResult.Error -> {
-                        // This is the error path, where we check for the special case.
-                        if (apiResult.message.contains("Room not found", ignoreCase = true) ||
-                            apiResult.message.contains("not found", ignoreCase = true)) {
-                            // Special case: Treat "not found" as a trigger to clear local state.
-                            saveCurrentRoomId(null)
-                            Log.d(TAG, "Room $roomId not found - clearing local state anyway.")
-                        } else {
-                            // This is a genuine, unexpected error.
-                            Log.e(TAG, "Failed to leave room: ${apiResult.message} (Code: ${apiResult.code})")
-                        }
-                    }
-                    is ApiResult.Loading -> { /* No side-effects needed for loading state */ }
+            when (apiResult) {
+                is ApiResult.Success -> {
+                    // Clear local state
+                    saveCurrentRoomId(null)
+                    Log.d(TAG, "Left room successfully: $roomId")
                 }
+                is ApiResult.Error -> {
+                    if (apiResult.message.contains("Room not found", ignoreCase = true) ||
+                        apiResult.message.contains("not found", ignoreCase = true)) {
+                        // Room doesn't exist - clear local state anyway
+                        saveCurrentRoomId(null)
+                        Log.d(TAG, "Room $roomId not found - clearing local state anyway.")
+                    } else {
+                        Log.e(TAG, "Failed to leave room: ${apiResult.message}")
+                    }
+                }
+                is ApiResult.Loading -> { /* No action needed */ }
             }
-            .map {
-                /* success string */
-                "Left room successfully"
-            }
+        }.map {
+            "Left room successfully"
+        }
 
-        return response;
+        return response
     }
 
     override suspend fun getRoomStatus(roomId: String): ApiResult<RoomStatusResponse> {
@@ -176,4 +170,18 @@ class MatchRepositoryImpl(
     override fun getCurrentRoomId(): String? {
         return preferencesManager.getCurrentRoomId()
     }
+
+    override suspend fun cleanupUserState(): ApiResult<CleanupStateData> {
+        return safeApiCall(
+            apiCall = { matchAPI.cleanupUserState() },
+            customErrorCode = "Failed to cleanup user state"
+        ).map { cleanupResponse ->
+            CleanupStateData(
+                cleaned = cleanupResponse.cleaned,
+                hasActiveGroup = cleanupResponse.hasActiveGroup,
+                status = cleanupResponse.status
+            )
+        }
+    }
+
 }

@@ -7,6 +7,7 @@ import com.example.cpen_321.data.network.dto.JoinMatchingRequest
 import com.example.cpen_321.data.network.dto.JoinMatchingResponse
 import com.example.cpen_321.data.network.dto.LeaveRoomRequest
 import com.example.cpen_321.data.network.dto.LeaveRoomResponse
+import com.example.cpen_321.data.model.CleanupResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -64,4 +65,10 @@ interface MatchAPI {
     suspend fun getRoomUsers(
         @Path("roomId") roomId: String
     ): Response<ApiResponse<RoomUsersResponse>>
+
+    /**
+     * POST /api/matching/cleanup
+     */
+    @POST("api/matching/cleanup")
+    suspend fun cleanupUserState(): Response<ApiResponse<CleanupResponse>>
 }

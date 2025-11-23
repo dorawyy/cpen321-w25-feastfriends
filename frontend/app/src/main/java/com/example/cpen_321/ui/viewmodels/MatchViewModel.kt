@@ -161,6 +161,36 @@ class MatchViewModel @Inject constructor(
             _errorMessage.value = null
             _roomExpired.value = false
 
+            // ✅ NEW: Clean up stale state before joining
+            try {
+                Log.d(TAG, "🧹 Cleaning up stale state before joining matching...")
+                when (val cleanupResult = matchRepository.cleanupUserState()) {
+                    is ApiResult.Success -> {
+                        val cleanupData = cleanupResult.data
+                        Log.d(TAG, "Cleanup response: cleaned=${cleanupData.cleaned}, hasActiveGroup=${cleanupData.hasActiveGroup}")
+
+                        // Check if user has active group
+                        if (cleanupData.hasActiveGroup) {
+                            _errorMessage.value = "You are already in an active group. Please complete or leave your current group before joining matching."
+                            _isLoading.value = false
+                            return@launch
+                        }
+
+                        if (cleanupData.cleaned) {
+                            Log.d(TAG, "✅ Cleaned up stale state successfully")
+                        }
+                    }
+                    is ApiResult.Error -> {
+                        Log.w(TAG, "⚠️ Cleanup warning: ${cleanupResult.message}")
+                        // Continue anyway - the backend joinMatching will also validate
+                    }
+                    is ApiResult.Loading -> {}
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Cleanup exception: ${e.message}")
+                // Continue anyway
+            }
+            // ✅ END OF NEW CODE
             when (val result = matchRepository.joinMatching(cuisine, budget, radiusKm)) {
                 is ApiResult.Success -> {
                     val (roomId, room) = result.data
