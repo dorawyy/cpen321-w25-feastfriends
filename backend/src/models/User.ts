@@ -24,6 +24,8 @@ export interface IUser {
   roomId?: string;
   groupId?: string;
   fcmToken?: string;  // Add this line
+  currentLatitude?: number;    // ← ADD THIS
+  currentLongitude?: number;   // ← ADD THIS
 }
 
 // Instance methods interface
@@ -129,7 +131,16 @@ const UserSchema = new Schema<IUser, IUserModel, IUserMethods>(
     fcmToken: {
       type: String,
       default: null
-    }
+    },
+    // Add these fields to your User schema
+    currentLatitude: {
+      type: Number,
+      required: false
+    },
+    currentLongitude: {
+      type: Number,  
+      required: false
+    },
   },
   {
     timestamps: true,

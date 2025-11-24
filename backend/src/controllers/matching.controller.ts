@@ -14,12 +14,14 @@ export class MatchingController {
       if (!ensureAuthenticated(req, res)) return;
       const userId = req.user.userId;
 
-      const { cuisine, budget, radiusKm } = req.body;
+      const { cuisine, budget, radiusKm, latitude, longitude } = req.body;
 
       const result = await matchingService.joinMatching(userId, {
         cuisine,
         budget,
         radiusKm,
+        latitude,
+        longitude
       });
 
       res.status(200).json({

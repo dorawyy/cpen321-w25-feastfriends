@@ -18,6 +18,8 @@ export interface IRoom {
   averageRadius?: number;
   createdAt: Date;
   updatedAt: Date;
+  averageLatitude?: number;    // ← ADD THIS
+  averageLongitude?: number;   // ← ADD THIS
 }
 
 // Instance methods interface
@@ -78,6 +80,14 @@ const RoomSchema = new Schema<IRoom, IRoomModel, IRoomMethods>(
       type: Number,
       min: 0,
       default: null
+    },
+    averageLatitude: {        // ← ADD THIS
+      type: Number,
+      required: false
+    },
+    averageLongitude: {       // ← ADD THIS
+      type: Number,
+      required: false
     }
   },
   {
