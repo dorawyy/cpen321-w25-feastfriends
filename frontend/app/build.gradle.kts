@@ -192,6 +192,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
+    // Location
+
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
+
     // ========== TESTING DEPENDENCIES ==========
 
     // Unit Testing
@@ -226,6 +231,10 @@ dependencies {
 
     // Additional Testing Support
     androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
+
+    // Location
+
+
 }
 
 kapt {

@@ -15,7 +15,9 @@ interface MatchRepository {
     suspend fun joinMatching(
         cuisine: List<String>? = null,
         budget: Double? = null,
-        radiusKm: Double? = null
+        radiusKm: Double? = null,
+        latitude: Double? = null,
+        longitude: Double? = null
     ): ApiResult<Pair<String, Room>> // Returns (roomId, room)
 
     /**

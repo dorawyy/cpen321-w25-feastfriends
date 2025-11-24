@@ -31,10 +31,10 @@ import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.Restaurant
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
 import com.example.cpen_321.ui.viewmodels.RestaurantViewModel
-import kotlinx.coroutines.Dispatchers
+import com.example.cpen_321.utils.LocationHelper
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.util.Log
+
 @SuppressLint("MissingPermission")
 @Composable
 fun VoteRestaurantScreen(
@@ -50,13 +50,47 @@ fun VoteRestaurantScreen(
     var selectedRestaurantForVote by remember { mutableStateOf<Restaurant?>(null) }
     var userLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var locationPermissionGranted by remember { mutableStateOf(false) }
+    var isGettingLocation by remember { mutableStateOf(false) }
 
-    val locationPermissionLauncher = createLocationPermissionLauncher(
-        context = context,
-        scope = scope,
-        onPermissionGranted = { locationPermissionGranted = true },
-        onLocationReceived = { userLocation = it }
-    )
+    // ✅ Location permission launcher using LocationHelper
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        Log.d("LocationDebug", "=== PERMISSION RESULT ===")
+        Log.d("LocationDebug", "Permissions: $permissions")
+
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        Log.d("LocationDebug", "Permission granted: $granted")
+        locationPermissionGranted = granted
+
+        if (granted) {
+            // Get fresh location immediately after permission is granted
+            scope.launch {
+                isGettingLocation = true
+                try {
+                    val location = LocationHelper.getCurrentLocation(context)
+                    if (location != null) {
+                        Log.d("LocationDebug", "✅ Fresh location: ${location.first}, ${location.second}")
+                        userLocation = location
+                    } else {
+                        Log.e("LocationDebug", "❌ Could not get fresh location")
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Unable to get your current location. Please check GPS settings.")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("LocationDebug", "Exception getting location", e)
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Location error: ${e.message}")
+                    }
+                } finally {
+                    isGettingLocation = false
+                }
+            }
+        }
+    }
 
     VoteScreenEffects(
         groupViewModel = groupViewModel,
@@ -64,7 +98,12 @@ fun VoteRestaurantScreen(
         navController = navController,
         snackbarHostState = snackbarHostState,
         userLocation = userLocation,
-        locationPermissionLauncher = locationPermissionLauncher
+        locationPermissionLauncher = locationPermissionLauncher,
+        locationPermissionGranted = locationPermissionGranted,
+        isGettingLocation = isGettingLocation,
+        onLocationUpdate = { userLocation = it },
+        onLocationLoadingUpdate = { isGettingLocation = it },
+        onPermissionUpdate = { locationPermissionGranted = it }
     )
 
     VoteScreenContent(
@@ -74,6 +113,7 @@ fun VoteRestaurantScreen(
         selectedRestaurantForVote = selectedRestaurantForVote,
         userLocation = userLocation,
         locationPermissionGranted = locationPermissionGranted,
+        isGettingLocation = isGettingLocation,
         locationPermissionLauncher = locationPermissionLauncher,
         onRestaurantSelected = { selectedRestaurantForVote = it },
         onVoteSubmitted = { selectedRestaurantForVote = null }
@@ -81,96 +121,57 @@ fun VoteRestaurantScreen(
 }
 
 @Composable
-private fun createLocationPermissionLauncher(
-    context: android.content.Context,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onPermissionGranted: () -> Unit,
-    onLocationReceived: (Pair<Double, Double>) -> Unit
-) = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.RequestMultiplePermissions()
-) { permissions ->
-    Log.d("LocationDebug", "=== PERMISSION RESULT ===")
-    Log.d("LocationDebug", "Permissions: $permissions")
-
-    val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
-    Log.d("LocationDebug", "Permission granted: $granted")
-
-    if (granted) {
-        onPermissionGranted()
-        scope.launch {
-            try {
-                Log.d("LocationDebug", "Attempting to get location...")
-
-                if (androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                    androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-
-                    Log.d("LocationDebug", "LocationManager obtained")
-                    Log.d("LocationDebug", "GPS enabled: ${locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)}")
-                    Log.d("LocationDebug", "Network enabled: ${locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)}")
-
-                    val location = withContext(Dispatchers.IO) {
-                        val gpsLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                        val networkLocation = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-
-                        Log.d("LocationDebug", "GPS location: $gpsLocation")
-                        Log.d("LocationDebug", "Network location: $networkLocation")
-
-                        gpsLocation ?: networkLocation
-                    }
-
-                    if (location != null) {
-                        Log.d("LocationDebug", "✅ Location found: ${location.latitude}, ${location.longitude}")
-                        onLocationReceived(Pair(location.latitude, location.longitude))
-                    } else {
-                        Log.e("LocationDebug", "❌ Both GPS and Network locations are NULL")
-                        // Use default location (UBC) as fallback
-                        Log.d("LocationDebug", "Using fallback location (UBC)")
-                        onLocationReceived(Pair(49.2606, -123.2460))
-                    }
-                } else {
-                    Log.e("LocationDebug", "Permission check failed after grant")
-                }
-            } catch (e: Exception) {
-                Log.e("LocationDebug", "Exception getting location", e)
-                // Use fallback location
-                onLocationReceived(Pair(49.2606, -123.2460))
-            }
-        }
-    } else {
-        Log.e("LocationDebug", "Permission denied")
-    }
-}
-@Composable
 private fun VoteScreenEffects(
     groupViewModel: GroupViewModel,
     restaurantViewModel: RestaurantViewModel,
     navController: NavController,
     snackbarHostState: SnackbarHostState,
     userLocation: Pair<Double, Double>?,
-    locationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
+    locationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    locationPermissionGranted: Boolean,
+    isGettingLocation: Boolean,
+    onLocationUpdate: (Pair<Double, Double>?) -> Unit,
+    onLocationLoadingUpdate: (Boolean) -> Unit,
+    onPermissionUpdate: (Boolean) -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val currentGroup by groupViewModel.currentGroup.collectAsState()
     val selectedRestaurant by groupViewModel.selectedRestaurant.collectAsState()
     val restaurantError by restaurantViewModel.errorMessage.collectAsState()
 
+    // ✅ FIXED: Use callback functions for state updates
     LaunchedEffect(Unit) {
-        locationPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
         groupViewModel.loadGroupStatus()
+
+        val hasPermission = LocationHelper.hasLocationPermission(context)
+        onPermissionUpdate(hasPermission)
+
+        if (hasPermission) {
+            Log.d("LocationDebug", "Permission already granted, getting fresh location...")
+            onLocationLoadingUpdate(true)
+            try {
+                val location = LocationHelper.getCurrentLocation(context)
+                if (location != null) {
+                    Log.d("LocationDebug", "✅ Got fresh location on startup: ${location.first}, ${location.second}")
+                    onLocationUpdate(location)
+                } else {
+                    Log.e("LocationDebug", "❌ Could not get location on startup")
+                }
+            } catch (e: Exception) {
+                Log.e("LocationDebug", "Exception getting location on startup", e)
+            } finally {
+                onLocationLoadingUpdate(false)
+            }
+        } else {
+            Log.d("LocationDebug", "Requesting location permission...")
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
     }
 
     LaunchedEffect(currentGroup) {
@@ -187,20 +188,18 @@ private fun VoteScreenEffects(
         }
     }
 
+    // ✅ Search restaurants when location is available
     LaunchedEffect(userLocation, currentGroup) {
-        // Create local copy to allow smart casting
         val group = currentGroup
 
         if (userLocation != null && group != null) {
             val (latitude, longitude) = userLocation
 
-            Log.d("VoteDebug", "=== SEARCHING RESTAURANTS ===")
-            Log.d("VoteDebug", "Location: $latitude, $longitude")
+            Log.d("VoteDebug", "=== SEARCHING RESTAURANTS WITH FRESH LOCATION ===")
+            Log.d("VoteDebug", "Current location: $latitude, $longitude")
 
             // Use the GROUP's cuisine preference (from the room)
-            // Use ALL common cuisines
             val cuisineTypes = group.cuisines ?: emptyList()
-
             val radius = ((group.averageRadius ?: 5.0) * 1000).toInt() // Convert km to meters
 
             Log.d("VoteDebug", "Group's cuisines: $cuisineTypes")
@@ -212,7 +211,7 @@ private fun VoteScreenEffects(
                 longitude = longitude,
                 radius = radius,
                 cuisineTypes = cuisineTypes,
-                priceLevel = null // Could also use budget to price level conversion
+                priceLevel = null
             )
         }
     }
@@ -226,7 +225,7 @@ private fun VoteScreenEffects(
                     popUpTo(0)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("VoteRestaurantScreen", "Navigation error", e)
+                Log.e("VoteRestaurantScreen", "Navigation error", e)
             }
         }
     }
@@ -247,6 +246,7 @@ private fun VoteScreenContent(
     selectedRestaurantForVote: Restaurant?,
     userLocation: Pair<Double, Double>?,
     locationPermissionGranted: Boolean,
+    isGettingLocation: Boolean,
     locationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
     onRestaurantSelected: (Restaurant?) -> Unit,
     onVoteSubmitted: () -> Unit
@@ -268,6 +268,7 @@ private fun VoteScreenContent(
                 selectedRestaurantForVote = selectedRestaurantForVote,
                 userLocation = userLocation,
                 locationPermissionGranted = locationPermissionGranted,
+                isGettingLocation = isGettingLocation,
                 locationPermissionLauncher = locationPermissionLauncher,
                 onRestaurantSelected = onRestaurantSelected,
                 onVoteSubmitted = onVoteSubmitted
@@ -314,7 +315,7 @@ private fun VoteStatusCard(groupViewModel: GroupViewModel) {
                     Text(
                         text = "${currentVotes.values.sum()}/${group.numMembers} voted",
                         fontSize = 14.sp,
-                        color = if (currentVotes.values.sum() == group.numMembers) 
+                        color = if (currentVotes.values.sum() == group.numMembers)
                             Color(0xFF4CAF50) else Color.Gray
                     )
                 }
@@ -340,6 +341,7 @@ private fun VoteScreenBody(
     selectedRestaurantForVote: Restaurant?,
     userLocation: Pair<Double, Double>?,
     locationPermissionGranted: Boolean,
+    isGettingLocation: Boolean,
     locationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
     onRestaurantSelected: (Restaurant?) -> Unit,
     onVoteSubmitted: () -> Unit
@@ -348,8 +350,12 @@ private fun VoteScreenBody(
     val isLoadingRestaurants by restaurantViewModel.isLoading.collectAsState()
 
     when {
-        isLoadingRestaurants -> LoadingState()
-        userLocation == null -> LocationLoadingState(locationPermissionGranted, locationPermissionLauncher)
+        isLoadingRestaurants -> LoadingState("Loading restaurants...")
+        isGettingLocation || userLocation == null -> LocationLoadingState(
+            locationPermissionGranted = locationPermissionGranted,
+            isGettingLocation = isGettingLocation,
+            locationPermissionLauncher = locationPermissionLauncher
+        )
         restaurants.isEmpty() -> EmptyRestaurantsState(restaurantViewModel, userLocation)
         else -> RestaurantListWithVoteButton(
             restaurants = restaurants,
@@ -362,18 +368,27 @@ private fun VoteScreenBody(
 }
 
 @Composable
-private fun LoadingState(modifier: Modifier = Modifier) {
+private fun LoadingState(message: String = "Loading...", modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator()
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = message,
+                fontSize = 16.sp,
+                color = Color.Gray
+            )
+        }
     }
 }
 
 @Composable
 private fun LocationLoadingState(
     locationPermissionGranted: Boolean,
+    isGettingLocation: Boolean,
     locationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
 ) {
     Box(
@@ -384,7 +399,7 @@ private fun LocationLoadingState(
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Getting your location...",
+                text = if (isGettingLocation) "Getting your current location..." else "Waiting for location...",
                 fontSize = 16.sp,
                 color = Color.Gray
             )
@@ -447,12 +462,12 @@ private fun RestaurantListWithVoteButton(
     groupViewModel: GroupViewModel,
     onRestaurantSelected: (Restaurant?) -> Unit,
     onVoteSubmitted: () -> Unit,
-    modifier: Modifier = Modifier  // Add modifier parameter
+    modifier: Modifier = Modifier
 ) {
     val currentVotes by groupViewModel.currentVotes.collectAsState()
     val userVote by groupViewModel.userVote.collectAsState()
 
-    Column(modifier = modifier) {  // Wrap in Column and apply modifier
+    Column(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp)

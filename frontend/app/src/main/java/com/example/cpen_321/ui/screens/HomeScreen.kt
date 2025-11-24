@@ -1,5 +1,8 @@
 package com.example.cpen_321.ui.screens
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -8,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -22,8 +27,9 @@ import com.example.cpen_321.ui.viewmodels.AuthViewModel
 import com.example.cpen_321.ui.viewmodels.MatchViewModel
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
 import com.example.cpen_321.ui.viewmodels.UserViewModel
-import androidx.compose.ui.platform.testTag
-
+import com.example.cpen_321.utils.LocationHelper
+import kotlinx.coroutines.launch
+import android.util.Log
 // Add font
 val PlaywriteFontFamily = FontFamily(
     Font(R.font.playwrite_usmodern_variablefont_wght)
@@ -53,6 +59,25 @@ fun HomeScreen(
     val currentGroup by groupViewModel.currentGroup.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val isTest = remember { isTestEnvironment() }
+
+    // ✅ ADD THESE FOR LOCATION HANDLING
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()  // ← ADD THIS
+    var locationPermissionGranted by remember { mutableStateOf(false) }
+
+    // ✅ ADD LOCATION PERMISSION LAUNCHER
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        locationPermissionGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        Log.d("HomeScreen", "Location permission granted: $locationPermissionGranted")
+    }
+
+    // Check location permission on startup
+    LaunchedEffect(Unit) {
+        locationPermissionGranted = LocationHelper.hasLocationPermission(context)
+    }
 
     // FIXED: Only verify token in production, skip in tests
     LaunchedEffect(Unit) {
@@ -137,24 +162,60 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(48.dp))
 
                 // Start Matchmaking Button
+                // ✅ UPDATED START MATCHMAKING BUTTON
                 Button(
                     onClick = {
-                        // Check if user has preferences set
                         val cuisines = userSettings?.preference ?: emptyList()
                         val budget = userSettings?.budget ?: 50.0
                         val radius = userSettings?.radiusKm ?: 5.0
 
                         if (cuisines.isEmpty()) {
-                            // Navigate to preferences screen first
                             navController.navigate("preferences")
                         } else {
-                            // Start matching with user preferences
-                            matchViewModel.joinMatching(
-                                cuisine = cuisines,
-                                budget = budget,
-                                radiusKm = radius
-                            )
-                            navController.navigate("waiting_room")
+                            // Check location permission first
+                            if (!locationPermissionGranted) {
+                                // Request location permission
+                                locationPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            } else {
+                                // Permission granted - get location and join matching
+                                scope.launch {
+                                    try {
+                                        val location = LocationHelper.getCurrentLocation(context)
+                                        if (location != null) {
+                                            val (lat, lng) = location
+                                            Log.d("HomeScreen", "Got location: $lat, $lng")
+                                            matchViewModel.joinMatching(
+                                                cuisine = cuisines,
+                                                budget = budget,
+                                                radiusKm = radius,
+                                                latitude = lat,
+                                                longitude = lng
+                                            )
+                                            navController.navigate("waiting_room")
+                                        } else {
+                                            Log.e("HomeScreen", "Could not get location")
+                                            // Show error message
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    "Unable to get your location. Please check your GPS settings."
+                                                )
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("HomeScreen", "Location error", e)
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Location error: ${e.message}"
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     modifier = Modifier
@@ -170,6 +231,7 @@ fun HomeScreen(
                         fontSize = 20.sp
                     )
                 }
+
 
                 Spacer(modifier = Modifier.height(32.dp))
 

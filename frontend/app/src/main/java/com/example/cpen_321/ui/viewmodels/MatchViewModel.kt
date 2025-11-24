@@ -156,7 +156,9 @@ class MatchViewModel @Inject constructor(
     fun joinMatching(
         cuisine: List<String>? = null,
         budget: Double? = null,
-        radiusKm: Double? = null
+        radiusKm: Double? = null,
+        latitude: Double? = null,     // ← ADD
+        longitude: Double? = null     // ← ADD
     ) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -193,7 +195,7 @@ class MatchViewModel @Inject constructor(
                 // Continue anyway
             }
             // ✅ END OF NEW CODE
-            when (val result = matchRepository.joinMatching(cuisine, budget, radiusKm)) {
+            when (val result = matchRepository.joinMatching(cuisine, budget, radiusKm, latitude, longitude)) {
                 is ApiResult.Success -> {
                     val (roomId, room) = result.data
                     _currentRoom.value = room

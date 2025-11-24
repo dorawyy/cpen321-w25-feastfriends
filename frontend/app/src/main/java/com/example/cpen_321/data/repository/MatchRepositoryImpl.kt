@@ -67,7 +67,9 @@ class MatchRepositoryImpl(
     override suspend fun joinMatching(
         cuisine: List<String>?,
         budget: Double?,
-        radiusKm: Double?
+        radiusKm: Double?,
+        latitude: Double?,          // ← ADD
+        longitude: Double?          // ← ADD
     ): ApiResult<Pair<String, Room>> {
 
 
@@ -91,7 +93,9 @@ class MatchRepositoryImpl(
         val request = JoinMatchingRequest(
             cuisine = cuisine,
             budget = budget,
-            radiusKm = radiusKm
+            radiusKm = radiusKm,
+            latitude = latitude,    // ← ADD
+            longitude = longitude   // ← ADD
         )
 
         val apiResult = safeApiCall(
