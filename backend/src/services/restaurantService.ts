@@ -195,45 +195,57 @@ export class RestaurantService {
    * Get restaurant details by place ID
    */
   async getRestaurantDetails(placeId: string): Promise<RestaurantType> {
-    try {
-      if (!this.GOOGLE_PLACES_API_KEY) {
-        return this.getMockRestaurant(placeId);
-      }
-
-      // Fetch from Google Places API
-      const response = await axios.get(
-        'https://maps.googleapis.com/maps/api/place/details/json',
-        {
-          params: {
-            place_id: placeId,
-            fields: 'name,formatted_address,geometry,photos,price_level,rating,formatted_phone_number,website,opening_hours,types',
-            key: this.GOOGLE_PLACES_API_KEY,
-          },
-        }
-      );
-
-      if (response.data.status !== 'OK') {
-        throw new AppError(`Restaurant not found: ${response.data.status}`, 404);
-      }
-
-      const place = response.data.result as GooglePlace;
-      return this.formatPlaceData(place);
-    } catch (error: unknown) {
-      if (error instanceof AppError) throw error;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to get restaurant details:', errorMessage);
+  try {
+    if (!this.GOOGLE_PLACES_API_KEY) {
+      console.log('⚠️ No API key, returning mock');
       return this.getMockRestaurant(placeId);
     }
+
+    console.log(`🔍 Fetching details for place_id: ${placeId}`);
+
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/place/details/json',
+      {
+        params: {
+          place_id: placeId,
+          fields: 'name,formatted_address,geometry,photos,price_level,rating,formatted_phone_number,website,opening_hours,types',
+          key: this.GOOGLE_PLACES_API_KEY,
+        },
+      }
+    );
+
+    console.log(`📡 Details API status: ${response.data.status}`);
+
+    if (response.data.status !== 'OK') {
+      throw new AppError(`Restaurant not found: ${response.data.status}`, 404);
+    }
+
+    const place = response.data.result as GooglePlace;
+    const formatted = this.formatPlaceData(place);
+    
+    // ✅ CRITICAL FIX: Always use the placeId parameter, not the response
+    formatted.restaurantId = placeId;
+    
+    console.log(`✅ Formatted restaurant: ${formatted.name}, ID: ${formatted.restaurantId}, photos: ${formatted.photos?.length || 0}`);
+    
+    return formatted;
+  } catch (error: unknown) {
+    if (error instanceof AppError) throw error;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`❌ Failed to get restaurant details:`, errorMessage);
+    return this.getMockRestaurant(placeId);
   }
+}
+
 
   /**
    * Format place data from Google Places API
    */
   private formatPlaceData(place: GooglePlace): RestaurantType {
-    return {
+    const formatted: RestaurantType = {
       name: place.name || '',
       location: place.formatted_address || place.vicinity || '',
-      restaurantId: place.place_id,
+      restaurantId: place.place_id || '',  // Ensure it's always set
       address: place.formatted_address || place.vicinity || '',
       priceLevel: place.price_level,
       rating: place.rating,
@@ -242,7 +254,17 @@ export class RestaurantService {
       website: place.website,
       url: place.url,
     };
-  }
+    
+    // Debug logging
+    console.log(`📦 Formatted restaurant: ${formatted.name}`);
+    console.log(`   - restaurantId: ${formatted.restaurantId}`);
+    console.log(`   - rating: ${formatted.rating}`);
+    console.log(`   - priceLevel: ${formatted.priceLevel}`);
+    console.log(`   - photos: ${formatted.photos?.length || 0}`);
+    console.log(`   - address: ${formatted.address}`);
+    
+    return formatted;
+}
 
   /**
    * Get photo URL from photo reference
@@ -253,6 +275,7 @@ export class RestaurantService {
 
   /**
    * Get recommended restaurants for a group
+   * ✅ Uses Details API for each restaurant to ensure photos (like old Android implementation)
    */
   async getRecommendationsForGroup(
     _groupId: string,
@@ -277,16 +300,55 @@ export class RestaurantService {
     // Get average radius
     const avgRadius = userPreferences.reduce((sum, p) => sum + p.radiusKm, 0) / userPreferences.length;
 
-    // Search for restaurants
-    const restaurants = await this.searchRestaurants(
+    // Search for restaurants (gets basic info)
+    const basicRestaurants = await this.searchRestaurants(
       avgLat,
       avgLng,
       avgRadius * 1000, // Convert km to meters
       allCuisines,
-      Math.min(4, priceLevel)
+      Math.min(4, priceLevel),
+      20 // Get 20 restaurants
     );
 
-    return restaurants;
+    // ✅ Fetch full details (including photos) for each restaurant using Details API
+    console.log(`📸 Fetching full details with photos for ${basicRestaurants.length} restaurants...`);
+    
+    const detailedRestaurants = await Promise.all(
+      basicRestaurants.map(async (restaurant) => {
+        try {
+          if (restaurant.restaurantId) {
+            console.log(`📸 Fetching details for: ${restaurant.name} (ID: ${restaurant.restaurantId})`);
+            const details = await this.getRestaurantDetails(restaurant.restaurantId);
+            
+            // ✅ CRITICAL: Ensure restaurantId is preserved
+            if (!details.restaurantId) {
+              console.warn(`⚠️ Details missing restaurantId for ${restaurant.name}, using original`);
+              details.restaurantId = restaurant.restaurantId;
+            }
+            
+            console.log(`✅ Got details: ${details.name}, ID: ${details.restaurantId}, photos: ${details.photos?.length || 0}`);
+            return details;
+          }
+          console.warn(`⚠️ Restaurant missing ID: ${restaurant.name}`);
+          return restaurant;
+        } catch (error) {
+          console.error(`❌ Failed to get details for ${restaurant.name}:`, error);
+          return restaurant; // Return original if details fetch fails
+        }
+      })
+    );
+
+    // ✅ Filter out any restaurants without restaurantId
+    const validRestaurants = detailedRestaurants.filter(r => {
+      if (!r.restaurantId) {
+        console.error(`❌ Filtering out restaurant without ID: ${r.name}`);
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`✅ Fetched full details for ${validRestaurants.length} valid restaurants`);
+    return validRestaurants;
   }
 
   /**
