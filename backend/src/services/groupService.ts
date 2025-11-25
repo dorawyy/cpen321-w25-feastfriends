@@ -6,12 +6,39 @@ import { notifyGroupMembers, notifyRestaurantSelected } from './notificationServ
 import { RestaurantType, GroupStatusResponse } from '../types';
 
 export class GroupService {
+  // In-memory lock to prevent concurrent operations on the same group
+  private operationLocks: Map<string, Promise<any>> = new Map();
+
+  /**
+   * Execute an operation with locking to prevent concurrent modifications
+   */
+  private async withLock<T>(groupId: string, operation: () => Promise<T>): Promise<T> {
+    // If there's already an operation in progress, wait for it
+    const existingLock = this.operationLocks.get(groupId);
+    if (existingLock) {
+      await existingLock.catch(() => {}); // Wait but ignore errors
+    }
+
+    // Create new lock
+    const lockPromise = operation();
+    this.operationLocks.set(groupId, lockPromise);
+
+    try {
+      const result = await lockPromise;
+      return result;
+    } finally {
+      // Clean up lock
+      this.operationLocks.delete(groupId);
+    }
+  }
+
   /**
    * Helper to safely get group ID as string
    */
   private getGroupId(group: IGroupDocument): string {
     return (group._id as any).toString();
   }
+
   /**
    * Get group status
    */
@@ -163,79 +190,119 @@ export class GroupService {
     currentRestaurant?: RestaurantType;
     message: string;
   }> {
-    const group = await Group.findById(groupId) as IGroupDocument | null;
+    return this.withLock(groupId, async () => {
+      const maxRetries = 3;
+      let lastError: any;
 
-    if (!group) {
-      throw new Error('Group not found');
-    }
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          // Fetch fresh document each attempt
+          const group = await Group.findById(groupId) as IGroupDocument | null;
 
-    if (group.restaurantSelected) {
-      throw new Error('Restaurant already selected for this group');
-    }
+          if (!group) {
+            throw new Error('Group not found');
+          }
 
-    // Get user data from all members - FIXED: using correct field names
-    const users = await User.find({ _id: { $in: group.members } });
-    const userPreferences = users.map(user => ({
-      cuisineTypes: user.preference || [], // ✅ FIXED: 'preference' not 'preferences'
-      budget: user.budget || 50,
-      location: { 
-        coordinates: [
-          user.currentLongitude || 0,  // ✅ FIXED: using currentLongitude/currentLatitude
-          user.currentLatitude || 0
-        ] as [number, number]
-      },
-      radiusKm: user.radiusKm || 5,
-    }));
+          if (group.restaurantSelected) {
+            throw new Error('Restaurant already selected for this group');
+          }
 
-    // Fetch restaurant recommendations
-    const restaurants = await restaurantService.getRecommendationsForGroup(
-      groupId,
-      userPreferences
-    );
+          // Check if already initialized (idempotency)
+          if (group.restaurantPool && group.restaurantPool.length > 0) {
+            console.log(`⚠️ Sequential voting already initialized for group ${groupId}`);
+            return {
+              success: true,
+              currentRestaurant: group.currentRound?.restaurant,
+              message: 'Sequential voting already initialized',
+            };
+          }
 
-    if (restaurants.length === 0) {
-      return {
-        success: false,
-        message: 'No restaurants found matching group preferences',
-      };
-    }
+          // Get user data from all members
+          const users = await User.find({ _id: { $in: group.members } });
+          const userPreferences = users.map(user => ({
+            cuisineTypes: user.preference || [],
+            budget: user.budget || 50,
+            location: { 
+              coordinates: [
+                user.currentLongitude || 0,
+                user.currentLatitude || 0
+              ] as [number, number]
+            },
+            radiusKm: user.radiusKm || 5,
+          }));
 
-    // Store restaurant pool
-    group.restaurantPool = restaurants;
-    group.votingHistory = [];
-    group.votingHistoryDetailed = [];
-    
-    // Start first voting round
-    const firstRestaurant = restaurants[0];
-    group.startVotingRound(firstRestaurant);
-    
-    group.markModified('restaurantPool');
-    group.markModified('votingHistory');
-    group.markModified('votingHistoryDetailed');
-    group.markModified('currentRound');
-    
-    await group.save();
+          // Fetch restaurant recommendations
+          const restaurants = await restaurantService.getRecommendationsForGroup(
+            groupId,
+            userPreferences
+          );
 
-    // Notify all members
-    try {
-      socketManager.emitNewVotingRound(
-        groupId,
-        firstRestaurant,
-        1,
-        Math.min(group.maxRounds, restaurants.length),
-        group.votingTimeoutSeconds
-      );
-    } catch (error) {
-      console.error('Failed to emit new voting round:', error);
-    }
+          if (restaurants.length === 0) {
+            return {
+              success: false,
+              message: 'No restaurants found matching group preferences',
+            };
+          }
 
-    console.log(`🎯 Started sequential voting for group ${groupId} with ${restaurants.length} restaurants`);
+          // Store restaurant pool and initialize voting structures
+          group.restaurantPool = restaurants;
+          group.votingHistory = [];
+          group.votingHistoryDetailed = [];
+          
+          // Start first voting round
+          const firstRestaurant = restaurants[0];
+          group.startVotingRound(firstRestaurant);
+          
+          // Mark all modified paths
+          group.markModified('restaurantPool');
+          group.markModified('votingHistory');
+          group.markModified('votingHistoryDetailed');
+          group.markModified('currentRound');
+          
+          // Save with version check
+          await group.save();
 
-    return {
-      success: true,
-      currentRestaurant: firstRestaurant,
-      message: 'Sequential voting initialized',
-    };
+          // Notify all members
+          try {
+            socketManager.emitNewVotingRound(
+              groupId,
+              firstRestaurant,
+              1,
+              Math.min(group.maxRounds, restaurants.length),
+              group.votingTimeoutSeconds
+            );
+          } catch (error) {
+            console.error('Failed to emit new voting round:', error);
+          }
+
+          console.log(`🎯 Started sequential voting for group ${groupId} with ${restaurants.length} restaurants`);
+
+          return {
+            success: true,
+            currentRestaurant: firstRestaurant,
+            message: 'Sequential voting initialized',
+          };
+
+        } catch (error: any) {
+          lastError = error;
+          
+          // If it's a version error and we have retries left, try again
+          if (error.name === 'VersionError' && attempt < maxRetries - 1) {
+            console.log(`⚠️ Version conflict on attempt ${attempt + 1} for group ${groupId}, retrying...`);
+            // Small exponential backoff delay
+            await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt)));
+            continue;
+          }
+          
+          // For non-version errors or exhausted retries, throw immediately
+          throw error;
+        }
+      }
+
+      // If we get here, all retries failed
+      console.error(`❌ Failed to initialize voting after ${maxRetries} attempts:`, lastError);
+      throw lastError;
+    });
   }
 
   /**
@@ -254,67 +321,91 @@ export class GroupService {
     votingComplete?: boolean;
     message: string;
   }> {
-    const group = await Group.findById(groupId) as IGroupDocument | null;
+    return this.withLock(groupId, async () => {
+      const maxRetries = 3;
+      let lastError: any;
 
-    if (!group) {
-      throw new Error('Group not found');
-    }
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const group = await Group.findById(groupId) as IGroupDocument | null;
 
-    if (!group.members.includes(userId)) {
-      throw new Error('User is not a member of this group');
-    }
+          if (!group) {
+            throw new Error('Group not found');
+          }
 
-    if (group.restaurantSelected) {
-      throw new Error('Restaurant already selected for this group');
-    }
+          if (!group.members.includes(userId)) {
+            throw new Error('User is not a member of this group');
+          }
 
-    if (!group.currentRound) {
-      throw new Error('No active voting round');
-    }
+          if (group.restaurantSelected) {
+            throw new Error('Restaurant already selected for this group');
+          }
 
-    // Check if round has expired
-    if (new Date() > group.currentRound.expiresAt) {
-      return await this.handleExpiredRound(group);
-    }
+          if (!group.currentRound) {
+            throw new Error('No active voting round');
+          }
 
-    // Submit vote
-    group.submitVote(userId, vote);
-    group.markModified('currentRound');
-    await group.save();
+          // Check if round has expired
+          if (new Date() > group.currentRound.expiresAt) {
+            return await this.handleExpiredRoundInternal(group);
+          }
 
-    // Emit vote update to all members
-    try {
-      socketManager.emitSequentialVoteUpdate(
-        groupId,
-        userId,
-        vote,
-        group.currentRound.yesVotes,
-        group.currentRound.noVotes,
-        group.members.length
-      );
-    } catch (error) {
-      console.error('Failed to emit vote update:', error);
-    }
+          // Submit vote
+          group.submitVote(userId, vote);
+          group.markModified('currentRound');
+          await group.save();
 
-    // Check for majority
-    const majorityCheck = group.checkMajority();
+          // Emit vote update to all members
+          try {
+            socketManager.emitSequentialVoteUpdate(
+              groupId,
+              userId,
+              vote,
+              group.currentRound.yesVotes,
+              group.currentRound.noVotes,
+              group.members.length
+            );
+          } catch (error) {
+            console.error('Failed to emit vote update:', error);
+          }
 
-    if (majorityCheck.hasMajority) {
-      if (majorityCheck.result === 'yes') {
-        // Restaurant accepted!
-        return await this.selectRestaurant(group, group.currentRound.restaurant);
-      } else {
-        // Restaurant rejected, move to next
-        return await this.moveToNextRestaurant(group);
+          // Check for majority
+          const majorityCheck = group.checkMajority();
+
+          if (majorityCheck.hasMajority) {
+            if (majorityCheck.result === 'yes') {
+              // Restaurant accepted!
+              return await this.selectRestaurant(group, group.currentRound.restaurant);
+            } else {
+              // Restaurant rejected, move to next
+              return await this.moveToNextRestaurant(group);
+            }
+          }
+
+          // No majority yet, wait for more votes
+          return {
+            success: true,
+            majorityReached: false,
+            message: 'Vote recorded, waiting for other members',
+          };
+
+        } catch (error: any) {
+          lastError = error;
+          
+          // If it's a version error and we have retries left, try again
+          if (error.name === 'VersionError' && attempt < maxRetries - 1) {
+            console.log(`⚠️ Version conflict on attempt ${attempt + 1} for group ${groupId}, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt)));
+            continue;
+          }
+          
+          throw error;
+        }
       }
-    }
 
-    // No majority yet, wait for more votes
-    return {
-      success: true,
-      majorityReached: false,
-      message: 'Vote recorded, waiting for other members',
-    };
+      console.error(`❌ Failed to submit vote after ${maxRetries} attempts:`, lastError);
+      throw lastError;
+    });
   }
 
   /**
@@ -344,7 +435,8 @@ export class GroupService {
     // Check if expired
     const now = new Date();
     if (now > group.currentRound.expiresAt) {
-      await this.handleExpiredRound(group);
+      // Don't call handleExpiredRound here to avoid lock contention
+      // Let the background task handle it
       return { hasActiveRound: false };
     }
 
@@ -369,9 +461,9 @@ export class GroupService {
   }
 
   /**
-   * Handle expired voting round (timeout)
+   * Handle expired voting round (timeout) - PUBLIC method for background task
    */
-  private async handleExpiredRound(group: IGroupDocument): Promise<{
+  async handleExpiredRound(group: IGroupDocument): Promise<{
     success: boolean;
     majorityReached: boolean;
     nextRestaurant?: RestaurantType;
@@ -379,8 +471,41 @@ export class GroupService {
     votingComplete?: boolean;
     message: string;
   }> {
-    console.log(`⏰ Voting round expired for group ${this.getGroupId(group)}`);
+    const groupId = this.getGroupId(group);
+    console.log(`⏰ Voting round expired for group ${groupId}`);
     
+    return this.withLock(groupId, async () => {
+      // Fetch fresh group to avoid stale data
+      const freshGroup = await Group.findById(groupId) as IGroupDocument | null;
+      if (!freshGroup) {
+        throw new Error('Group not found');
+      }
+
+      // Double-check it's still expired (might have been handled already)
+      if (freshGroup.currentRound && new Date() > freshGroup.currentRound.expiresAt) {
+        return await this.handleExpiredRoundInternal(freshGroup);
+      }
+
+      // Already handled
+      return {
+        success: true,
+        majorityReached: false,
+        message: 'Round already processed',
+      };
+    });
+  }
+
+  /**
+   * Internal handler for expired rounds (no locking, assumes already locked)
+   */
+  private async handleExpiredRoundInternal(group: IGroupDocument): Promise<{
+    success: boolean;
+    majorityReached: boolean;
+    nextRestaurant?: RestaurantType;
+    selectedRestaurant?: RestaurantType;
+    votingComplete?: boolean;
+    message: string;
+  }> {
     group.endCurrentRound();
     group.markModified('currentRound');
     await group.save();
@@ -559,90 +684,92 @@ export class GroupService {
    * Leave a group
    */
   async leaveGroup(userId: string, groupId: string): Promise<void> {
-    const group = await Group.findById(groupId) as IGroupDocument | null;
+    return this.withLock(groupId, async () => {
+      const group = await Group.findById(groupId) as IGroupDocument | null;
 
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Remove user from group
-    group.removeMember(userId);
-
-    // Update user status
-    user.status = UserStatus.ONLINE;
-    user.groupId = undefined;
-    await user.save();
-
-    if (group.members.length === 0) {
-      await Group.findByIdAndDelete(groupId);
-      console.log(`🗑️ Deleted empty group: ${groupId}`);
-    } else {
-      group.markModified('currentRound');
-      await group.save();
-
-      try {
-        socketManager.emitMemberLeft(
-          `group_${groupId}`,
-          userId,
-          user.name,
-          group.members.length
-        );
-      } catch (error) {
-        console.error('Failed to emit member left:', error);
+      if (!group) {
+        throw new Error('Group not found');
       }
 
-      // Check if majority can still be reached
-      if (group.votingMode === 'sequential' && group.currentRound) {
-        const majorityCheck = group.checkMajority();
-        if (majorityCheck.hasMajority) {
-          if (majorityCheck.result === 'yes') {
-            await this.selectRestaurant(group, group.currentRound.restaurant);
-          } else {
-            await this.moveToNextRestaurant(group);
-          }
-        }
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
       }
 
-      // Legacy voting check
-      if (group.votingMode === 'list' && group.hasAllVoted() && !group.restaurantSelected) {
-        const winningRestaurantId = group.getWinningRestaurant();
-        
-        if (winningRestaurantId && group.restaurant) {
-          group.restaurantSelected = true;
-          await group.save();
+      // Remove user from group
+      group.removeMember(userId);
 
-          const currentVotes: Record<string, number> = Object.fromEntries(
-            Array.from(group.restaurantVotes.entries()).map(([id, count]) => [String(id), count])
+      // Update user status
+      user.status = UserStatus.ONLINE;
+      user.groupId = undefined;
+      await user.save();
+
+      if (group.members.length === 0) {
+        await Group.findByIdAndDelete(groupId);
+        console.log(`🗑️ Deleted empty group: ${groupId}`);
+      } else {
+        group.markModified('currentRound');
+        await group.save();
+
+        try {
+          socketManager.emitMemberLeft(
+            `group_${groupId}`,
+            userId,
+            user.name,
+            group.members.length
           );
+        } catch (error) {
+          console.error('Failed to emit member left:', error);
+        }
 
-          try {
-            socketManager.emitRestaurantSelected(
-              groupId,
-              winningRestaurantId,
-              group.restaurant.name,
-              currentVotes
-            );
-          } catch (error) {
-            console.error('Failed to emit restaurant selected:', error);
+        // Check if majority can still be reached
+        if (group.votingMode === 'sequential' && group.currentRound) {
+          const majorityCheck = group.checkMajority();
+          if (majorityCheck.hasMajority) {
+            if (majorityCheck.result === 'yes') {
+              await this.selectRestaurant(group, group.currentRound.restaurant);
+            } else {
+              await this.moveToNextRestaurant(group);
+            }
           }
+        }
 
-          try {
-            await notifyRestaurantSelected(
-              group.members,
-              group.restaurant.name,
-              groupId
+        // Legacy voting check
+        if (group.votingMode === 'list' && group.hasAllVoted() && !group.restaurantSelected) {
+          const winningRestaurantId = group.getWinningRestaurant();
+          
+          if (winningRestaurantId && group.restaurant) {
+            group.restaurantSelected = true;
+            await group.save();
+
+            const currentVotes: Record<string, number> = Object.fromEntries(
+              Array.from(group.restaurantVotes.entries()).map(([id, count]) => [String(id), count])
             );
-          } catch (error) {
-            console.error('Failed to send notification:', error);
+
+            try {
+              socketManager.emitRestaurantSelected(
+                groupId,
+                winningRestaurantId,
+                group.restaurant.name,
+                currentVotes
+              );
+            } catch (error) {
+              console.error('Failed to emit restaurant selected:', error);
+            }
+
+            try {
+              await notifyRestaurantSelected(
+                group.members,
+                group.restaurant.name,
+                groupId
+              );
+            } catch (error) {
+              console.error('Failed to send notification:', error);
+            }
           }
         }
       }
-    }
+    });
   }
 
   /**
@@ -662,23 +789,25 @@ export class GroupService {
    * Close/disband a group
    */
   async closeGroup(groupId: string): Promise<void> {
-    const group = await Group.findById(groupId) as IGroupDocument | null;
+    return this.withLock(groupId, async () => {
+      const group = await Group.findById(groupId) as IGroupDocument | null;
 
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    await User.updateMany(
-      { _id: { $in: group.members } },
-      {
-        status: UserStatus.ONLINE,
-        groupId: undefined,
+      if (!group) {
+        throw new Error('Group not found');
       }
-    );
 
-    await Group.findByIdAndDelete(groupId);
+      await User.updateMany(
+        { _id: { $in: group.members } },
+        {
+          status: UserStatus.ONLINE,
+          groupId: undefined,
+        }
+      );
 
-    console.log(`✅ Closed group: ${groupId}`);
+      await Group.findByIdAndDelete(groupId);
+
+      console.log(`✅ Closed group: ${groupId}`);
+    });
   }
 
   /**
@@ -691,53 +820,68 @@ export class GroupService {
     }) as IGroupDocument[];
 
     for (const group of expiredGroups) {
-      if (group.votingMode === 'sequential') {
-        // Handle sequential voting expiration
-        await this.fallbackSelection(group);
-      } else {
-        // Handle legacy voting expiration
-        const winningRestaurantId = group.getWinningRestaurant();
-        
-        if (winningRestaurantId && group.votes.size > 0) {
-          group.restaurantSelected = true;
-          await group.save();
+      const groupId = this.getGroupId(group);
+      
+      // Skip if there's already an operation in progress
+      if (this.operationLocks.has(groupId)) {
+        continue;
+      }
 
-          if (group.restaurant) {
-            const currentVotes: Record<string, number> = Object.fromEntries(
-              Array.from(group.restaurantVotes.entries()).map(([id, count]) => [String(id), count])
-            );
+      try {
+        if (group.votingMode === 'sequential') {
+          // Handle sequential voting expiration
+          await this.fallbackSelection(group);
+        } else {
+          // Handle legacy voting expiration
+          const winningRestaurantId = group.getWinningRestaurant();
+          
+          if (winningRestaurantId && group.votes.size > 0) {
+            group.restaurantSelected = true;
+            await group.save();
 
-            socketManager.emitRestaurantSelected(
-              this.getGroupId(group),
-              winningRestaurantId,
-              group.restaurant.name,
-              currentVotes
-            );
+            if (group.restaurant) {
+              const currentVotes: Record<string, number> = Object.fromEntries(
+                Array.from(group.restaurantVotes.entries()).map(([id, count]) => [String(id), count])
+              );
+
+              socketManager.emitRestaurantSelected(
+                groupId,
+                winningRestaurantId,
+                group.restaurant.name,
+                currentVotes
+              );
+              
+              await notifyGroupMembers(group.members, {
+                title: 'Voting Time Expired',
+                body: `${group.restaurant.name} was selected based on the votes received.`,
+                data: {
+                  type: 'restaurant_selected',
+                  groupId: groupId,
+                },
+              });
+            }
+
+            console.log(`⏰ Auto-selected restaurant for expired group: ${groupId}`);
+          } else {
+            await this.closeGroup(groupId);
             
             await notifyGroupMembers(group.members, {
-              title: 'Voting Time Expired',
-              body: `${group.restaurant.name} was selected based on the votes received.`,
+              title: 'Group Expired',
+              body: 'Your group expired without selecting a restaurant.',
               data: {
-                type: 'restaurant_selected',
-                groupId: this.getGroupId(group),
+                type: 'group_expired',
+                groupId: groupId,
               },
             });
+
+            console.log(`⏰ Disbanded expired group with no votes: ${groupId}`);
           }
-
-          console.log(`⏰ Auto-selected restaurant for expired group: ${this.getGroupId(group)}`);
+        }
+      } catch (error: any) {
+        if (error.name === 'VersionError') {
+          console.log(`ℹ️ Group ${groupId} was already processed by another operation`);
         } else {
-          await this.closeGroup(this.getGroupId(group));
-          
-          await notifyGroupMembers(group.members, {
-            title: 'Group Expired',
-            body: 'Your group expired without selecting a restaurant.',
-            data: {
-              type: 'group_expired',
-              groupId: this.getGroupId(group),
-            },
-          });
-
-          console.log(`⏰ Disbanded expired group with no votes: ${this.getGroupId(group)}`);
+          console.error(`❌ Error handling expired group ${groupId}:`, error);
         }
       }
     }
@@ -747,19 +891,44 @@ export class GroupService {
    * Background task: Check for expired voting rounds
    */
   async checkExpiredVotingRounds(): Promise<void> {
-    const activeGroups = await Group.find({
-      votingMode: 'sequential',
-      restaurantSelected: false,
-      'currentRound.status': 'active',
-    }) as IGroupDocument[];
+    try {
+      const now = new Date();
+      
+      const activeGroups = await Group.find({
+        votingMode: 'sequential',
+        restaurantSelected: false,
+        'currentRound.status': 'active',
+        'currentRound.expiresAt': { $lt: now } // Only get actually expired ones
+      }) as IGroupDocument[];
 
-    const now = new Date();
-
-    for (const group of activeGroups) {
-      if (group.currentRound && now > group.currentRound.expiresAt) {
-        console.log(`⏰ Voting round expired for group ${this.getGroupId(group)}`);
-        await this.handleExpiredRound(group);
+      if (activeGroups.length === 0) {
+        return; // Silent when nothing to do
       }
+
+      console.log(`🔍 Found ${activeGroups.length} expired voting rounds to process`);
+
+      for (const group of activeGroups) {
+        const groupId = this.getGroupId(group);
+        
+        // Skip if there's already an operation in progress for this group
+        if (this.operationLocks.has(groupId)) {
+          console.log(`⏭️ Skipping group ${groupId} - operation already in progress`);
+          continue;
+        }
+
+        try {
+          await this.handleExpiredRound(group);
+        } catch (error: any) {
+          // Ignore version errors in background task - they mean another process handled it
+          if (error.name === 'VersionError') {
+            console.log(`ℹ️ Group ${groupId} was already processed by another operation`);
+          } else {
+            console.error(`❌ Error handling expired round for group ${groupId}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in checkExpiredVotingRounds:', error);
     }
   }
 }

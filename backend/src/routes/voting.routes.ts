@@ -18,16 +18,31 @@ router.post(
       
       // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return res.status(401).json({
+          Status: 401,
+          Message: { error: 'Unauthorized' },
+          Body: null
+        });
       }
       
       const result = await groupService.initializeSequentialVoting(groupId);
 
-      return res.status(200).json(result);
+      // ✅ Match Android ApiResponse format with capitals and correct field names
+      return res.status(200).json({
+        Status: 200,
+        Message: { text: result.message },
+        Body: result
+      });
     } catch (error) {
       console.error('Error initializing sequential voting:', error);
       const message = error instanceof Error ? error.message : 'Failed to initialize voting';
-      return res.status(500).json({ error: message });
+      
+      // ✅ Wrap error in correct format
+      return res.status(500).json({
+        Status: 500,
+        Message: { error: message },
+        Body: null
+      });
     }
   }
 );
@@ -46,22 +61,41 @@ router.post(
       
       // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return res.status(401).json({
+          Status: 401,
+          Message: { error: 'Unauthorized' },
+          Body: null
+        });
       }
       
       const userId = req.user.userId;
 
       if (typeof vote !== 'boolean') {
-        return res.status(400).json({ error: 'Vote must be a boolean (true/false)' });
+        return res.status(400).json({
+          Status: 400,
+          Message: { error: 'Vote must be a boolean (true/false)' },
+          Body: null
+        });
       }
 
       const result = await groupService.submitSequentialVote(userId, groupId, vote);
 
-      return res.status(200).json(result);
+      // ✅ Match Android ApiResponse format
+      return res.status(200).json({
+        Status: 200,
+        Message: { text: result.message },
+        Body: result
+      });
     } catch (error) {
       console.error('Error submitting vote:', error);
       const message = error instanceof Error ? error.message : 'Failed to submit vote';
-      return res.status(500).json({ error: message });
+      
+      // ✅ Wrap error in correct format
+      return res.status(500).json({
+        Status: 500,
+        Message: { error: message },
+        Body: null
+      });
     }
   }
 );
@@ -79,16 +113,31 @@ router.get(
       
       // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return res.status(401).json({
+          Status: 401,
+          Message: { error: 'Unauthorized' },
+          Body: null
+        });
       }
       
       const result = await groupService.getCurrentVotingRound(groupId);
 
-      return res.status(200).json(result);
+      // ✅ Match Android ApiResponse format
+      return res.status(200).json({
+        Status: 200,
+        Message: { text: 'Success' },
+        Body: result
+      });
     } catch (error) {
       console.error('Error getting voting round:', error);
       const message = error instanceof Error ? error.message : 'Failed to get voting round';
-      return res.status(500).json({ error: message });
+      
+      // ✅ Wrap error in correct format
+      return res.status(500).json({
+        Status: 500,
+        Message: { error: message },
+        Body: null
+      });
     }
   }
 );

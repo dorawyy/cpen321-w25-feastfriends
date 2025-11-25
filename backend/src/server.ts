@@ -88,7 +88,7 @@ function startBackgroundTasks() {
         console.error('Error checking expired voting rounds:', error);
       }
     })();
-  }, 10000); // 10 seconds
+  }, 15000); // 15 seconds
 
   console.log('✅ Background tasks started');
   console.log('  - Expired rooms check: every 1 minute');

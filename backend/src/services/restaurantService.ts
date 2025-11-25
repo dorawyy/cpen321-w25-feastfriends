@@ -117,11 +117,18 @@ export class RestaurantService {
       allResults = Array.from(uniquePlaces.values());
       console.log(`🍽️ After deduplication: ${allResults.length} unique restaurants`);
 
-      // ✅ Apply price level filter (if specified)
+      // ✅ Apply price level filter (if specified) - FLEXIBLE FILTERING
       if (priceLevel) {
         const beforeFilter = allResults.length;
-        allResults = allResults.filter((place: GooglePlace) => place.price_level === priceLevel);
-        console.log(`💰 Price filter: ${beforeFilter} → ${allResults.length} restaurants`);
+        allResults = allResults.filter((place: GooglePlace) => {
+          // If restaurant has no price level, keep it (many restaurants don't have this data)
+          if (place.price_level === undefined || place.price_level === null) {
+            return true;
+          }
+          // Allow restaurants within ±1 price level for more variety
+          return Math.abs(place.price_level - priceLevel) <= 1;
+        });
+        console.log(`💰 Price filter (±1 level): ${beforeFilter} → ${allResults.length} restaurants`);
       }
 
       // ✅ Apply final limit
