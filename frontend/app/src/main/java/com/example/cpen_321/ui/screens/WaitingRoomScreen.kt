@@ -36,6 +36,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.UserProfile
 import com.example.cpen_321.ui.viewmodels.MatchViewModel
+import com.example.cpen_321.utils.rememberBase64ImagePainter
+import androidx.compose.foundation.Image
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 @Composable
@@ -674,15 +676,30 @@ private fun UserBubble(user: UserProfile) {
         modifier = Modifier.width(90.dp)
     ) {
         if (user.profilePicture?.isNotEmpty() == true) {
-            AsyncImage(
-                model = user.profilePicture,
-                contentDescription = user.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, Color(0xFFFFD54F), CircleShape)
-            )
+            if (user.profilePicture.startsWith("data:image/")) {
+                // Base64 image - use rememberBase64ImagePainter
+                val painter = rememberBase64ImagePainter(user.profilePicture)
+                Image(
+                    painter = painter,
+                    contentDescription = user.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape)
+                        .border(3.dp, Color(0xFFFFD54F), CircleShape)
+                )
+            } else {
+                // Regular URL - use AsyncImage
+                AsyncImage(
+                    model = user.profilePicture,
+                    contentDescription = user.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape)
+                        .border(3.dp, Color(0xFFFFD54F), CircleShape)
+                )
+            }
         } else {
             DefaultUserAvatar()
         }

@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +26,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.GroupMember
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
+import com.example.cpen_321.utils.rememberBase64ImagePainter
+import androidx.compose.foundation.Image
 
 @Composable
 fun GroupScreen(
@@ -439,35 +443,86 @@ private fun MemberCard(userId: String, memberDetails: GroupMember?) {
 
 @Composable
 private fun MemberDetailsContent(member: GroupMember) {
-    Column {
-        Text(
-            text = member.name,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Credibility Score: ${member.credibilityScore.toInt()}",
-            fontSize = 14.sp,
-            color = Color.Black
-        )
-        member.phoneNumber?.let { phone ->
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Profile Picture
+        if (member.profilePicture != null && member.profilePicture.isNotEmpty()) {
+            if (member.profilePicture.startsWith("data:image/")) {
+                // Base64 image - use rememberBase64ImagePainter
+                val painter = rememberBase64ImagePainter(member.profilePicture)
+                Image(
+                    painter = painter,
+                    contentDescription = "Profile picture",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Regular URL - use AsyncImage
+                AsyncImage(
+                    model = member.profilePicture,
+                    contentDescription = "Profile picture",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFD54F)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Default profile",
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        // Member Info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = member.name,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Phone: $phone",
+                text = "Credibility Score: ${member.credibilityScore.toInt()}",
                 fontSize = 14.sp,
                 color = Color.Black
             )
-        }
-        if (member.hasVoted) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "✓ Voted",
-                fontSize = 14.sp,
-                color = Color(0xFF4CAF50),
-                fontWeight = FontWeight.Bold
-            )
+            member.phoneNumber?.let { phone ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Phone: $phone",
+                    fontSize = 14.sp,
+                    color = Color.Black
+                )
+            }
+            if (member.hasVoted) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "✓ Voted",
+                    fontSize = 14.sp,
+                    color = Color(0xFF4CAF50),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

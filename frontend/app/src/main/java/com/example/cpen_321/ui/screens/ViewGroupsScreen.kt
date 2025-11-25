@@ -50,6 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.cpen_321.utils.rememberBase64ImagePainter
+import androidx.compose.foundation.Image
+import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.GroupMember
 import com.example.cpen_321.ui.components.MainBottomBar
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
@@ -584,16 +587,31 @@ private fun MemberProfilePicture(
     profilePicture: String?,
     memberName: String
 ) {
-    if (profilePicture != null) {
-        AsyncImage(
-            model = profilePicture,
-            contentDescription = "Profile picture",
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(Color.LightGray),
-            contentScale = ContentScale.Crop
-        )
+    if (profilePicture != null && profilePicture.isNotEmpty()) {
+        if (profilePicture.startsWith("data:image/")) {
+            // Base64 image - use rememberBase64ImagePainter
+            val painter = rememberBase64ImagePainter(profilePicture)
+            Image(
+                painter = painter,
+                contentDescription = "Profile picture",
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            // Regular URL - use AsyncImage
+            AsyncImage(
+                model = profilePicture,
+                contentDescription = "Profile picture",
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Crop
+            )
+        }
     } else {
         Box(
             modifier = Modifier

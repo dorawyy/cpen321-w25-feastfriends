@@ -179,8 +179,11 @@ private fun PreferencesForm(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
+        
         ActionButtons(
             isLoading = isLoading,
+            hasUnsavedChanges = hasUnsavedChanges,
             onSave = { viewModel.savePreferences() },
             onNavigateBack = onNavigateBack
         )
@@ -195,10 +198,12 @@ private fun CuisineGrid(
     onToggleCuisine: (String) -> Unit
 ) {
     val cuisineOptions = listOf(
-        "Sushi", "Italian",
-        "Pizza", "Japanese",
-        "European", "Korean",
-        "Middle Eastern", "Chinese"
+        "Italian", "Japanese",
+        "Chinese", "Korean",
+        "Indian", "Mexican",
+        "Thai", "French",
+        "Mediterranean", "American",
+        "Middle Eastern", "Vietnamese"
     )
 
     Column(
@@ -264,7 +269,7 @@ private fun BudgetSection(
     Slider(
         value = budget.toFloat(),
         onValueChange = onBudgetChange,
-        valueRange = 0f..200f,
+        valueRange = 5f..200f,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -293,6 +298,7 @@ private fun RadiusSection(
 @Composable
 private fun ActionButtons(
     isLoading: Boolean,
+    hasUnsavedChanges: Boolean,
     onSave: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -301,8 +307,11 @@ private fun ActionButtons(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD54F)),
-        enabled = !isLoading
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (hasUnsavedChanges) Color(0xFFFFD54F) else Color(0xFFE0E0E0),
+            disabledContainerColor = Color(0xFFE0E0E0)
+        ),
+        enabled = !isLoading && hasUnsavedChanges
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -312,7 +321,7 @@ private fun ActionButtons(
         } else {
             Text(
                 text = "Save Preferences",
-                color = Color.Black,
+                color = if (hasUnsavedChanges) Color.Black else Color.Gray,
                 fontSize = 20.sp
             )
         }

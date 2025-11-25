@@ -54,20 +54,8 @@ fun AuthScreen(
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated && !hasNavigated) {
             // Wait a bit for the preferences check to complete
-            kotlinx.coroutines.delay(150)
-            
-            Log.d("AuthScreen", "✅ User authenticated, shouldRedirectToPreferences=$shouldRedirectToPreferences")
-            println("✅ AuthScreen: User authenticated, shouldRedirectToPreferences=$shouldRedirectToPreferences")
+            delay(150)
             hasNavigated = true
-            
-            // Wait a bit for the preferences check to complete if needed
-            if (shouldRedirectToPreferences) {
-                Log.d("AuthScreen", "✅ Redirecting to preferences (first-time user)")
-                println("✅ AuthScreen: Redirecting to preferences (first-time user)")
-            } else {
-                Log.d("AuthScreen", "✅ Navigating to home")
-                println("✅ AuthScreen: Navigating to home")
-            }
             onNavigateToHome()
         }
     }

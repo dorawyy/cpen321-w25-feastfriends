@@ -159,19 +159,13 @@ class AuthViewModel @Inject constructor(
      * Sign in with Google ID token (existing account)
      */
     fun signInWithGoogle(idToken: String) {
-        Log.d("AuthViewModel", "🔵 signInWithGoogle called")
-        println("🔵 AuthViewModel: signInWithGoogle called")
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
             _shouldRedirectToPreferences.value = false
-            Log.d("AuthViewModel", "🔵 Starting sign in process")
-            println("🔵 AuthViewModel: Starting sign in process")
 
             when (val result = authRepository.signIn(idToken)) {
                 is ApiResult.Success -> {
-                    Log.d("AuthViewModel", "✅ Sign in successful")
-                    println("✅ AuthViewModel: Sign in successful")
                     _currentUser.value = result.data.user
 
                     // Connect to socket with token
@@ -183,20 +177,13 @@ class AuthViewModel @Inject constructor(
                     }
 
                     // Check if user has preferences set (first-time user check)
-                    // Do this BEFORE setting authenticated state to ensure flag is set before navigation
-                    Log.d("AuthViewModel", "🔵 Checking if first-time user...")
-                    println("🔵 AuthViewModel: Checking if first-time user...")
                     checkIfFirstTimeUser()
                     
                     // Small delay to ensure the check completes and flag is set
                     delay(100)
-                    Log.d("AuthViewModel", "🔵 After check, shouldRedirectToPreferences=${_shouldRedirectToPreferences.value}")
-                    println("🔵 AuthViewModel: After check, shouldRedirectToPreferences=${_shouldRedirectToPreferences.value}")
                     
                     // Now set authenticated state (this will trigger navigation)
                     _authState.value = AuthState.Authenticated
-                    Log.d("AuthViewModel", "✅ Auth state set to Authenticated")
-                    println("✅ AuthViewModel: Auth state set to Authenticated")
 
                     _errorMessage.value = null
                 }
@@ -218,39 +205,21 @@ class AuthViewModel @Inject constructor(
      * and set redirect flag if needed
      */
     private suspend fun checkIfFirstTimeUser() {
-        Log.d("AuthViewModel", "🔵 checkIfFirstTimeUser called")
-        println("🔵 AuthViewModel: checkIfFirstTimeUser called")
         when (val settingsResult = userRepository.getUserSettings()) {
             is ApiResult.Success -> {
                 val settings = settingsResult.data
                 // Check if user has no preferences set (empty preference list)
-                // This is the main indicator of a first-time user
                 val hasNoPreferences = settings.preference.isEmpty()
                 
-                Log.d("AuthViewModel", "📊 User settings: preference=${settings.preference.size} items, budget=${settings.budget}, radius=${settings.radiusKm}")
-                println("📊 AuthViewModel: User settings: preference=${settings.preference.size} items, budget=${settings.budget}, radius=${settings.radiusKm}")
-                Log.d("AuthViewModel", "📊 hasNoPreferences=$hasNoPreferences")
-                println("📊 AuthViewModel: hasNoPreferences=$hasNoPreferences")
-                
                 if (hasNoPreferences) {
-                    Log.d("AuthViewModel", "✅ First-time user detected, setting redirect flag")
-                    println("✅ AuthViewModel: First-time user detected, setting redirect flag")
                     _shouldRedirectToPreferences.value = true
-                    Log.d("AuthViewModel", "✅ Flag set: shouldRedirectToPreferences=${_shouldRedirectToPreferences.value}")
-                    println("✅ AuthViewModel: Flag set: shouldRedirectToPreferences=${_shouldRedirectToPreferences.value}")
-                } else {
-                    Log.d("AuthViewModel", "❌ Not a first-time user, preferences exist")
-                    println("❌ AuthViewModel: Not a first-time user, preferences exist")
                 }
             }
             is ApiResult.Error -> {
-                Log.e("AuthViewModel", "❌ Failed to fetch user settings: ${settingsResult.message}")
-                println("❌ AuthViewModel: Failed to fetch user settings: ${settingsResult.message}")
                 // If we can't fetch settings, don't redirect (fail silently)
             }
             is ApiResult.Loading -> {
-                Log.d("AuthViewModel", "⏳ Loading user settings...")
-                println("⏳ AuthViewModel: Loading user settings...")
+                // Ignore
             }
         }
     }

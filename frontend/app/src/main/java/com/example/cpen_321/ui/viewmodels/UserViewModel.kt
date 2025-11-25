@@ -11,6 +11,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -55,15 +57,41 @@ class UserViewModel @Inject constructor(
     private val _radius = MutableStateFlow(5.0)
     val radius: StateFlow<Double> = _radius.asStateFlow()
 
+    // Original values for change tracking
+    private var originalCuisines: Set<String> = emptySet()
+    private var originalBudget: Double = 50.0
+    private var originalRadius: Double = 5.0
+
+    // Check if there are unsaved changes
+    private val _hasUnsavedChanges = MutableStateFlow(false)
+    val hasUnsavedChanges: StateFlow<Boolean> = _hasUnsavedChanges.asStateFlow()
+    
+    private fun updateHasUnsavedChanges() {
+        _hasUnsavedChanges.value = _selectedCuisines.value != originalCuisines ||
+                                   _budget.value != originalBudget ||
+                                   _radius.value != originalRadius
+    }
+
     init {
         loadLocalPreferences()
     }
 
 
     private fun loadLocalPreferences() {
-        _selectedCuisines.value = preferencesManager.getCuisines()
-        _budget.value = preferencesManager.getBudget()
-        _radius.value = preferencesManager.getRadius()
+        val cuisines = preferencesManager.getCuisines()
+        val budget = preferencesManager.getBudget().coerceAtLeast(5.0)
+        val radius = preferencesManager.getRadius()
+        
+        _selectedCuisines.value = cuisines
+        _budget.value = budget
+        _radius.value = radius
+        
+        // Initialize original values from local preferences
+        originalCuisines = cuisines
+        originalBudget = budget
+        originalRadius = radius
+        
+        updateHasUnsavedChanges()
     }
 
     /**
@@ -79,9 +107,20 @@ class UserViewModel @Inject constructor(
                     _userSettings.value = result.data
 
                     // Update local state
-                    _selectedCuisines.value = result.data.preference.toSet()
-                    _budget.value = result.data.budget
-                    _radius.value = result.data.radiusKm
+                    val cuisines = result.data.preference.toSet()
+                    val budget = result.data.budget.coerceAtLeast(5.0)
+                    val radius = result.data.radiusKm
+                    
+                    _selectedCuisines.value = cuisines
+                    _budget.value = budget
+                    _radius.value = radius
+                    
+                    // Save original values for change tracking
+                    originalCuisines = cuisines
+                    originalBudget = budget
+                    originalRadius = radius
+                    
+                    updateHasUnsavedChanges()
                 }
                 is ApiResult.Error -> {
                     _errorMessage.value = result.message
@@ -181,9 +220,20 @@ class UserViewModel @Inject constructor(
                     _successMessage.value = "Settings updated successfully"
 
                     // Update local state
-                    _selectedCuisines.value = result.data.preference.toSet()
-                    _budget.value = result.data.budget
-                    _radius.value = result.data.radiusKm
+                    val cuisines = result.data.preference.toSet()
+                    val budget = result.data.budget.coerceAtLeast(5.0)
+                    val radius = result.data.radiusKm
+                    
+                    _selectedCuisines.value = cuisines
+                    _budget.value = budget
+                    _radius.value = radius
+                    
+                    // Update original values after successful save
+                    originalCuisines = cuisines
+                    originalBudget = budget
+                    originalRadius = radius
+                    
+                    updateHasUnsavedChanges()
                 }
                 is ApiResult.Error -> {
                     _errorMessage.value = result.message
@@ -211,14 +261,18 @@ class UserViewModel @Inject constructor(
 
         // Save to local preferences
         preferencesManager.saveCuisines(currentCuisines)
+        updateHasUnsavedChanges()
     }
 
     /**
      * Update budget
      */
     fun updateBudget(newBudget: Double) {
-        _budget.value = newBudget
-        preferencesManager.saveBudget(newBudget)
+        // Ensure budget is at least $5
+        val validatedBudget = newBudget.coerceAtLeast(5.0)
+        _budget.value = validatedBudget
+        preferencesManager.saveBudget(validatedBudget)
+        updateHasUnsavedChanges()
     }
 
     /**
@@ -227,6 +281,7 @@ class UserViewModel @Inject constructor(
     fun updateRadius(newRadius: Double) {
         _radius.value = newRadius
         preferencesManager.saveRadius(newRadius)
+        updateHasUnsavedChanges()
     }
 
     /**
