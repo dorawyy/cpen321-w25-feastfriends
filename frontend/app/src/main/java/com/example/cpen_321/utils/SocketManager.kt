@@ -327,4 +327,63 @@ class SocketManager private constructor() {
             exception.printStackTrace()
         }
     }
+
+    // ================ VOTING ==============================//
+    // ADD THESE METHODS TO YOUR EXISTING SocketManager CLASS:
+
+    /**
+     * Subscribe to new voting round event (server → client)
+     * Event: "voting:new_round"
+     */
+    fun onNewVotingRound(listener: (JSONObject) -> Unit) {
+        on("voting:new_round") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                Log.d(TAG, "Received voting:new_round: $data")
+                listener(data)
+            }
+        }
+    }
+
+    /**
+     * Subscribe to sequential vote update event (server → client)
+     * Event: "voting:vote_update"
+     */
+    fun onSequentialVoteUpdate(listener: (JSONObject) -> Unit) {
+        on("voting:vote_update") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                Log.d(TAG, "Received voting:vote_update: $data")
+                listener(data)
+            }
+        }
+    }
+
+    /**
+     * Subscribe to majority reached event (server → client)
+     * Event: "voting:majority_reached"
+     */
+    fun onMajorityReached(listener: (JSONObject) -> Unit) {
+        on("voting:majority_reached") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                Log.d(TAG, "Received voting:majority_reached: $data")
+                listener(data)
+            }
+        }
+    }
+
+    /**
+     * Subscribe to voting round timeout event (server → client)
+     * Event: "voting:round_timeout"
+     */
+    fun onVotingRoundTimeout(listener: (JSONObject) -> Unit) {
+        on("voting:round_timeout") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                Log.d(TAG, "Received voting:round_timeout: $data")
+                listener(data)
+            }
+        }
+    }
 }

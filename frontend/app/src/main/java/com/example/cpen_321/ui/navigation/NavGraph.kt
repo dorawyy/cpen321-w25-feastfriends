@@ -1,7 +1,6 @@
 package com.example.cpen_321.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -15,21 +14,24 @@ import com.example.cpen_321.ui.screens.profile.CredibilityScreen
 import com.example.cpen_321.ui.screens.profile.PreferencesScreen
 import com.example.cpen_321.ui.screens.profile.ProfileScreen
 import com.example.cpen_321.ui.viewmodels.AuthViewModel
+import NavRoutes
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
     val authViewModel: AuthViewModel = hiltViewModel()
+
     NavHost(
         navController = navController,
         startDestination = NavRoutes.SPLASH_SCREEN
     ) {
+
         composable("splash") {
             SplashScreen(navController = navController)
         }
 
         composable(NavRoutes.AUTH) {
             val shouldRedirectToPreferences by authViewModel.shouldRedirectToPreferences.collectAsState()
-            
+
             AuthScreen(
                 viewModel = authViewModel,
                 onNavigateToHome = {
@@ -89,8 +91,6 @@ fun AppNavGraph(navController: NavHostController) {
         composable(NavRoutes.PREFERENCES) {
             PreferencesScreen(
                 onNavigateBack = {
-                    // If we can pop back, do it. Otherwise navigate to HOME
-                    // This handles the case where user was redirected from AUTH (which was popped)
                     if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     } else {
@@ -110,6 +110,7 @@ fun AppNavGraph(navController: NavHostController) {
             ViewGroupsScreen(navController = navController)
         }
 
+        // ✅ Fixed member profile route
         composable(
             route = "member_profile/{userId}",
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
@@ -118,6 +119,20 @@ fun AppNavGraph(navController: NavHostController) {
                 navController = navController,
                 userId = backStackEntry.arguments?.getString("userId")
             )
+        }
+
+        // ✅ Fixed sequential voting route (was accidentally nested before)
+        composable(
+            route = "sequential_voting/{groupId}",
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId")
+            groupId?.let {
+                SequentialVotingScreen(
+                    navController = navController,
+                    groupId = it
+                )
+            }
         }
     }
 }

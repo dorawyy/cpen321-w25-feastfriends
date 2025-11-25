@@ -197,7 +197,7 @@ private fun WaitingRoomEffects(
     LaunchedEffect(groupReady, groupId) {
         if (groupReady && groupId != null) {
             delay(1000L)
-            navController.navigate("vote_restaurant/$groupId") {
+            navController.navigate("sequential_voting/$groupId") {
                 popUpTo("waiting_room") { inclusive = true }
             }
         }

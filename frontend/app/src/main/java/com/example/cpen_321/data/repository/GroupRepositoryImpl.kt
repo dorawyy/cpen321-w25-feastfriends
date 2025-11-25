@@ -2,19 +2,19 @@ package com.example.cpen_321.data.repository
 
 import com.example.cpen_321.data.local.PreferencesManager
 import com.example.cpen_321.data.model.Group
+import com.example.cpen_321.data.model.InitializeVotingResponse
 import com.example.cpen_321.data.model.Restaurant
+import com.example.cpen_321.data.model.SubmitSequentialVoteRequest
+import com.example.cpen_321.data.model.SubmitVoteResponse
+import com.example.cpen_321.data.model.VotingRoundStatus
 import com.example.cpen_321.data.network.RetrofitClient
 import com.example.cpen_321.data.network.dto.ApiResult
 import com.example.cpen_321.data.network.dto.LeaveGroupRequest
 import com.example.cpen_321.data.network.dto.VoteRestaurantRequest
 import com.example.cpen_321.data.network.dto.map
 import com.example.cpen_321.data.network.safeApiCall
-import com.google.gson.JsonSyntaxException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import retrofit2.HttpException
-import java.io.IOException
 import android.util.Log
+
 /**
  * Implementation of GroupRepository
  */
@@ -44,6 +44,7 @@ class GroupRepositoryImpl(
             ApiResult.Error("Failed to get group status: ${e.message}", null)
         }
     }
+
     override suspend fun voteForRestaurant(
         groupId: String,
         restaurantId: String,
@@ -56,27 +57,86 @@ class GroupRepositoryImpl(
         )
 
         val response = safeApiCall(
-            apiCall = {groupAPI.voteForRestaurant(groupId,request)},
+            apiCall = { groupAPI.voteForRestaurant(groupId, request) },
             customErrorCode = "Failed to vote"
         ).map { apiResponse -> apiResponse.currentVotes }
 
-        return response;
+        return response
     }
 
     override suspend fun leaveGroup(groupId: String): ApiResult<String> {
 
         val request = LeaveGroupRequest()
         val response = safeApiCall(
-            apiCall = { groupAPI.leaveGroup(
-                groupId = groupId,
-                request = request
-            )},
-                customErrorCode = "Failed to leave group"
-        ).map{"Left group successfully"}
+            apiCall = {
+                groupAPI.leaveGroup(
+                    groupId = groupId,
+                    request = request
+                )
+            },
+            customErrorCode = "Failed to leave group"
+        ).map { "Left group successfully" }
 
         // Clear local group ID
         saveCurrentGroupId(null)
-        return response;
+        return response
+    }
+
+    // ==================== NEW: SEQUENTIAL VOTING METHODS ====================
+
+    /**
+     * Initialize sequential voting for a group
+     */
+    override suspend fun initializeSequentialVoting(groupId: String): ApiResult<InitializeVotingResponse> {
+        Log.d("GroupRepo", "🔵 Starting initializeSequentialVoting for group: $groupId")
+
+        return try {
+            val response = groupAPI.initializeSequentialVoting(groupId)
+
+            Log.d("GroupRepo", "🔵 Raw response code: ${response.code()}")
+            Log.d("GroupRepo", "🔵 Response isSuccessful: ${response.isSuccessful}")
+            Log.d("GroupRepo", "🔵 Response body: ${response.body()}")
+            Log.d("GroupRepo", "🔵 Response errorBody: ${response.errorBody()?.string()}")
+
+            val result = safeApiCall(
+                apiCall = { groupAPI.initializeSequentialVoting(groupId) },
+                customErrorCode = "Failed to initialize voting"
+            )
+
+            when (result) {
+                is ApiResult.Success -> Log.d("GroupRepo", "🟢 safeApiCall returned Success: ${result.data}")
+                is ApiResult.Error -> Log.e("GroupRepo", "🔴 safeApiCall returned Error: ${result.message}, code: ${result.code}")
+                is ApiResult.Loading -> Log.d("GroupRepo", "🟡 safeApiCall returned Loading")
+            }
+
+            result
+        } catch (e: Exception) {
+            Log.e("GroupRepo", "🔴 Exception in initializeSequentialVoting", e)
+            ApiResult.Error("Exception: ${e.message}")
+        }
+    }
+
+    /**
+     * Submit a sequential vote (yes/no)
+     */
+    override suspend fun submitSequentialVote(
+        groupId: String,
+        request: SubmitSequentialVoteRequest
+    ): ApiResult<SubmitVoteResponse> {
+        return safeApiCall(
+            apiCall = { groupAPI.submitSequentialVote(groupId, request) },
+            customErrorCode = "Failed to submit vote"
+        )
+    }
+
+    /**
+     * Get current voting round status
+     */
+    override suspend fun getCurrentVotingRound(groupId: String): ApiResult<VotingRoundStatus> {
+        return safeApiCall(
+            apiCall = { groupAPI.getCurrentVotingRound(groupId) },
+            customErrorCode = "Failed to get voting round"
+        )
     }
 
     override fun saveCurrentGroupId(groupId: String?) {

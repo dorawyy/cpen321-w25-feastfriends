@@ -1,6 +1,10 @@
 package com.example.cpen_321.data.network.api
 
 import com.example.cpen_321.data.model.Group
+import com.example.cpen_321.data.model.InitializeVotingResponse
+import com.example.cpen_321.data.model.SubmitSequentialVoteRequest
+import com.example.cpen_321.data.model.SubmitVoteResponse
+import com.example.cpen_321.data.model.VotingRoundStatus
 import com.example.cpen_321.data.network.dto.ApiResponse
 import com.example.cpen_321.data.network.dto.LeaveGroupRequest
 import com.example.cpen_321.data.network.dto.LeaveGroupResponse
@@ -26,7 +30,7 @@ interface GroupAPI {
 
     /**
      * POST /api/group/vote/:groupId
-     * Vote for a restaurant
+     * Vote for a restaurant (LEGACY - list-based voting)
      */
     @POST("api/group/vote/{groupId}")
     suspend fun voteForRestaurant(
@@ -43,4 +47,34 @@ interface GroupAPI {
         @Path("groupId") groupId: String,
         @Body request: LeaveGroupRequest = LeaveGroupRequest()
     ): Response<ApiResponse<LeaveGroupResponse>>
+
+    // ==================== NEW: SEQUENTIAL VOTING ENDPOINTS ====================
+
+    /**
+     * POST /api/groups/:groupId/voting/initialize
+     * Initialize sequential voting for a group
+     */
+    @POST("api/groups/{groupId}/voting/initialize")
+    suspend fun initializeSequentialVoting(
+        @Path("groupId") groupId: String
+    ): Response<ApiResponse<InitializeVotingResponse>>
+
+    /**
+     * POST /api/groups/:groupId/voting/vote
+     * Submit a yes/no vote for the current restaurant
+     */
+    @POST("api/groups/{groupId}/voting/vote")
+    suspend fun submitSequentialVote(
+        @Path("groupId") groupId: String,
+        @Body request: SubmitSequentialVoteRequest
+    ): Response<ApiResponse<SubmitVoteResponse>>
+
+    /**
+     * GET /api/groups/:groupId/voting/current
+     * Get current voting round status
+     */
+    @GET("api/groups/{groupId}/voting/current")
+    suspend fun getCurrentVotingRound(
+        @Path("groupId") groupId: String
+    ): Response<ApiResponse<VotingRoundStatus>>
 }

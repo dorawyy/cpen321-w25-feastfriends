@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import initializeSocket, { SocketEmitter } from '../config/socket';
+import { RestaurantType } from '../types';
 
 /**
  * Global Socket Manager
@@ -89,7 +90,7 @@ class SocketManager {
   }
 
   /**
-   * Emit vote update to group
+   * Emit vote update to group (LEGACY - for list-based voting)
    */
   public emitVoteUpdate(
     groupId: string,
@@ -159,7 +160,6 @@ class SocketManager {
     });
   }
 
-
   /**
    * Emit an event directly to a specific user (by userId)
    */
@@ -177,6 +177,82 @@ class SocketManager {
     }
 
     console.warn(`⚠️ emitToUser: No socket found for user ${userId}`);
+  }
+
+  // ==================== NEW: SEQUENTIAL VOTING METHODS ====================
+
+  /**
+   * Emit new voting round started
+   */
+  public emitNewVotingRound(
+    groupId: string,
+    restaurant: RestaurantType,
+    roundNumber: number,
+    totalRounds: number,
+    timeoutSeconds: number
+  ): void {
+    const io = this.getIO();
+    io.to(`group_${groupId}`).emit('voting:new_round', {
+      restaurant,
+      roundNumber,
+      totalRounds,
+      timeoutSeconds,
+      expiresAt: new Date(Date.now() + timeoutSeconds * 1000).toISOString(),
+    });
+    console.log(`🎯 Emitted new voting round for group ${groupId}: ${restaurant.name}`);
+  }
+
+  /**
+   * Emit sequential vote update
+   */
+  public emitSequentialVoteUpdate(
+    groupId: string,
+    userId: string,
+    vote: boolean,
+    yesVotes: number,
+    noVotes: number,
+    totalMembers: number
+  ): void {
+    const io = this.getIO();
+    io.to(`group_${groupId}`).emit('voting:vote_update', {
+      userId,
+      vote,
+      yesVotes,
+      noVotes,
+      totalMembers,
+      votesRemaining: totalMembers - (yesVotes + noVotes),
+    });
+    console.log(`✅ Vote update for group ${groupId}: ${yesVotes}/${noVotes} (${vote ? 'yes' : 'no'})`);
+  }
+
+  /**
+   * Emit majority reached (restaurant accepted or rejected)
+   */
+  public emitMajorityReached(
+    groupId: string,
+    result: 'yes' | 'no',
+    restaurantId: string
+  ): void {
+    const io = this.getIO();
+    io.to(`group_${groupId}`).emit('voting:majority_reached', {
+      result,
+      restaurantId,
+    });
+    console.log(`🎉 Majority reached for group ${groupId}: ${result}`);
+  }
+
+  /**
+   * Emit voting round timeout
+   */
+  public emitVotingRoundTimeout(
+    groupId: string,
+    restaurantId: string
+  ): void {
+    const io = this.getIO();
+    io.to(`group_${groupId}`).emit('voting:round_timeout', {
+      restaurantId,
+    });
+    console.log(`⏰ Voting round timeout for group ${groupId}`);
   }
 }
 
