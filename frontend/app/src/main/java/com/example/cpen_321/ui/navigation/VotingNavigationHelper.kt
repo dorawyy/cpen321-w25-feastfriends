@@ -1,27 +1,21 @@
-// Navigation Helper for Vote Restaurant Feature
-
 package com.example.cpen_321.ui.navigation
 
 import androidx.navigation.NavController
 
-/**
- * Helper functions for navigating to voting screens
- */
 object VotingNavigationHelper {
 
     /**
-     * Navigate to vote restaurant screen from ViewGroups
+     * Navigate to vote restaurant screen (legacy list-based)
      */
     fun navigateToVoteRestaurant(navController: NavController, groupId: String) {
-        // Use the parameterized route
         navController.navigate("vote_restaurant/$groupId")
     }
 
     /**
-     * Navigate to vote restaurant screen (uses current group)
+     * Navigate to sequential voting screen (NEW Tinder-style)
      */
-    fun navigateToVoteRestaurant(navController: NavController) {
-        navController.navigate(NavRoutes.VOTE_RESTAURANT)
+    fun navigateToSequentialVoting(navController: NavController, groupId: String) {
+        navController.navigate("sequential_voting/$groupId")
     }
 
     /**
@@ -40,26 +34,3 @@ object VotingNavigationHelper {
         navController.navigate("group/$groupId")
     }
 }
-
-// Usage in ViewGroupsScreen:
-/*
-Button(
-    onClick = {
-        currentGroup.groupId?.let { groupId ->
-            VotingNavigationHelper.navigateToVoteRestaurant(navController, groupId)
-        }
-    }
-) {
-    Text("Vote Now")
-}
-*/
-
-// Usage in VoteRestaurantScreen after restaurant selection:
-/*
-LaunchedEffect(selectedRestaurant) {
-    selectedRestaurant?.let {
-        delay(1500)
-        VotingNavigationHelper.navigateBackToGroup(navController)
-    }
-}
-*/

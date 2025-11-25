@@ -84,6 +84,19 @@ fun AppNavGraph(navController: NavHostController) {
         composable(NavRoutes.VIEW_GROUPS) {
             ViewGroupsScreen(navController = navController)
         }
+
+        composable(
+            route = "sequential_voting/{groupId}",
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId")
+            groupId?.let {
+                SequentialVotingScreen(
+                    navController = navController,
+                    groupId = it
+                )
+            }
+        }
     }
 }
 

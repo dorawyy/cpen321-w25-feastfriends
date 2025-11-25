@@ -30,6 +30,8 @@ import com.example.cpen_321.ui.viewmodels.UserViewModel
 import com.example.cpen_321.utils.LocationHelper
 import kotlinx.coroutines.launch
 import android.util.Log
+import NavRoutes
+
 // Add font
 val PlaywriteFontFamily = FontFamily(
     Font(R.font.playwrite_usmodern_variablefont_wght)
@@ -241,12 +243,26 @@ fun HomeScreen(
                 // Current Groups Button
                 Button(
                     onClick = {
+                        // ✅ FIX: Store in local variable to enable smart casting
+                        val group = currentGroup
+
                         // Check if user has an active group
-                        if (currentGroup != null) {
-                            // Navigate to active group
-                            navController.navigate(NavRoutes.VIEW_GROUPS)
+                        if (group != null) {
+                            val groupId = group.groupId
+
+                            // Check if voting is in progress
+                            if (group.restaurantSelected == false && groupId != null) {
+                                // Voting still in progress - go to sequential voting
+                                navController.navigate("sequential_voting/$groupId")
+                            } else if (groupId != null) {
+                                // Restaurant already selected - go to group screen
+                                navController.navigate("group/$groupId")
+                            } else {
+                                // Fallback to view groups
+                                navController.navigate(NavRoutes.VIEW_GROUPS)
+                            }
                         } else {
-                            // Navigate to view groups screen or show message
+                            // No active group - show all groups
                             navController.navigate(NavRoutes.VIEW_GROUPS)
                         }
                     },
@@ -257,8 +273,16 @@ fun HomeScreen(
                         containerColor = if (currentGroup != null) Color(0xFF4CAF50) else Color(0xFFFFD54F)
                     )
                 ) {
+                    // ✅ FIX: Use local variable for smart casting
+                    val group = currentGroup
+                    val buttonText = when {
+                        group?.restaurantSelected == false -> "Continue Voting"
+                        group != null -> "View Active Group"
+                        else -> "Current Groups"
+                    }
+
                     Text(
-                        text = if (currentGroup != null) "View Active Group" else "Current Groups",
+                        text = buttonText,
                         color = Color.Black,
                         fontSize = 20.sp
                     )
