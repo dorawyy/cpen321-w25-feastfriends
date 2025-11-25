@@ -286,6 +286,12 @@ private fun RestaurantVoteCard(
     restaurant: Restaurant,
     modifier: Modifier = Modifier
 ) {
+    // ✅ ADD THIS LOGGING HERE - right at the start
+    val photoUrl = restaurant.getMainPhotoUrl()
+    android.util.Log.d("RestaurantCard", "🖼️ Restaurant: ${restaurant.name}")
+    android.util.Log.d("RestaurantCard", "🖼️ Photo URL: $photoUrl")
+    android.util.Log.d("RestaurantCard", "🖼️ Photos array: ${restaurant.photos}")
+
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -305,9 +311,16 @@ private fun RestaurantVoteCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(300.dp)
+                        .height(200.dp)
                         .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .background(Color.LightGray)
+                        .background(Color.LightGray),
+                    onError = { error ->
+                        android.util.Log.e("RestaurantCard", "❌ Failed to load image: $photoUrl")
+                        android.util.Log.e("RestaurantCard", "❌ Error: ${error.result.throwable.message}")
+                    },
+                    onSuccess = {
+                        android.util.Log.d("RestaurantCard", "✅ Image loaded successfully!")
+                    }
                 )
             } ?: Box(
                 modifier = Modifier

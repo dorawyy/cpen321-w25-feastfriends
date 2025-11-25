@@ -5,8 +5,13 @@ export interface IRestaurant {
   name: string;
   location: string;
   restaurantId?: string;
-  url?: string;
+  address?: string;           // ← ADD
+  priceLevel?: number;        // ← ADD
+  rating?: number;            // ← ADD
+  photos?: string[];          // ← ADD
   phoneNumber?: string;
+  website?: string;           // ← ADD
+  url?: string;
   cuisine?: string;
   priceRange?: string;
 }
@@ -89,13 +94,19 @@ export interface IGroupDocument extends Document, IGroup, IGroupMethods {
 export interface IGroupModel extends Model<IGroup, {}, IGroupMethods> {}
 
 // Schema definitions
+// Update the schema
 const RestaurantSchema = new Schema<IRestaurant>(
   {
     name: { type: String, required: true },
     location: { type: String, required: true },
     restaurantId: { type: String },
-    url: { type: String },
+    address: { type: String },              // ← ADD
+    priceLevel: { type: Number },           // ← ADD
+    rating: { type: Number },               // ← ADD
+    photos: { type: [String], default: [] }, // ← ADD
     phoneNumber: { type: String },
+    website: { type: String },              // ← ADD
+    url: { type: String },
     cuisine: { type: String },
     priceRange: { type: String }
   },
