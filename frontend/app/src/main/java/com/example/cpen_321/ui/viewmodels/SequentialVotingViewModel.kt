@@ -332,6 +332,7 @@ class SequentialVotingViewModel @Inject constructor(
     private fun handleNewVotingRound(data: JSONObject) {
         viewModelScope.launch {
             Log.d(TAG, "🎯 New voting round received")
+            Log.d(TAG, "📦 Full JSON data: $data")
 
             val restaurantJson = data.getJSONObjectSafe("restaurant")
             val roundNumber = data.getIntSafe("roundNumber")
@@ -359,14 +360,16 @@ class SequentialVotingViewModel @Inject constructor(
                 _currentRestaurant.value = restaurant
                 _roundNumber.value = roundNumber
                 _totalRounds.value = totalRounds
-                _userVote.value = null
+                _userVote.value = null  // ✅ Already there
                 _yesVotes.value = 0
                 _noVotes.value = 0
+                _isLoading.value = false  // ← ADD THIS LINE - reset loading state!
 
                 // Start countdown timer
                 startTimer(timeoutSeconds)
 
                 Log.d(TAG, "New round: ${restaurant.name}, round $roundNumber/$totalRounds")
+                Log.d(TAG, "Reset state: userVote=null, isLoading=false")  // ← ADD THIS LOG
             }
         }
     }
