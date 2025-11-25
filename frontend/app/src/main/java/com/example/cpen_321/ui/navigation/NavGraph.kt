@@ -109,6 +109,16 @@ fun AppNavGraph(navController: NavHostController) {
         composable(NavRoutes.VIEW_GROUPS) {
             ViewGroupsScreen(navController = navController)
         }
+
+        composable(
+            route = "member_profile/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            MemberProfileScreenWithId(
+                navController = navController,
+                userId = backStackEntry.arguments?.getString("userId")
+            )
+        }
     }
 }
 
@@ -123,5 +133,18 @@ private fun GroupScreenWithId(navController: NavHostController, groupId: String?
 private fun VoteRestaurantScreenWithId(navController: NavHostController, groupId: String?) {
     groupId?.let {
         VoteRestaurantScreen(navController = navController, groupId = it)
+    }
+}
+
+@Composable
+private fun MemberProfileScreenWithId(
+    navController: NavHostController,
+    userId: String?
+) {
+    userId?.let {
+        MemberProfileScreen(
+            userId = it,
+            onNavigateBack = { navController.popBackStack() }
+        )
     }
 }

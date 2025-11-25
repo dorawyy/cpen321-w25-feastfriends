@@ -203,9 +203,13 @@ private fun WaitingRoomEffects(
         }
     }
 
-    LaunchedEffect(roomExpired) {
+    LaunchedEffect(roomExpired, roomMembers.size, currentRoom) {
         if (roomExpired) {
-            if (roomMembers.size < minNumberOfPeople) {
+            // Check both roomMembers and currentRoom.members to ensure we have the latest count
+            val currentRoomMembers = (currentRoom as? com.example.cpen_321.data.model.Room)?.members?.size ?: roomMembers.size
+            val memberCount = maxOf(roomMembers.size, currentRoomMembers)
+            
+            if (memberCount < minNumberOfPeople) {
                 onShowFailureDialog()
             }
         }

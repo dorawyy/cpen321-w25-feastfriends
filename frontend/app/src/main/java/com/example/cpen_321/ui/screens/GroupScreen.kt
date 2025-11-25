@@ -2,6 +2,7 @@ package com.example.cpen_321.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -197,7 +198,8 @@ private fun GroupContent(
             )
             MembersSection(
                 currentGroup = currentGroup,
-                groupMembers = groupMembers
+                groupMembers = groupMembers,
+                navController = navController
             )
         }
 
@@ -380,7 +382,8 @@ private fun NoRestaurantSelected() {
 @Composable
 private fun MembersSection(
     currentGroup: com.example.cpen_321.data.model.Group,
-    groupMembers: List<GroupMember>
+    groupMembers: List<GroupMember>,
+    navController: NavController
 ) {
     Text(
         text = "Group Members (${currentGroup.getAllMembers()?.size ?: 0})",
@@ -396,7 +399,11 @@ private fun MembersSection(
     if (allMembers.isEmpty()) {
         MembersLoadingState()
     } else {
-        MembersList(allMembers = allMembers, groupMembers = groupMembers)
+        MembersList(
+            allMembers = allMembers,
+            groupMembers = groupMembers,
+            navController = navController
+        )
     }
 }
 
@@ -415,22 +422,34 @@ private fun MembersLoadingState() {
 @Composable
 private fun MembersList(
     allMembers: List<String>,
-    groupMembers: List<GroupMember>
+    groupMembers: List<GroupMember>,
+    navController: NavController
 ) {
     allMembers.forEach { userId ->
         val memberDetails = groupMembers.find { it.userId == userId }
-        MemberCard(userId = userId, memberDetails = memberDetails)
+        MemberCard(
+            userId = userId,
+            memberDetails = memberDetails,
+            navController = navController
+        )
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun MemberCard(userId: String, memberDetails: GroupMember?) {
+private fun MemberCard(
+    userId: String,
+    memberDetails: GroupMember?,
+    navController: NavController
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFFFFF9C4))
             .border(2.dp, Color.Black)
+            .clickable {
+                navController.navigate("member_profile/$userId")
+            }
             .padding(16.dp)
     ) {
         if (memberDetails != null) {

@@ -154,6 +154,25 @@ class UserViewModel @Inject constructor(
     }
 
     /**
+     * Get a single user profile by ID
+     * Returns the profile or null if not found/error
+     */
+    suspend fun getUserProfile(userId: String): UserProfile? {
+        return when (val result = userRepository.getUserProfiles(listOf(userId))) {
+            is ApiResult.Success -> {
+                result.data.firstOrNull()
+            }
+            is ApiResult.Error -> {
+                _errorMessage.value = result.message
+                null
+            }
+            is ApiResult.Loading -> {
+                null
+            }
+        }
+    }
+
+    /**
      * Update user profile
      */
     fun updateProfile(

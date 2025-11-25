@@ -11,10 +11,12 @@ object NavRoutes {
     const val PREFERENCES = "preferences"
     const val CREDIBILITY_SCORE = "credibility_score"
     const val VIEW_GROUPS = "view_groups"
+    const val MEMBER_PROFILE = "member_profile"
 
     const val SPLASH_SCREEN = "splash"
 
     // Navigation helpers with parameters
     fun groupWithId(groupId: String) = "group/$groupId"
     fun voteRestaurantWithId(groupId: String) = "vote_restaurant/$groupId"
+    fun memberProfileWithId(userId: String) = "member_profile/$userId"
 }

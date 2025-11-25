@@ -1,6 +1,7 @@
 package com.example.cpen_321.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -298,7 +299,8 @@ private fun GroupContent(
         GroupInfoSection(
             currentGroup = currentGroup,
             groupMembers = groupMembers,
-            selectedRestaurant = selectedRestaurant
+            selectedRestaurant = selectedRestaurant,
+            navController = navController
         )
 
         GroupActionButtons(
@@ -313,7 +315,8 @@ private fun GroupContent(
 private fun GroupInfoSection(
     currentGroup: com.example.cpen_321.data.model.Group,
     groupMembers: List<GroupMember>,
-    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?
+    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
+    navController: NavController
 ) {
     Column {  // Remove modifier = Modifier.weight(1f)
         Spacer(modifier = Modifier.height(16.dp))
@@ -322,7 +325,10 @@ private fun GroupInfoSection(
             selectedRestaurant = selectedRestaurant
         )
         Spacer(modifier = Modifier.height(16.dp))
-        MembersSection(groupMembers = groupMembers)
+        MembersSection(
+            groupMembers = groupMembers,
+            navController = navController
+        )
     }
 }
 
@@ -405,7 +411,10 @@ private fun RestaurantSelectionStatus(
 }
 
 @Composable
-private fun MembersSection(groupMembers: List<GroupMember>) {
+private fun MembersSection(
+    groupMembers: List<GroupMember>,
+    navController: NavController
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -431,7 +440,10 @@ private fun MembersSection(groupMembers: List<GroupMember>) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(groupMembers) { member ->
-            MemberCard(member = member)
+            MemberCard(
+                member = member,
+                navController = navController
+            )
         }
     }
 }
@@ -527,11 +539,17 @@ private fun ViewOrVoteButton(
 }
 
 @Composable
-private fun MemberCard(member: GroupMember) {
+private fun MemberCard(
+    member: GroupMember,
+    navController: NavController
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
+            .height(80.dp)
+            .clickable {
+                navController.navigate("member_profile/${member.userId}")
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (member.hasVoted) Color(0xFFE8F5E9) else Color.White
         ),

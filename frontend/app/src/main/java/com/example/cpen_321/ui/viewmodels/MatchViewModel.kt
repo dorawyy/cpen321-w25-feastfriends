@@ -109,7 +109,14 @@ class MatchViewModel @Inject constructor(
 
                 if (remaining <= 0) {
                     _timeRemaining.value = 0
-                    Log.d(TAG, "⏰ Timer expired")
+                    _roomExpired.value = true
+                    Log.d(TAG, "⏰ Timer expired - setting roomExpired to true")
+                    
+                    // Refresh room members to get accurate count before showing failure dialog
+                    _currentRoom.value?.roomId?.let { roomId ->
+                        getRoomStatus(roomId, updateTimer = false)
+                    }
+                    
                     break
                 }
 
