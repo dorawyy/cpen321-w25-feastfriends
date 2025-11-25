@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,6 +35,7 @@ fun ProfileConfigScreen(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val authState = authViewModel.authState.collectAsState()
+    val showDeleteInGroupAlert = authViewModel.showDeleteInGroupAlert.collectAsState().value
     
     LaunchedEffect(authState.value) {
         if (authState.value is AuthState.Unauthenticated) {
@@ -51,6 +55,13 @@ fun ProfileConfigScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 32.dp)
+        )
+    }
+    
+    // Alert dialog for delete account while in group
+    if (showDeleteInGroupAlert) {
+        DeleteInGroupAlertDialog(
+            onDismiss = { authViewModel.dismissDeleteInGroupAlert() }
         )
     }
 }
@@ -122,4 +133,29 @@ private fun ConfigButton(
         Text(text = text, color = textColor, fontSize = 20.sp)
     }
     Spacer(modifier = Modifier.height(32.dp))
+}
+
+@Composable
+private fun DeleteInGroupAlertDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Cannot Delete Account",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFFF5722)
+            )
+        },
+        text = {
+            Text("You cannot delete your account while you are in a room or group. Please leave the room or group first, then try again.")
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK", color = Color(0xFFFF5722), fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color.White
+    )
 }

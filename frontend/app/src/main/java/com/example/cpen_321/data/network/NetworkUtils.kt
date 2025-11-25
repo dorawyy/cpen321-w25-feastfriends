@@ -229,23 +229,37 @@ suspend fun safeMessageApiCall(messageApiCall: suspend () -> Response<MessageRes
                 /* overwrite this */
                 ApiResult.Success(response.message())
             } else {
+                // Try to parse error message from response body
+                val errorMessage = parseErrorMessage(response.errorBody()?.string(), response.code())
+                
                 if (customErrorCode == null) {
                     ApiResult.Error(
-                        message = "Failed to make request",
+                        message = errorMessage,
                         code = response.code()
                     )
                 } else {
+                    // Use custom error code, but prefer backend error message if available
+                    val finalMessage = if (errorMessage != "Request failed" && errorMessage.contains("Cannot delete")) {
+                        errorMessage
+                    } else {
+                        customErrorCode
+                    }
                     ApiResult.Error(
-                        message = customErrorCode,
+                        message = finalMessage,
                         code = response.code()
                     )
-
                 }
             }
         } catch (e: IOException) {
             ApiResult.Error("Network error: ${e.localizedMessage}")
         } catch (e: HttpException) {
-            ApiResult.Error("HTTP error ${e.code()}: ${e.message()}", code = e.code())
+            // Try to parse error from response body
+            val errorMessage = try {
+                parseErrorMessage(e.response()?.errorBody()?.string(), e.code())
+            } catch (ex: Exception) {
+                "HTTP error ${e.code()}: ${e.message()}"
+            }
+            ApiResult.Error(errorMessage, code = e.code())
         } catch (e: JsonSyntaxException) {
             ApiResult.Error("Parsing error: ${e.localizedMessage}")
         }

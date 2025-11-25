@@ -47,6 +47,10 @@ class AuthViewModel @Inject constructor(
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
 
+    // Show alert for delete account while in group
+    private val _showDeleteInGroupAlert = MutableStateFlow(false)
+    val showDeleteInGroupAlert: StateFlow<Boolean> = _showDeleteInGroupAlert.asStateFlow()
+
     init {
         // Initialize state from stored data
         initializeAuthState()
@@ -249,6 +253,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _showDeleteInGroupAlert.value = false
 
             when (val result = authRepository.deleteAccount()) {
                 is ApiResult.Success -> {
@@ -263,8 +268,14 @@ class AuthViewModel @Inject constructor(
                     onSuccess()
                 }
                 is ApiResult.Error -> {
-                    _authState.value = AuthState.Error(result.message)
-                    _errorMessage.value = "Failed to delete account: ${result.message}"
+                    // Check if error is about being in a room or group
+                    if (result.message.contains("room or group", ignoreCase = true) || 
+                        result.message.contains("Cannot delete", ignoreCase = true)) {
+                        _showDeleteInGroupAlert.value = true
+                    } else {
+                        _authState.value = AuthState.Error(result.message)
+                        _errorMessage.value = "Failed to delete account: ${result.message}"
+                    }
                 }
                 is ApiResult.Loading -> {
                     // Already handled by _isLoading
@@ -276,10 +287,18 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
+     * Dismiss the delete in group alert
+     */
+    fun dismissDeleteInGroupAlert() {
+        _showDeleteInGroupAlert.value = false
+    }
+
+    /**
      * Clear error message
      */
     fun clearError() {
         _errorMessage.value = null
+        _showDeleteInGroupAlert.value = false
     }
 
     /**
