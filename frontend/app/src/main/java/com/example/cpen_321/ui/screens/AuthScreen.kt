@@ -3,18 +3,24 @@ package com.example.cpen_321.ui.screens
 import android.content.Context
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cpen_321.R
 import androidx.compose.ui.window.Dialog
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -105,7 +111,7 @@ fun AuthScreenMainContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFD2B48C)) // Beige/tan background from original design
+                .background(Color(0xFFFFFFFF)) // Beige/tan background from original design
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
@@ -116,17 +122,17 @@ fun AuthScreenMainContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // App Title - Original Design
-                Text(
-                    text = "Welcome to\nFeastFriends",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = Color.Black,
-                    lineHeight = 40.sp
+                // Logo image
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "FeastFriends Logo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(550.dp),
+                    contentScale = ContentScale.Fit
                 )
 
-                Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(120.dp))
 
                 // Auth Buttons - Original Yellow Design
                 AuthButtons(
@@ -164,59 +170,6 @@ fun AuthScreenMainContent(
     }
 }
 
-@Composable
-fun AuthScreenErrorHandle(
-    viewModel: AuthViewModel = hiltViewModel(),
-    errorMessage: String?
-) {
-
-    errorMessage?.let { message ->
-        Dialog(onDismissRequest = { viewModel.clearError() }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Authentication Error",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Red
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = message,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        color = Color.Black
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = { viewModel.clearError() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF5722)
-                        )
-                    ) {
-                        Text(
-                            text = "OK",
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 // ========================= UI COMPONENTS =========================
 
@@ -232,49 +185,61 @@ private fun AuthButtons(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Login Button - Yellow with black border (original design)
-        Button(
-            onClick = onSignInClick,
-            enabled = !isLoading,
+        // Login Button - Ombre gradient
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFFD54F), // Yellow from original
-                disabledContainerColor = Color.Gray,
-                contentColor = Color.Black
-            ),
-            shape = MaterialTheme.shapes.medium
+                .height(60.dp)
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFE596FF), // Light purple
+                            Color(0xFF9D4EDD), // Medium purple
+                            Color(0xFF7B2CBF)  // Dark purple
+                        )
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                )
+                .clickable(enabled = !isLoading) {
+                    onSignInClick()
+                },
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Login with Google\nAuthentication",
-                color = Color.Black,
+                text = "SIGN IN",
+                color = Color.White,
                 fontSize = 18.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 24.sp
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
         }
 
-        // Sign Up Button - Yellow with black border (original design)
-        Button(
-            onClick = onSignUpClick,
-            enabled = !isLoading,
+        // Sign Up Button - Ombre gradient
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFFD54F), // Yellow from original
-                disabledContainerColor = Color.Gray,
-                contentColor = Color.Black
-            ),
-            shape = MaterialTheme.shapes.medium
+                .height(60.dp)
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF7B2CBF), // Dark purple
+                            Color(0xFF5A189A), // Darker purple
+                            Color(0xFF290C2F)  // Very dark purple
+                        )
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                )
+                .clickable(enabled = !isLoading) {
+                    onSignUpClick()
+                },
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Sign up with Google\nAuthentication",
-                color = Color.Black,
+                text = "SIGN UP",
+                color = Color.White,
                 fontSize = 18.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 24.sp
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
         }
     }

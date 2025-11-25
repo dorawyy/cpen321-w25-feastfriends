@@ -1,8 +1,12 @@
 package com.example.cpen_321.ui.screens.profile
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
@@ -23,13 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.cpen_321.ui.viewmodels.UserViewModel
-import androidx.compose.foundation.layout.RowScope
 
 @Composable
 fun PreferencesScreen(
@@ -55,15 +61,22 @@ fun PreferencesScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        PreferencesContent(
-            modifier = Modifier.padding(innerPadding),
-            selectedCuisines = selectedCuisines.toList(),  // Convert Set to List
-            budget = budget,
-            radius = radius,
-            isLoading = isLoading,
-            viewModel = viewModel,
-            onNavigateBack = onNavigateBack
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
+                .padding(innerPadding)
+        ) {
+            PreferencesContent(
+                modifier = Modifier.padding(innerPadding),
+                selectedCuisines = selectedCuisines.toList(),  // Convert Set to List
+                budget = budget,
+                radius = radius,
+                isLoading = isLoading,
+                viewModel = viewModel,
+                onNavigateBack = onNavigateBack
+            )
+        }
     }
 }
 
@@ -233,22 +246,35 @@ private fun RowScope.CuisineButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
+    Box(
         modifier = Modifier
             .weight(1f)
-            .height(60.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected)
-                Color(0xFFFFB300) // Darker yellow when selected
-            else
-                Color(0xFFFFD54F) // Regular yellow
-        )
+            .height(60.dp)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = if (isSelected)
+                        listOf(
+                            Color(0xFF7B2CBF), // Dark purple
+                            Color(0xFF5A189A), // Darker purple
+                            Color(0xFF290C2F)  // Very dark purple
+                        )
+                    else
+                        listOf(
+                            Color(0xFFE596FF), // Light purple
+                            Color(0xFF9D4EDD), // Medium purple
+                            Color(0xFF7B2CBF)  // Dark purple
+                        )
+                ),
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = cuisine,
-            color = Color.Black,
-            fontSize = 16.sp
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -302,44 +328,73 @@ private fun ActionButtons(
     onSave: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    Button(
-        onClick = onSave,
+    // Save Preferences Button
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (hasUnsavedChanges) Color(0xFFFFD54F) else Color(0xFFE0E0E0),
-            disabledContainerColor = Color(0xFFE0E0E0)
-        ),
-        enabled = !isLoading && hasUnsavedChanges
+            .height(60.dp)
+            .background(
+                brush = if (hasUnsavedChanges) {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFE596FF), // Light purple
+                            Color(0xFF9D4EDD), // Medium purple
+                            Color(0xFF7B2CBF)  // Dark purple
+                        )
+                    )
+                } else {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFE0E0E0), // Gray
+                            Color(0xFFBDBDBD)  // Darker gray
+                        )
+                    )
+                },
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(enabled = !isLoading && hasUnsavedChanges, onClick = onSave),
+        contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = Color.Black,
+                color = Color.White,
                 modifier = Modifier.height(24.dp)
             )
         } else {
             Text(
-                text = "Save Preferences",
-                color = if (hasUnsavedChanges) Color.Black else Color.Gray,
-                fontSize = 20.sp
+                text = "SAVE PREFERENCES",
+                color = if (hasUnsavedChanges) Color.White else Color.Gray,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
 
     Spacer(modifier = Modifier.height(8.dp))
 
-    Button(
-        onClick = onNavigateBack,
+    // Go Back Button
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD54F))
+            .height(60.dp)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF7B2CBF), // Dark purple
+                        Color(0xFF5A189A), // Darker purple
+                        Color(0xFF290C2F)  // Very dark purple
+                    )
+                ),
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(onClick = onNavigateBack),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Go Back",
-            color = Color.Black,
-            fontSize = 20.sp
+            text = "GO BACK",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
