@@ -168,6 +168,24 @@ fun HomeScreen(
                     onClick = {
                         if (isJoiningMatch) return@Button  // ← PREVENT DOUBLE CLICKS
 
+                        // Check if user is already in a room or group
+                        val isInRoom = !userSettings?.roomID.isNullOrEmpty()
+                        val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
+                        
+                        if (isInGroup) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
+                            }
+                            return@Button
+                        }
+                        
+                        if (isInRoom) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a room")
+                            }
+                            return@Button
+                        }
+
                         val cuisines = userSettings?.preference ?: emptyList()
                         val budget = userSettings?.budget ?: 50.0
                         val radius = userSettings?.radiusKm ?: 5.0
