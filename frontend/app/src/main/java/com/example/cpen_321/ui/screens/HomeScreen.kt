@@ -64,6 +64,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()  // ← ADD THIS
     var locationPermissionGranted by remember { mutableStateOf(false) }
+    var isJoiningMatch by remember { mutableStateOf(false) }  // ← ADD THIS TO PREVENT DOUBLE CLICKS
 
     // ✅ ADD LOCATION PERMISSION LAUNCHER
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -165,6 +166,8 @@ fun HomeScreen(
                 // ✅ UPDATED START MATCHMAKING BUTTON
                 Button(
                     onClick = {
+                        if (isJoiningMatch) return@Button  // ← PREVENT DOUBLE CLICKS
+
                         val cuisines = userSettings?.preference ?: emptyList()
                         val budget = userSettings?.budget ?: 50.0
                         val radius = userSettings?.radiusKm ?: 5.0
@@ -183,6 +186,7 @@ fun HomeScreen(
                                 )
                             } else {
                                 // Permission granted - get location and join matching
+                                isJoiningMatch = true  // ← DISABLE BUTTON
                                 scope.launch {
                                     try {
                                         val location = LocationHelper.getCurrentLocation(context)
@@ -199,25 +203,24 @@ fun HomeScreen(
                                             navController.navigate("waiting_room")
                                         } else {
                                             Log.e("HomeScreen", "Could not get location")
+                                            isJoiningMatch = false  // ← RE-ENABLE ON ERROR
                                             // Show error message
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar(
-                                                    "Unable to get your location. Please check your GPS settings."
-                                                )
-                                            }
+                                            snackbarHostState.showSnackbar(
+                                                "Unable to get your location. Please check your GPS settings."
+                                            )
                                         }
                                     } catch (e: Exception) {
                                         Log.e("HomeScreen", "Location error", e)
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                "Location error: ${e.message}"
-                                            )
-                                        }
+                                        isJoiningMatch = false  // ← RE-ENABLE ON ERROR
+                                        snackbarHostState.showSnackbar(
+                                            "Location error: ${e.message}"
+                                        )
                                     }
                                 }
                             }
                         }
                     },
+                    enabled = !isJoiningMatch,  // ← DISABLE BUTTON WHILE JOINING
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(80.dp),
@@ -226,7 +229,7 @@ fun HomeScreen(
                     )
                 ) {
                     Text(
-                        text = "Start Matchmaking",
+                        text = if (isJoiningMatch) "Joining..." else "Start Matchmaking",  // ← SHOW LOADING TEXT
                         color = Color.Black,
                         fontSize = 20.sp
                     )
