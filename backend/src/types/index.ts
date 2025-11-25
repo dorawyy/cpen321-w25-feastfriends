@@ -54,6 +54,36 @@ export interface SocketRestaurantSelectedData {
   restaurant: RestaurantType;
 }
 
+// ============================================
+// NEW: SEQUENTIAL VOTING SOCKET EVENT TYPES
+// ============================================
+
+export interface NewVotingRoundEvent {
+  restaurant: RestaurantType;
+  roundNumber: number;
+  totalRounds: number;
+  timeoutSeconds: number;
+  expiresAt: string; // ISO string
+}
+
+export interface VoteUpdateEvent {
+  userId: string;
+  vote: boolean;
+  yesVotes: number;
+  noVotes: number;
+  totalMembers: number;
+  votesRemaining: number;
+}
+
+export interface MajorityReachedEvent {
+  result: 'yes' | 'no';
+  restaurantId: string;
+}
+
+export interface RoundTimeoutEvent {
+  restaurantId: string;
+}
+
 /**
  * API Request/Response Types
  */
@@ -96,7 +126,6 @@ export interface GroupStatusResponse {
   restaurantSelected: boolean;
   restaurant?: RestaurantType;
   status: 'voting' | 'matched' | 'completed' | 'disbanded';
-  // ADD THESE:
   cuisines?: string[];
   averageBudget?: number;
   averageRadius?: number;
@@ -113,6 +142,8 @@ export interface RestaurantType {
   phoneNumber?: string;
   website?: string;
   url?: string;
+  cuisine?: string;
+  priceRange?: string;
 }
 
 export interface JoinMatchingRequest {
@@ -134,6 +165,46 @@ export interface VoteRestaurantRequest {
 export interface VoteRestaurantResponse {
   message: string;
   Current_votes: Record<string, number>;
+}
+
+// ============================================
+// NEW: SEQUENTIAL VOTING REQUEST/RESPONSE TYPES
+// ============================================
+
+export interface InitializeVotingRequest {
+  // No body needed, groupId comes from URL params
+}
+
+export interface InitializeVotingResponse {
+  success: boolean;
+  currentRestaurant?: RestaurantType;
+  message: string;
+}
+
+export interface SubmitSequentialVoteRequest {
+  vote: boolean; // true = yes, false = no
+}
+
+export interface SubmitSequentialVoteResponse {
+  success: boolean;
+  majorityReached: boolean;
+  result?: 'yes' | 'no';
+  nextRestaurant?: RestaurantType;
+  selectedRestaurant?: RestaurantType;
+  votingComplete?: boolean;
+  message: string;
+}
+
+export interface VotingRoundStatus {
+  hasActiveRound: boolean;
+  currentRestaurant?: RestaurantType;
+  votes?: Array<{ userId: string; vote: boolean }>;
+  yesVotes?: number;
+  noVotes?: number;
+  expiresAt?: Date;
+  roundNumber?: number;
+  totalRounds?: number;
+  timeRemaining?: number; // seconds
 }
 
 /**
@@ -240,3 +311,4 @@ export type UserStatus = 'active' | 'in_waiting_room' | 'in_group' | 'inactive';
 export type RoomStatus = 'waiting' | 'matched' | 'expired';
 export type GroupStatus = 'voting' | 'matched' | 'completed' | 'disbanded';
 export type CredibilityAction = 'check_in' | 'missed_check_in' | 'left_group' | 'manual_adjustment';
+export type VotingMode = 'list' | 'sequential';

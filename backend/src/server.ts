@@ -16,6 +16,11 @@ const PORT = process.env.PORT || 3000;
 // Create HTTP server
 const server = http.createServer(app);
 
+// Store interval IDs for cleanup
+let expiredRoomsInterval: NodeJS.Timeout | null = null;
+let expiredGroupsInterval: NodeJS.Timeout | null = null;
+let votingRoundsInterval: NodeJS.Timeout | null = null;
+
 // Initialize services and start server
 const startServer = async () => {
   try {
@@ -53,7 +58,7 @@ const startServer = async () => {
 // Background tasks
 function startBackgroundTasks() {
   // Check expired rooms every minute
-  setInterval(() => {
+  expiredRoomsInterval = setInterval(() => {
     void (async () => {
       try {
         await matchingService.checkExpiredRooms();
@@ -64,7 +69,7 @@ function startBackgroundTasks() {
   }, 60000); // 1 minute
 
   // Check expired groups every 2 minutes
-  setInterval(() => {
+  expiredGroupsInterval = setInterval(() => {
     void (async () => {
       try {
         await groupService.checkExpiredGroups();
@@ -74,7 +79,38 @@ function startBackgroundTasks() {
     })();
   }, 120000); // 2 minutes
 
+  // NEW: Check expired voting rounds every 10 seconds
+  votingRoundsInterval = setInterval(() => {
+    void (async () => {
+      try {
+        await groupService.checkExpiredVotingRounds();
+      } catch (error) {
+        console.error('Error checking expired voting rounds:', error);
+      }
+    })();
+  }, 10000); // 10 seconds
+
   console.log('✅ Background tasks started');
+  console.log('  - Expired rooms check: every 1 minute');
+  console.log('  - Expired groups check: every 2 minutes');
+  console.log('  - Voting rounds check: every 10 seconds');
+}
+
+// Stop all background tasks
+function stopBackgroundTasks() {
+  if (expiredRoomsInterval) {
+    clearInterval(expiredRoomsInterval);
+    expiredRoomsInterval = null;
+  }
+  if (expiredGroupsInterval) {
+    clearInterval(expiredGroupsInterval);
+    expiredGroupsInterval = null;
+  }
+  if (votingRoundsInterval) {
+    clearInterval(votingRoundsInterval);
+    votingRoundsInterval = null;
+  }
+  console.log('✅ Background tasks stopped');
 }
 
 // Shutdown state to prevent multiple shutdown attempts
@@ -92,6 +128,9 @@ process.on('unhandledRejection', (reason: Error) => {
   }
   
   isShuttingDown = true;
+
+  // Stop background tasks
+  stopBackgroundTasks();
 
   // Set timeout to force exit
   const shutdownTimeout = setTimeout(() => {
@@ -122,6 +161,9 @@ process.on('uncaughtException', (error: Error) => {
   
   isShuttingDown = true;
 
+  // Stop background tasks
+  stopBackgroundTasks();
+
   // Set timeout to force exit
   const shutdownTimeout = setTimeout(() => {
     console.error('⚠️  Forcing exit after timeout');
@@ -149,6 +191,9 @@ process.on('SIGTERM', () => {
   
   isShuttingDown = true;
 
+  // Stop background tasks
+  stopBackgroundTasks();
+
   // Set timeout to force exit
   const shutdownTimeout = setTimeout(() => {
     console.error('⚠️  Forcing exit after timeout');
@@ -173,6 +218,9 @@ process.on('SIGINT', () => {
   }
   
   isShuttingDown = true;
+
+  // Stop background tasks
+  stopBackgroundTasks();
 
   // Set timeout to force exit
   const shutdownTimeout = setTimeout(() => {
