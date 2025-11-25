@@ -25,6 +25,7 @@ import com.example.cpen_321.ui.viewmodels.AuthViewModel
 import com.example.cpen_321.ui.viewmodels.AuthState
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -45,12 +46,28 @@ fun AuthScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val shouldRedirectToPreferences by viewModel.shouldRedirectToPreferences.collectAsState()
     val snackBarHostState = remember { SnackbarHostState() }
 
-    // Navigate when authenticated
+    // Navigate when authenticated - only trigger once per authentication
+    var hasNavigated = remember { false }
     LaunchedEffect(authState) {
-        if (authState is AuthState.Authenticated) {
-            Log.d("AuthScreen", "✅ User authenticated, navigating to home")
+        if (authState is AuthState.Authenticated && !hasNavigated) {
+            // Wait a bit for the preferences check to complete
+            kotlinx.coroutines.delay(150)
+            
+            Log.d("AuthScreen", "✅ User authenticated, shouldRedirectToPreferences=$shouldRedirectToPreferences")
+            println("✅ AuthScreen: User authenticated, shouldRedirectToPreferences=$shouldRedirectToPreferences")
+            hasNavigated = true
+            
+            // Wait a bit for the preferences check to complete if needed
+            if (shouldRedirectToPreferences) {
+                Log.d("AuthScreen", "✅ Redirecting to preferences (first-time user)")
+                println("✅ AuthScreen: Redirecting to preferences (first-time user)")
+            } else {
+                Log.d("AuthScreen", "✅ Navigating to home")
+                println("✅ AuthScreen: Navigating to home")
+            }
             onNavigateToHome()
         }
     }

@@ -1,6 +1,9 @@
 package com.example.cpen_321.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -25,11 +28,33 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.AUTH) {
+            val shouldRedirectToPreferences by authViewModel.shouldRedirectToPreferences.collectAsState()
+            
+            android.util.Log.d("NavGraph", "🔵 AUTH screen: shouldRedirectToPreferences=$shouldRedirectToPreferences")
+            println("🔵 NavGraph: AUTH screen: shouldRedirectToPreferences=$shouldRedirectToPreferences")
+            
             AuthScreen(
                 viewModel = authViewModel,
                 onNavigateToHome = {
-                    navController.navigate(NavRoutes.HOME) {
-                        popUpTo(NavRoutes.AUTH) { inclusive = true }
+                    android.util.Log.d("NavGraph", "🔵 onNavigateToHome called, shouldRedirectToPreferences=$shouldRedirectToPreferences")
+                    println("🔵 NavGraph: onNavigateToHome called, shouldRedirectToPreferences=$shouldRedirectToPreferences")
+                    // Check if we should redirect to preferences (first-time user)
+                    // Capture the value before clearing to avoid race condition
+                    val shouldRedirect = shouldRedirectToPreferences
+                    if (shouldRedirect) {
+                        android.util.Log.d("NavGraph", "✅ Navigating to PREFERENCES")
+                        println("✅ NavGraph: Navigating to PREFERENCES")
+                        // Clear flag AFTER capturing the value
+                        authViewModel.clearRedirectToPreferences()
+                        navController.navigate(NavRoutes.PREFERENCES) {
+                            popUpTo(NavRoutes.AUTH) { inclusive = true }
+                        }
+                    } else {
+                        android.util.Log.d("NavGraph", "✅ Navigating to HOME")
+                        println("✅ NavGraph: Navigating to HOME")
+                        navController.navigate(NavRoutes.HOME) {
+                            popUpTo(NavRoutes.AUTH) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -74,7 +99,19 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.PREFERENCES) {
-            PreferencesScreen(onNavigateBack = { navController.popBackStack() })
+            PreferencesScreen(
+                onNavigateBack = {
+                    // If we can pop back, do it. Otherwise navigate to HOME
+                    // This handles the case where user was redirected from AUTH (which was popped)
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(NavRoutes.HOME) {
+                            popUpTo(NavRoutes.PREFERENCES) { inclusive = true }
+                        }
+                    }
+                }
+            )
         }
 
         composable(NavRoutes.CREDIBILITY_SCORE) {
