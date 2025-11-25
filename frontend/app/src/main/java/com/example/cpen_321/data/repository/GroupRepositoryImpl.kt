@@ -88,10 +88,32 @@ class GroupRepositoryImpl(
      * Initialize sequential voting for a group
      */
     override suspend fun initializeSequentialVoting(groupId: String): ApiResult<InitializeVotingResponse> {
-        return safeApiCall(
-            apiCall = { groupAPI.initializeSequentialVoting(groupId) },
-            customErrorCode = "Failed to initialize voting"
-        )
+        Log.d("GroupRepo", "🔵 Starting initializeSequentialVoting for group: $groupId")
+
+        return try {
+            val response = groupAPI.initializeSequentialVoting(groupId)
+
+            Log.d("GroupRepo", "🔵 Raw response code: ${response.code()}")
+            Log.d("GroupRepo", "🔵 Response isSuccessful: ${response.isSuccessful}")
+            Log.d("GroupRepo", "🔵 Response body: ${response.body()}")
+            Log.d("GroupRepo", "🔵 Response errorBody: ${response.errorBody()?.string()}")
+
+            val result = safeApiCall(
+                apiCall = { groupAPI.initializeSequentialVoting(groupId) },
+                customErrorCode = "Failed to initialize voting"
+            )
+
+            when (result) {
+                is ApiResult.Success -> Log.d("GroupRepo", "🟢 safeApiCall returned Success: ${result.data}")
+                is ApiResult.Error -> Log.e("GroupRepo", "🔴 safeApiCall returned Error: ${result.message}, code: ${result.code}")
+                is ApiResult.Loading -> Log.d("GroupRepo", "🟡 safeApiCall returned Loading")
+            }
+
+            result
+        } catch (e: Exception) {
+            Log.e("GroupRepo", "🔴 Exception in initializeSequentialVoting", e)
+            ApiResult.Error("Exception: ${e.message}")
+        }
     }
 
     /**
