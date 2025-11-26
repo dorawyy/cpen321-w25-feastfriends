@@ -1,6 +1,27 @@
-import { sendPushNotification, sendMulticastNotification } from '../config/firebase';
+import { sendPushNotification, sendMulticastNotification, initializeFirebase } from '../config/firebase';
 import User from '../models/User';
 import { NotificationPayload } from '../types';
+import { removeInvalidToken } from '../utils/tokenManager';
+
+// Initialize Firebase on module load
+initializeFirebase();
+
+/**
+ * Helper function to ensure all data values are strings (FCM requirement)
+ * Removes undefined values
+ */
+const sanitizeData = (data?: Record<string, string>): Record<string, string> | undefined => {
+  if (!data) return undefined;
+  
+  const sanitized: Record<string, string> = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      sanitized[key] = String(value);
+    }
+  });
+  
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+};
 
 /**
  * Send notification to a single user
@@ -21,8 +42,19 @@ export const sendNotificationToUser = async (
       return;
     }
 
-    await sendPushNotification(user.fcmToken, notification, notification.data);
-    console.log(`✅ Notification sent to user ${userId}`);
+    try {
+      await sendPushNotification(user.fcmToken, notification, sanitizeData(notification.data));
+      console.log(`✅ Notification sent to user ${userId}`);
+    } catch (error: any) {
+      // Handle invalid token errors from Firebase
+      const errorCode = error?.code || error?.errorInfo?.code;
+      if (errorCode === 'messaging/invalid-registration-token' ||
+          errorCode === 'messaging/registration-token-not-registered') {
+        console.log(`Removing invalid token for user ${userId}`);
+        await removeInvalidToken(user.fcmToken);
+      }
+      throw error;
+    }
   } catch (error) {
     console.error(`Failed to send notification to user ${userId}:`, error);
     throw error;
@@ -48,8 +80,8 @@ export const sendNotificationToUsers = async (
       return;
     }
 
-    await sendMulticastNotification(tokens, notification, notification.data);
-    console.log(` Notification sent to ${tokens.length} users`);
+    await sendMulticastNotification(tokens, notification, sanitizeData(notification.data));
+    console.log(`✅ Notification sent to ${tokens.length} users`);
   } catch (error) {
     console.error('Failed to send notifications to users:', error);
     throw error;
@@ -85,12 +117,12 @@ export const notifyRoomMatched = async (
   groupId: string
 ): Promise<void> => {
   const notification: NotificationPayload = {
-    title: 'Group Matched! ',
+    title: 'Group Matched! 🎉',
     body: 'Your waiting room is full! Time to vote for a restaurant.',
     data: {
       type: 'room_matched',
-      roomId,
-      groupId,
+      roomId: roomId,
+      groupId: groupId,
     },
   };
 
@@ -109,7 +141,7 @@ export const notifyRoomExpired = async (
     body: 'Your waiting room expired. Try matching again!',
     data: {
       type: 'room_expired',
-      roomId,
+      roomId: roomId,
     },
   };
 
@@ -129,8 +161,68 @@ export const notifyRestaurantSelected = async (
     body: `Your group chose ${restaurantName}. See you there!`,
     data: {
       type: 'restaurant_selected',
-      groupId,
-      restaurantName,
+      groupId: groupId,
+      restaurantName: restaurantName,
+    },
+  };
+
+  await sendNotificationToUsers(memberIds, notification);
+};
+
+/**
+ * Notify user when someone joins their room
+ */
+export const notifyUserJoinedRoom = async (
+  userId: string,
+  joinerName: string,
+  roomId: string
+): Promise<void> => {
+  const notification: NotificationPayload = {
+    title: 'Someone Joined! 👋',
+    body: `${joinerName} joined your waiting room`,
+    data: {
+      type: 'user_joined',
+      roomId: roomId,
+    },
+  };
+
+  await sendNotificationToUser(userId, notification);
+};
+
+/**
+ * Notify when group expires
+ */
+export const notifyGroupExpired = async (
+  userId: string,
+  groupId: string
+): Promise<void> => {
+  const notification: NotificationPayload = {
+    title: 'Group Expired ⏰',
+    body: 'Your group expired without selecting a restaurant.',
+    data: {
+      type: 'group_expired',
+      groupId: groupId,
+    },
+  };
+
+  await sendNotificationToUser(userId, notification);
+};
+
+/**
+ * Notify when voting time expires and restaurant is auto-selected
+ */
+export const notifyVotingTimeExpired = async (
+  memberIds: string[],
+  restaurantName: string,
+  groupId: string
+): Promise<void> => {
+  const notification: NotificationPayload = {
+    title: 'Voting Time Expired ⏰',
+    body: `${restaurantName} was selected based on the votes received.`,
+    data: {
+      type: 'restaurant_selected',
+      groupId: groupId,
+      restaurantName: restaurantName,
     },
   };
 
@@ -145,4 +237,7 @@ export default {
   notifyRoomMatched,
   notifyRoomExpired,
   notifyRestaurantSelected,
+  notifyUserJoinedRoom,
+  notifyGroupExpired,
+  notifyVotingTimeExpired,
 };

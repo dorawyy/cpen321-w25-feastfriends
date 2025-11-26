@@ -11,6 +11,7 @@ import matchingRoutes from './routes/matching.routes';
 import groupRoutes from './routes/group.routes';
 import restaurantRoutes from './routes/restaurant.routes';
 import votingRoutes from './routes/voting.routes';  // ← ADD THIS
+import notificationRoutes from './routes/notification.routes';
 
 const app: Express = express();
 
@@ -38,6 +39,7 @@ app.use('/api/matching', matchingRoutes);
 app.use('/api/group', groupRoutes);
 app.use('/api/restaurant', restaurantRoutes);
 app.use('/api/groups', votingRoutes);  // ← ADD THIS (note: /api/groups not /api/group)
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

@@ -291,18 +291,14 @@ export interface RestaurantSearchParams {
 }
 
 /**
- * Notification Types
+ * Notification payload structure
  */
 export interface NotificationPayload {
   title: string;
   body: string;
-  data?: Record<string, string>;
+  data?: Record<string, string>; // Changed to allow any string key-value pairs
 }
 
-export interface SendNotificationRequest {
-  userId: string;
-  notification: NotificationPayload;
-}
 
 /**
  * Utility Types

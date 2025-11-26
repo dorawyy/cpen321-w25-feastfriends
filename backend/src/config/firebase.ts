@@ -9,23 +9,33 @@ export const initializeFirebase = (): admin.app.App => {
     }
 
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-
-    if (!serviceAccountPath && !serviceAccountKey) {
-      throw new Error(
-        'Firebase configuration missing. Set either FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_SERVICE_ACCOUNT_KEY'
-      );
-    }
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
     let credential: admin.credential.Credential;
 
-    if (serviceAccountPath) {
+    // Priority 1: Use individual environment variables (PRODUCTION)
+    if (projectId && clientEmail && privateKey) {
+      console.log('🔐 Initializing Firebase with environment variables');
+      credential = admin.credential.cert({
+        projectId: projectId,
+        clientEmail: clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      });
+    }
+    // Priority 2: Use service account file path (DEVELOPMENT)
+    else if (serviceAccountPath) {
+      console.log('📄 Initializing Firebase with service account file');
       credential = admin.credential.cert(serviceAccountPath);
-    } else if (serviceAccountKey) {
-      const serviceAccount = JSON.parse(serviceAccountKey);
-      credential = admin.credential.cert(serviceAccount);
-    } else {
-      throw new Error('No valid Firebase credential configuration found');
+    }
+    // Fallback: Error
+    else {
+      throw new Error(
+        'Firebase configuration missing. Set either:\n' +
+        '1. FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (recommended for production)\n' +
+        '2. FIREBASE_SERVICE_ACCOUNT_PATH (for local development)'
+      );
     }
 
     firebaseApp = admin.initializeApp({
@@ -107,13 +117,10 @@ export const sendMulticastNotification = async (
 
     // Log any failures safely
     if (response.failureCount > 0) {
-      // Use numeric for loop to prevent object injection from forEach index
       for (let i = 0; i < response.responses.length; i++) {
         const resp = response.responses[i];
         if (!resp.success) {
-          // Validate index and token safely
           if (i >= 0 && i < tokens.length) {
-            // Use safe array access with validated numeric index
             const rawToken = tokens[i];
             if (typeof rawToken === 'string' && rawToken.length > 0) {
               const tokenSafe = String(rawToken);
