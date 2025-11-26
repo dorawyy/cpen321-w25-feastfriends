@@ -73,16 +73,41 @@ export const sendPushNotification = async (
   try {
     const messaging = getMessaging();
 
+    // Build the message object step by step
     const message: admin.messaging.Message = {
       token,
-      notification,
-      data,
-      android: {
-        priority: 'high',
-        notification: { sound: 'default', priority: 'high' },
+      notification: {
+        title: notification.title,
+        body: notification.body,
       },
-      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+      android: {
+        priority: 'high' as const,
+        notification: { 
+          sound: 'default',
+          priority: 'high' as const,
+        },
+      },
+      apns: { 
+        payload: { 
+          aps: { 
+            sound: 'default',
+            badge: 1,
+          } 
+        } 
+      },
     };
+
+    // Only add data if it exists and has keys
+    if (data && Object.keys(data).length > 0) {
+      message.data = data;
+    }
+
+    console.log('📤 Sending notification:', {
+      token: token.substring(0, 20) + '...',
+      title: notification.title,
+      body: notification.body,
+      data: data,
+    });
 
     const response = await messaging.send(message);
     console.log('✅ Push notification sent successfully:', response);
@@ -103,11 +128,31 @@ export const sendMulticastNotification = async (
 
     const message: admin.messaging.MulticastMessage = {
       tokens,
-      notification,
-      data,
-      android: { priority: 'high', notification: { sound: 'default', priority: 'high' } },
-      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+      android: { 
+        priority: 'high' as const,
+        notification: { 
+          sound: 'default',
+          priority: 'high' as const,
+        } 
+      },
+      apns: { 
+        payload: { 
+          aps: { 
+            sound: 'default',
+            badge: 1,
+          } 
+        } 
+      },
     };
+
+    // Only add data if it exists
+    if (data && Object.keys(data).length > 0) {
+      message.data = data;
+    }
 
     const response = await messaging.sendEachForMulticast(message);
 
@@ -149,11 +194,17 @@ export const sendTopicNotification = async (
 
     const message: admin.messaging.Message = {
       topic,
-      notification,
-      data,
-      android: { priority: 'high' },
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+      android: { priority: 'high' as const },
       apns: { payload: { aps: { sound: 'default' } } },
     };
+
+    if (data && Object.keys(data).length > 0) {
+      message.data = data;
+    }
 
     const response = await messaging.send(message);
     console.log(`✅ Topic notification sent to ${topic}:`, response);

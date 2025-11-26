@@ -1,6 +1,6 @@
 import { sendPushNotification, sendMulticastNotification, initializeFirebase } from '../config/firebase';
 import User from '../models/User';
-import { NotificationPayload } from '../types';
+import { NotificationPayload } from '../types/index';
 import { removeInvalidToken } from '../utils/tokenManager';
 
 // Initialize Firebase on module load
