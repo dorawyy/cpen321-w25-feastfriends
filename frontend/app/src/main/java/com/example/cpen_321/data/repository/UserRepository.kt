@@ -46,4 +46,10 @@ interface UserRepository {
      * Delete user account
      */
     suspend fun deleteUser(userId: String): ApiResult<Boolean>
+
+    /**
+     * FCM tokens
+     */
+    suspend fun registerFcmToken(userId: String, token: String): ApiResult<Boolean>
+    suspend fun unregisterFcmToken(userId: String): ApiResult<Boolean>
 }

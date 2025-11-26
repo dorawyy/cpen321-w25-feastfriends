@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- ==================== NEW: NOTIFICATION PERMISSION (Android 13+) ==================== -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- ==================================================================================== -->
+
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
@@ -27,11 +31,28 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Cpen321">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ==================== NEW: FIREBASE MESSAGING SERVICE ==================== -->
+        <service
+            android:name=".services.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Default notification channel metadata -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="restaurant_notifications" />
+        <!-- ========================================================================== -->
+
     </application>
 </manifest>

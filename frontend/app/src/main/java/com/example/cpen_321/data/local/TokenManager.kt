@@ -26,6 +26,7 @@ class TokenManager(context: Context) {
         private const val KEY_EMAIL = "email"
         private const val KEY_GOOGLE_ID = "google_id"
         private const val KEY_PROFILE_PICTURE = "profile_picture"
+        private const val KEY_FCM_TOKEN = "fcm_token" // ← NEW
 
         @Volatile
         private var INSTANCE: TokenManager? = null
@@ -91,6 +92,31 @@ class TokenManager(context: Context) {
     fun getGoogleId(): String? {
         return sharedPreferences.getString(KEY_GOOGLE_ID, null)
     }
+
+    // ==================== NEW: FCM TOKEN METHODS ====================
+
+    /**
+     * Save FCM token
+     */
+    fun saveFcmToken(token: String) {
+        sharedPreferences.edit().putString(KEY_FCM_TOKEN, token).apply()
+    }
+
+    /**
+     * Get FCM token
+     */
+    fun getFcmToken(): String? {
+        return sharedPreferences.getString(KEY_FCM_TOKEN, null)
+    }
+
+    /**
+     * Clear FCM token
+     */
+    fun clearFcmToken() {
+        sharedPreferences.edit().remove(KEY_FCM_TOKEN).apply()
+    }
+
+    // ================================================================
 
     /**
      * Check if user is logged in

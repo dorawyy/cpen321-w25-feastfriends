@@ -4,6 +4,9 @@ import com.example.cpen_321.data.model.UserProfile
 import com.example.cpen_321.data.model.UserSettings
 import com.example.cpen_321.data.network.dto.ApiResponse
 import com.example.cpen_321.data.network.dto.DeleteUserResponse
+import com.example.cpen_321.data.network.dto.FcmApiResponse
+import com.example.cpen_321.data.network.dto.RegisterFcmTokenRequest
+import com.example.cpen_321.data.network.dto.UnregisterFcmTokenRequest
 import com.example.cpen_321.data.network.dto.UpdateProfileRequest
 import com.example.cpen_321.data.network.dto.UpdateSettingsRequest
 import retrofit2.Response
@@ -70,4 +73,26 @@ interface UserAPI {
     suspend fun deleteUser(
         @Path("userId") userId: String
     ): Response<ApiResponse<DeleteUserResponse>>
+
+    // ==================== NEW: FCM ENDPOINTS ====================
+
+    /**
+     * POST /api/notifications/register-token
+     * Register FCM token for push notifications
+     */
+    @POST("api/notifications/register-token")
+    suspend fun registerFcmToken(
+        @Body request: RegisterFcmTokenRequest
+    ): Response<FcmApiResponse>
+
+    /**
+     * POST /api/notifications/unregister-token
+     * Unregister FCM token (on logout)
+     */
+    @POST("api/notifications/unregister-token")
+    suspend fun unregisterFcmToken(
+        @Body request: UnregisterFcmTokenRequest
+    ): Response<FcmApiResponse>
+
+    // ============================================================
 }

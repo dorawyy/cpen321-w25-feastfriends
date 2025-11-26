@@ -39,14 +39,16 @@ object RepositoryModule {
 
     /**
      * Provide UserRepository
+     * ✅ UPDATED: Now injects TokenManager for FCM token management
      */
     @Provides
     @Singleton
     fun provideUserRepository(
         preferencesManager: PreferencesManager,
+        tokenManager: TokenManager,
         userAPI: com.example.cpen_321.data.network.api.UserAPI
     ): UserRepository {
-        return UserRepositoryImpl(preferencesManager, userAPI)
+        return UserRepositoryImpl(preferencesManager, tokenManager, userAPI)
     }
 
     /**

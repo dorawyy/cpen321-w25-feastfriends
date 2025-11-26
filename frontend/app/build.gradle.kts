@@ -177,6 +177,8 @@ dependencies {
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx") // ← ADD THIS LINE
+
 
     // Compose - Using BOM for version alignment
     val composeBom = platform("androidx.compose:compose-bom:2024.11.00")
