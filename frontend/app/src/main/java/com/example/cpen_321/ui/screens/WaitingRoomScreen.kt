@@ -1,9 +1,14 @@
 package com.example.cpen_321.ui.screens
 
+// ===============================================
+// NEW CODE - FIXED VERSION WITH GLASSMORPHISM
+// BoxWithConstraints error has been FIXED
+// ===============================================
+
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -25,10 +30,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,6 +49,19 @@ import com.example.cpen_321.utils.rememberBase64ImagePainter
 import androidx.compose.foundation.Image
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import kotlin.random.Random
+
+// Purple Color Palette
+private val PurpleLight = Color(0xFFE6E6FA) // Lavender
+private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
+private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
+private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
+private val PurpleGradientStart = Color(0xFFE8DAFF)
+private val PurpleGradientEnd = Color(0xFFD4C5F9)
+private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
+private val GlassBorder = Color(0x33FFFFFF) // Subtle white border
+
 @Composable
 fun WaitingRoomScreen(
     navController: NavController,
@@ -97,7 +119,7 @@ fun WaitingRoomScreen(
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
-                    containerColor = Color(0xFFFF6B6B),
+                    containerColor = Color(0xFFB39DDB),
                     contentColor = Color.White
                 )
             }
@@ -208,7 +230,7 @@ private fun WaitingRoomEffects(
             // Check both roomMembers and currentRoom.members to ensure we have the latest count
             val currentRoomMembers = (currentRoom as? com.example.cpen_321.data.model.Room)?.members?.size ?: roomMembers.size
             val memberCount = maxOf(roomMembers.size, currentRoomMembers)
-            
+
             if (memberCount < minNumberOfPeople) {
                 onShowFailureDialog()
             }
@@ -234,312 +256,349 @@ private fun WaitingRoomContent(
     minNumberOfPeople: Int,
     onLeaveClick: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        WaitingRoomTopSection(
-            currentRoom = currentRoom,
-            roomMembers = roomMembers,
-            timeRemaining = timeRemaining,
-            minNumberOfPeople = minNumberOfPeople
-        )
-
-        WaitingRoomBottomSection(onLeaveClick = onLeaveClick)
-    }
-}
-
-@Composable
-private fun WaitingRoomTopSection(
-    currentRoom: Any?,
-    roomMembers: List<UserProfile>,
-    timeRemaining: Long,
-    minNumberOfPeople: Int
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
-
-        WaitingRoomHeader()
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        TimerCard(timeRemaining = timeRemaining)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        RoomInfoCard(
-            currentRoom = currentRoom,
-            roomMembers = roomMembers,
-            minNumberOfPeople = minNumberOfPeople
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Current Members",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        UserBubbleRow(roomMembers)
-    }
-}
-
-@Composable
-private fun WaitingRoomHeader() {
-    Text(
-        "Waiting Room",
-        style = MaterialTheme.typography.headlineMedium,
-        fontWeight = FontWeight.Bold,
-        color = Color.Black
-    )
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Text(
-        text = "Finding your perfect dining group...",
-        fontSize = 14.sp,
-        color = Color.Gray,
-        textAlign = TextAlign.Center
-    )
-}
-
-@Composable
-private fun TimerCard(timeRemaining: Long) {
-    val timeRemainingSeconds = (timeRemaining / 1000).toInt()
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        PurpleGradientStart,
+                        PurpleGradientEnd
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Glass effect timer card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = GlassWhite),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Timer",
+                                modifier = Modifier.size(28.dp),
+                                tint = PurpleDark
+                            )
+
+                            val timeRemainingSeconds = (timeRemaining / 1000).toInt()
+                            val minutes = timeRemainingSeconds / 60
+                            val seconds = timeRemainingSeconds % 60
+
+                            Text(
+                                text = String.format("%d:%02d", minutes, seconds),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (timeRemaining < 60000) Color(0xFFD88BB7) else PurpleDark
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Waiting Room",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PurpleDark
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Members",
+                                modifier = Modifier.size(20.dp),
+                                tint = PurpleAccent
+                            )
+                            Text(
+                                text = "${roomMembers.size} member${if (roomMembers.size != 1) "s" else ""} joined",
+                                fontSize = 16.sp,
+                                color = PurpleDark.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        if (roomMembers.size < minNumberOfPeople) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Waiting for ${minNumberOfPeople - roomMembers.size} more...",
+                                fontSize = 14.sp,
+                                color = PurpleAccent,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // ANIMATED MEMBERS SECTION
+            AnimatedUserBubbles(users = roomMembers)
+
+            Button(
+                onClick = onLeaveClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PurpleAccent
+                ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 8.dp,
+                    pressedElevation = 12.dp
+                )
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = "Timer",
-                    tint = if (timeRemainingSeconds <= 10) Color.Red else Color.Black,
-                    modifier = Modifier.size(28.dp)
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = "Leave",
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-
                 Text(
-                    text = String.format(
-                        "%d:%02d",
-                        timeRemainingSeconds / 60,
-                        timeRemainingSeconds % 60
-                    ),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (timeRemainingSeconds <= 10) Color.Red else Color.Black
+                    text = "Leave Room",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = if (timeRemainingSeconds <= 10) "Finishing soon!" else "Time remaining",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
         }
     }
 }
 
+// NEW: Animated floating bubbles
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-private fun RoomInfoCard(
-    currentRoom: Any?,
-    roomMembers: List<UserProfile>,
-    minNumberOfPeople: Int
-) {
-    val room = currentRoom as? com.example.cpen_321.data.model.Room
-    val maxNumberOfPeople = room?.maxMembers ?: 10
-    val progress by animateFloatAsState(
-        targetValue = roomMembers.size.toFloat() / maxNumberOfPeople.toFloat(),
-        animationSpec = tween(durationMillis = 500),
-        label = "progress"
-    )
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
+private fun AnimatedUserBubbles(users: List<UserProfile>) {
+    if (users.isEmpty()) {
+        EmptyMembersPlaceholder()
+    } else {
+        Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .size(350.dp), // Changed to size() for a square/circle instead of fillMaxWidth + height
+            colors = CardDefaults.cardColors(containerColor = GlassWhite),
+            shape = CircleShape, // Changed from RoundedCornerShape to CircleShape
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            MemberCountRow(
-                roomMembers = roomMembers,
-                maxNumberOfPeople = maxNumberOfPeople,
-                minNumberOfPeople = minNumberOfPeople
-            )
+            // ✅ NEW CODE FIX - Using key() to properly use BoxWithConstraints scope
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(
+                        width = 1.dp,
+                        color = GlassBorder,
+                        shape = CircleShape // Changed to CircleShape to match outer shape
+                    )
+            ) {
+                val containerWidth = constraints.maxWidth.toFloat()
+                val containerHeight = constraints.maxHeight.toFloat()
+                val bubbleSize = 70.dp
+                val bubbleSizePx = with(LocalDensity.current) { bubbleSize.toPx() }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            RoomProgressIndicator(
-                progress = progress,
-                roomMembers = roomMembers,
-                minNumberOfPeople = minNumberOfPeople
-            )
-
-            room?.let { RoomDetails(room = it) }
+                // ✅ Using key() composable to iterate - this properly uses the scope
+                users.forEachIndexed { index, user ->
+                    key(user.userId) {
+                        AnimatedFloatingBubble(
+                            user = user,
+                            index = index,
+                            containerWidth = containerWidth,
+                            containerHeight = containerHeight,
+                            bubbleSize = bubbleSizePx
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun MemberCountRow(
-    roomMembers: List<UserProfile>,
-    maxNumberOfPeople: Int,
-    minNumberOfPeople: Int
+private fun AnimatedFloatingBubble(
+    user: UserProfile,
+    index: Int,
+    containerWidth: Float,
+    containerHeight: Float,
+    bubbleSize: Float
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = Color(0xFFFFD54F),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Members",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-        Text(
-            text = "${roomMembers.size}/$maxNumberOfPeople",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (roomMembers.size >= minNumberOfPeople)
-                Color(0xFF4CAF50) else Color.Gray
-        )
-    }
-}
+    // Create unique random seed per user
+    val seed = user.userId.hashCode() + index
+    val random = remember(seed) { Random(seed) }
 
-@Composable
-private fun RoomProgressIndicator(
-    progress: Float,
-    roomMembers: List<UserProfile>,
-    minNumberOfPeople: Int
-) {
-    LinearProgressIndicator(
-        progress = { progress },
+    // Initialize random starting position
+    val initialX = remember(seed) {
+        random.nextFloat() * (containerWidth - bubbleSize)
+    }
+    val initialY = remember(seed) {
+        random.nextFloat() * (containerHeight - bubbleSize)
+    }
+
+    // Animated position
+    val offsetX = remember { Animatable(initialX) }
+    val offsetY = remember { Animatable(initialY) }
+
+    // Animated scale for pulsing effect
+    val scale = remember { Animatable(1f) }
+
+    // Start animations
+    LaunchedEffect(user.userId) {
+        // Movement animation - continuous random walks
+        launch {
+            while (true) {
+                val targetX = random.nextFloat() * (containerWidth - bubbleSize)
+                val targetY = random.nextFloat() * (containerHeight - bubbleSize)
+                val duration = 2000 + random.nextInt(2000) // 2-4 seconds
+
+                launch {
+                    offsetX.animateTo(
+                        targetValue = targetX,
+                        animationSpec = tween(
+                            durationMillis = duration,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                }
+
+                offsetY.animateTo(
+                    targetValue = targetY,
+                    animationSpec = tween(
+                        durationMillis = duration,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        }
+
+        // Scale animation - gentle pulsing
+        launch {
+            while (true) {
+                scale.animateTo(
+                    targetValue = 1.1f,
+                    animationSpec = tween(
+                        durationMillis = 1000 + random.nextInt(500),
+                        easing = FastOutSlowInEasing
+                    )
+                )
+                scale.animateTo(
+                    targetValue = 0.95f,
+                    animationSpec = tween(
+                        durationMillis = 1000 + random.nextInt(500),
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        }
+    }
+
+    // Render the bubble with animations
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(8.dp)
-            .clip(RoundedCornerShape(4.dp)),
-        color = if (roomMembers.size >= minNumberOfPeople)
-            Color(0xFF4CAF50) else Color(0xFFFFD54F),
-    )
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Text(
-        text = if (roomMembers.size >= minNumberOfPeople)
-            "Minimum members reached! ✓"
-        else
-            "Waiting for at least $minNumberOfPeople members...",
-        fontSize = 12.sp,
-        color = if (roomMembers.size >= minNumberOfPeople)
-            Color(0xFF4CAF50) else Color.Gray,
-        fontWeight = if (roomMembers.size >= minNumberOfPeople)
-            FontWeight.SemiBold else FontWeight.Normal
-    )
+            .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
+            .scale(scale.value)
+    ) {
+        UserBubbleAnimated(user = user)
+    }
 }
 
 @Composable
-private fun RoomDetails(room: com.example.cpen_321.data.model.Room) {
-    room.cuisine?.let { cuisine ->
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
-        Spacer(modifier = Modifier.height(12.dp))
+private fun UserBubbleAnimated(user: UserProfile) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(90.dp)
+    ) {
+        Box {
+            // Outer glow effect
+            Box(
+                modifier = Modifier
+                    .size(78.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                PurpleAccent.copy(alpha = 0.4f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Restaurant,
-                contentDescription = null,
-                tint = Color(0xFFFFD54F),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Cuisine: $cuisine",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
+            // Profile picture with glass border
+            if (user.profilePicture?.isNotEmpty() == true) {
+                if (user.profilePicture.startsWith("data:image/")) {
+                    val painter = rememberBase64ImagePainter(user.profilePicture)
+                    Image(
+                        painter = painter,
+                        contentDescription = user.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(70.dp)
+                            .align(Alignment.Center)
+                            .clip(CircleShape)
+                            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+                            .border(1.dp, GlassWhite, CircleShape)
+                    )
+                } else {
+                    AsyncImage(
+                        model = user.profilePicture,
+                        contentDescription = user.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(70.dp)
+                            .align(Alignment.Center)
+                            .clip(CircleShape)
+                            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+                            .border(1.dp, GlassWhite, CircleShape)
+                    )
+                }
+            } else {
+                DefaultUserAvatar()
+            }
         }
-    }
 
-    if (room.averageBudget != null || room.averageRadius != null) {
         Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            room.averageBudget?.let { budget ->
-                Text(
-                    text = "Budget: $$budget",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-            room.averageRadius?.let { radius ->
-                Text(
-                    text = "Radius: ${radius}km",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-    }
-}
 
-@Composable
-private fun WaitingRoomBottomSection(onLeaveClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Button(
-            onClick = onLeaveClick,
+        // Glass effect text background
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B))
+                .clip(RoundedCornerShape(12.dp))
+                .background(GlassWhite)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.ExitToApp,
-                contentDescription = null,
-                tint = Color.White
-            )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Leave Room",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                text = user.name,
+                fontSize = 12.sp,
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Medium,
+                color = PurpleDark
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -548,7 +607,14 @@ private fun GroupReadyContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5)),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        PurpleGradientStart,
+                        PurpleGradientEnd
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -558,18 +624,18 @@ private fun GroupReadyContent() {
             Card(
                 modifier = Modifier.size(120.dp),
                 shape = CircleShape,
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                colors = CardDefaults.cardColors(containerColor = PurpleAccent),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
             ) {
                 Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "✓",
-                        fontSize = 64.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = "Restaurant",
+                        modifier = Modifier.size(60.dp),
+                        tint = Color.White
                     )
                 }
             }
@@ -580,14 +646,14 @@ private fun GroupReadyContent() {
                 "Group Ready!",
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp,
-                color = Color.Black
+                color = PurpleDark
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             CircularProgressIndicator(
                 modifier = Modifier.size(40.dp),
-                color = Color(0xFFFFD54F),
+                color = PurpleAccent,
                 strokeWidth = 4.dp
             )
 
@@ -596,7 +662,7 @@ private fun GroupReadyContent() {
             Text(
                 "Preparing your group...",
                 fontSize = 16.sp,
-                color = Color.Gray
+                color = PurpleDark.copy(alpha = 0.7f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -604,7 +670,7 @@ private fun GroupReadyContent() {
             Text(
                 "You'll be redirected shortly",
                 fontSize = 14.sp,
-                color = Color.LightGray
+                color = PurpleDark.copy(alpha = 0.5f)
             )
         }
     }
@@ -623,25 +689,31 @@ fun UserBubbleRow(users: List<UserProfile>) {
 private fun EmptyMembersPlaceholder() {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .size(350.dp), // Changed to size() for circular shape
+        colors = CardDefaults.cardColors(containerColor = GlassWhite),
+        shape = CircleShape, // Changed to CircleShape
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .border(
+                    width = 1.dp,
+                    color = GlassBorder,
+                    shape = CircleShape // Changed to CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(40.dp),
-                    color = Color(0xFFFFD54F)
+                    color = PurpleAccent
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     "Loading members...",
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = PurpleDark.copy(alpha = 0.7f)
                 )
             }
         }
@@ -681,7 +753,6 @@ private fun UserBubble(user: UserProfile) {
     ) {
         if (user.profilePicture?.isNotEmpty() == true) {
             if (user.profilePicture.startsWith("data:image/")) {
-                // Base64 image - use rememberBase64ImagePainter
                 val painter = rememberBase64ImagePainter(user.profilePicture)
                 Image(
                     painter = painter,
@@ -693,7 +764,6 @@ private fun UserBubble(user: UserProfile) {
                         .border(3.dp, Color(0xFFFFD54F), CircleShape)
                 )
             } else {
-                // Regular URL - use AsyncImage
                 AsyncImage(
                     model = user.profilePicture,
                     contentDescription = user.name,
@@ -727,8 +797,16 @@ private fun DefaultUserAvatar() {
         modifier = Modifier
             .size(70.dp)
             .clip(CircleShape)
-            .background(Color(0xFFFFD54F))
-            .border(3.dp, Color(0xFFFFD54F), CircleShape),
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        PurpleAccent,
+                        PurpleDark
+                    )
+                )
+            )
+            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+            .border(1.dp, GlassWhite, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -752,25 +830,30 @@ private fun LeaveRoomDialog(
             title = {
                 Text(
                     "Leave Waiting Room?",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = PurpleDark
                 )
             },
             text = {
-                Text("Are you sure you want to leave? You'll lose your spot in this room.")
+                Text(
+                    "Are you sure you want to leave? You'll lose your spot in this room.",
+                    color = PurpleDark.copy(alpha = 0.8f)
+                )
             },
             confirmButton = {
                 TextButton(
-                    onClick = onConfirm  // ✅ Just call onConfirm directly
+                    onClick = onConfirm
                 ) {
-                    Text("Leave", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
+                    Text("Leave", color = Color(0xFFD88BB7), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Stay", color = Color.Black)
+                    Text("Stay", color = PurpleDark)
                 }
             },
-            containerColor = Color.White
+            containerColor = GlassWhite,
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
@@ -788,25 +871,30 @@ private fun FailureDialog(
                 Text(
                     "Unable to Create Group",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF6B6B)
+                    color = Color(0xFFD88BB7)
                 )
             },
             text = {
                 Column {
-                    Text("The waiting room timer expired, but not enough people joined.")
+                    Text(
+                        "The waiting room timer expired, but not enough people joined.",
+                        color = PurpleDark.copy(alpha = 0.8f)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Minimum $minNumberOfPeople members required to form a group.",
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = PurpleDark
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = onConfirm) {
-                    Text("Try Again", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("Try Again", color = PurpleDark, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = Color(0xFFFFF9C4)
+            containerColor = PurpleLight,
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
