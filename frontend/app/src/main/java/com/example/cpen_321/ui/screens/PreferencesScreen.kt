@@ -3,6 +3,7 @@ package com.example.cpen_321.ui.screens.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -223,7 +224,7 @@ private fun CuisineGrid(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        cuisineOptions.chunked(2).forEach { rowItems ->
+        cuisineOptions.chunked(3).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -249,7 +250,7 @@ private fun RowScope.CuisineButton(
     Box(
         modifier = Modifier
             .weight(1f)
-            .height(60.dp)
+            .height(70.dp) // Smaller, more compact height
             .background(
                 brush = Brush.linearGradient(
                     colors = if (isSelected)
@@ -273,8 +274,9 @@ private fun RowScope.CuisineButton(
         Text(
             text = cuisine,
             color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
     }
 }

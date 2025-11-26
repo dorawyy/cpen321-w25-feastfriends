@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,9 +39,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -265,13 +271,18 @@ fun ProfileScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
                 .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading && userSettings == null) {
@@ -366,23 +377,39 @@ fun ProfileScreen(
                     }
 
                     // Change profile picture button
-                    Button(
-                        onClick = {
-                            imagePickerLauncher.launch("image/*")
-                        },
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(60.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFD54F)
-                        ),
-                        enabled = !isLoading && !isUploadingImage
+                            .height(60.dp)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFE596FF), // Light purple
+                                        Color(0xFF9D4EDD), // Medium purple
+                                        Color(0xFF7B2CBF)  // Dark purple
+                                    )
+                                ),
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            .clickable(enabled = !isLoading && !isUploadingImage) {
+                                imagePickerLauncher.launch("image/*")
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (isUploadingImage) "Processing..." else "Change Profile Picture",
-                            color = Color.Black,
-                            fontSize = 16.sp
-                        )
+                        if (isUploadingImage) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "CHANGE PROFILE PICTURE",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
 
@@ -463,66 +490,95 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = onNavigateBack,
+                    // Go Back Button
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(80.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFD54F)
-                        )
+                            .height(60.dp)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF7B2CBF), // Dark purple
+                                        Color(0xFF5A189A), // Darker purple
+                                        Color(0xFF290C2F)  // Very dark purple
+                                    )
+                                ),
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            .clickable(onClick = onNavigateBack),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Go Back",
-                            color = Color.Black,
-                            fontSize = 20.sp
+                            text = "GO BACK",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
-                    Button(
-                        onClick = {
-                            val currentSettings = userSettings
-
-                            viewModel.updateSettings(
-                                name = name.ifEmpty { currentSettings?.name },
-                                bio = bio.ifEmpty { null },
-                                contactNumber = contactNumber.ifEmpty { null },
-                                profilePicture = if (selectedImageBase64.isNotEmpty()) {
-                                    selectedImageBase64
-                                } else if (profilePictureUrl.isNotEmpty()) {
-                                    profilePictureUrl
-                                } else {
-                                    null
-                                },
-                                preference = currentSettings?.preference,
-                                budget = currentSettings?.budget,
-                                radiusKm = currentSettings?.radiusKm
-                            )
-                        },
+                    // Save Profile Button
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(80.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFD54F)
-                        ),
-                        enabled = !isLoading && !isUploadingImage && name.isNotEmpty() && hasChanges && contactNumberError.isEmpty()
+                            .height(60.dp)
+                            .background(
+                                brush = if (!isLoading && !isUploadingImage && name.isNotEmpty() && hasChanges && contactNumberError.isEmpty()) {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFFE596FF), // Light purple
+                                            Color(0xFF9D4EDD), // Medium purple
+                                            Color(0xFF7B2CBF)  // Dark purple
+                                        )
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFFE0E0E0), // Gray
+                                            Color(0xFFBDBDBD)  // Darker gray
+                                        )
+                                    )
+                                },
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            .clickable(enabled = !isLoading && !isUploadingImage && name.isNotEmpty() && hasChanges && contactNumberError.isEmpty()) {
+                                val currentSettings = userSettings
+
+                                viewModel.updateSettings(
+                                    name = name.ifEmpty { currentSettings?.name },
+                                    bio = bio.ifEmpty { null },
+                                    contactNumber = contactNumber.ifEmpty { null },
+                                    profilePicture = if (selectedImageBase64.isNotEmpty()) {
+                                        selectedImageBase64
+                                    } else if (profilePictureUrl.isNotEmpty()) {
+                                        profilePictureUrl
+                                    } else {
+                                        null
+                                    },
+                                    preference = currentSettings?.preference,
+                                    budget = currentSettings?.budget,
+                                    radiusKm = currentSettings?.radiusKm
+                                )
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                color = Color.Black,
+                                color = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Text(
-                                text = "Save Profile",
-                                color = Color.Black,
-                                fontSize = 20.sp
+                                text = "SAVE PROFILE",
+                                color = if (!isLoading && !isUploadingImage && name.isNotEmpty() && hasChanges && contactNumberError.isEmpty()) Color.White else Color.Gray,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
             }
         }
     }
