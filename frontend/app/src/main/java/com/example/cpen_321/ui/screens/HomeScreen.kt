@@ -3,6 +3,8 @@ package com.example.cpen_321.ui.screens
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -10,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -110,6 +113,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
                 .padding(innerPadding)
         ) {
             // Profile icon in top right
@@ -166,143 +170,175 @@ fun HomeScreen(
 
                 // Start Matchmaking Button
                 // ✅ UPDATED START MATCHMAKING BUTTON
-                Button(
-                    onClick = {
-                        if (isJoiningMatch) return@Button  // ← PREVENT DOUBLE CLICKS
-
-                        // Check if user is already in a room or group
-                        val isInRoom = !userSettings?.roomID.isNullOrEmpty()
-                        val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
-                        
-                        if (isInGroup) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
-                            }
-                            return@Button
-                        }
-                        
-                        if (isInRoom) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a room")
-                            }
-                            return@Button
-                        }
-
-                        val cuisines = userSettings?.preference ?: emptyList()
-                        val budget = userSettings?.budget ?: 50.0
-                        val radius = userSettings?.radiusKm ?: 5.0
-
-                        if (cuisines.isEmpty()) {
-                            navController.navigate("preferences")
-                        } else {
-                            // Check location permission first
-                            if (!locationPermissionGranted) {
-                                // Request location permission
-                                locationPermissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFE596FF), // Light purple
+                                    Color(0xFF9D4EDD), // Medium purple
+                                    Color(0xFF7B2CBF)  // Dark purple
                                 )
-                            } else {
-                                // Permission granted - get location and join matching
-                                isJoiningMatch = true  // ← DISABLE BUTTON
+                            ),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        .clickable(enabled = !isJoiningMatch) {
+                            if (isJoiningMatch) return@clickable  // ← PREVENT DOUBLE CLICKS
+
+                            // Check if user is already in a room or group
+                            val isInRoom = !userSettings?.roomID.isNullOrEmpty()
+                            val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
+                            
+                            if (isInGroup) {
                                 scope.launch {
-                                    try {
-                                        val location = LocationHelper.getCurrentLocation(context)
-                                        if (location != null) {
-                                            val (lat, lng) = location
-                                            Log.d("HomeScreen", "Got location: $lat, $lng")
-                                            matchViewModel.joinMatching(
-                                                cuisine = cuisines,
-                                                budget = budget,
-                                                radiusKm = radius,
-                                                latitude = lat,
-                                                longitude = lng
-                                            )
-                                            navController.navigate("waiting_room")
-                                        } else {
-                                            Log.e("HomeScreen", "Could not get location")
+                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
+                                }
+                                return@clickable
+                            }
+                            
+                            if (isInRoom) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a room")
+                                }
+                                return@clickable
+                            }
+
+                            val cuisines = userSettings?.preference ?: emptyList()
+                            val budget = userSettings?.budget ?: 50.0
+                            val radius = userSettings?.radiusKm ?: 5.0
+
+                            if (cuisines.isEmpty()) {
+                                navController.navigate("preferences")
+                            } else {
+                                // Check location permission first
+                                if (!locationPermissionGranted) {
+                                    // Request location permission
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                } else {
+                                    // Permission granted - get location and join matching
+                                    isJoiningMatch = true  // ← DISABLE BUTTON
+                                    scope.launch {
+                                        try {
+                                            val location = LocationHelper.getCurrentLocation(context)
+                                            if (location != null) {
+                                                val (lat, lng) = location
+                                                Log.d("HomeScreen", "Got location: $lat, $lng")
+                                                matchViewModel.joinMatching(
+                                                    cuisine = cuisines,
+                                                    budget = budget,
+                                                    radiusKm = radius,
+                                                    latitude = lat,
+                                                    longitude = lng
+                                                )
+                                                navController.navigate("waiting_room")
+                                            } else {
+                                                Log.e("HomeScreen", "Could not get location")
+                                                isJoiningMatch = false  // ← RE-ENABLE ON ERROR
+                                                // Show error message
+                                                snackbarHostState.showSnackbar(
+                                                    "Unable to get your location. Please check your GPS settings."
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("HomeScreen", "Location error", e)
                                             isJoiningMatch = false  // ← RE-ENABLE ON ERROR
-                                            // Show error message
                                             snackbarHostState.showSnackbar(
-                                                "Unable to get your location. Please check your GPS settings."
+                                                "Location error: ${e.message}"
                                             )
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e("HomeScreen", "Location error", e)
-                                        isJoiningMatch = false  // ← RE-ENABLE ON ERROR
-                                        snackbarHostState.showSnackbar(
-                                            "Location error: ${e.message}"
-                                        )
                                     }
                                 }
                             }
-                        }
-                    },
-                    enabled = !isJoiningMatch,  // ← DISABLE BUTTON WHILE JOINING
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFD54F)
-                    )
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (isJoiningMatch) "Joining..." else "Start Matchmaking",  // ← SHOW LOADING TEXT
-                        color = Color.Black,
-                        fontSize = 20.sp
-                    )
+                    if (isJoiningMatch) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "START MATCHMAKING",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
 
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Current Groups Button
-                Button(
-                    onClick = {
-                        // ✅ FIX: Store in local variable to enable smart casting
-                        val group = currentGroup
-
-                        // Check if user has an active group
-                        if (group != null) {
-                            val groupId = group.groupId
-
-                            // Check if voting is in progress
-                            if (group.restaurantSelected == false && groupId != null) {
-                                // Voting still in progress - go to sequential voting
-                                navController.navigate("sequential_voting/$groupId")
-                            } else if (groupId != null) {
-                                // Restaurant already selected - go to group screen
-                                navController.navigate("group/$groupId")
-                            } else {
-                                // Fallback to view groups
-                                navController.navigate(NavRoutes.VIEW_GROUPS)
-                            }
-                        } else {
-                            // No active group - show all groups
-                            navController.navigate(NavRoutes.VIEW_GROUPS)
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (currentGroup != null) Color(0xFF4CAF50) else Color(0xFFFFD54F)
-                    )
+                        .height(60.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = if (currentGroup != null) {
+                                    listOf(
+                                        Color(0xFF7B2CBF), // Dark purple
+                                        Color(0xFF5A189A), // Darker purple
+                                        Color(0xFF290C2F)  // Very dark purple
+                                    )
+                                } else {
+                                    listOf(
+                                        Color(0xFFE596FF), // Light purple
+                                        Color(0xFF9D4EDD), // Medium purple
+                                        Color(0xFF7B2CBF)  // Dark purple
+                                    )
+                                }
+                            ),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        .clickable {
+                            // ✅ FIX: Store in local variable to enable smart casting
+                            val group = currentGroup
+
+                            // Check if user has an active group
+                            if (group != null) {
+                                val groupId = group.groupId
+
+                                // Check if voting is in progress
+                                if (group.restaurantSelected == false && groupId != null) {
+                                    // Voting still in progress - go to sequential voting
+                                    navController.navigate("sequential_voting/$groupId")
+                                } else if (groupId != null) {
+                                    // Restaurant already selected - go to group screen
+                                    navController.navigate("group/$groupId")
+                                } else {
+                                    // Fallback to view groups
+                                    navController.navigate(NavRoutes.VIEW_GROUPS)
+                                }
+                            } else {
+                                // No active group - show all groups
+                                navController.navigate(NavRoutes.VIEW_GROUPS)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     // ✅ FIX: Use local variable for smart casting
                     val group = currentGroup
                     val buttonText = when {
-                        group?.restaurantSelected == false -> "Continue Voting"
-                        group != null -> "View Active Group"
-                        else -> "Current Groups"
+                        group?.restaurantSelected == false -> "CONTINUE VOTING"
+                        group != null -> "VIEW ACTIVE GROUP"
+                        else -> "CURRENT GROUPS"
                     }
 
                     Text(
                         text = buttonText,
-                        color = Color.Black,
-                        fontSize = 20.sp
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

@@ -1,7 +1,10 @@
 package com.example.cpen_321.ui.screens
 
 import NavRoutes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,15 +14,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,14 +54,20 @@ fun ProfileConfigScreen(
     Scaffold(
         bottomBar = { MainBottomBar(navController = navController) }
     ) { innerPadding ->
-        ProfileConfigContent(
-            navController = navController,
-            authViewModel = authViewModel,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
                 .padding(innerPadding)
-                .padding(horizontal = 32.dp)
-        )
+        ) {
+            ProfileConfigContent(
+                navController = navController,
+                authViewModel = authViewModel,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp)
+            )
+        }
     }
     
     // Alert dialog for delete account while in group
@@ -78,29 +90,32 @@ private fun ProfileConfigContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ConfigButton(
-            text = "Profile",
-            onClick = { navController.navigate(NavRoutes.PROFILE) }
+            text = "PROFILE",
+            onClick = { navController.navigate(NavRoutes.PROFILE) },
+            isPrimary = true
         )
         ConfigButton(
-            text = "Preferences",
-            onClick = { navController.navigate(NavRoutes.PREFERENCES) }
+            text = "PREFERENCES",
+            onClick = { navController.navigate(NavRoutes.PREFERENCES) },
+            isPrimary = true
         )
         ConfigButton(
-            text = "Credibility Score",
-            onClick = { navController.navigate(NavRoutes.CREDIBILITY_SCORE) }
+            text = "CREDIBILITY SCORE",
+            onClick = { navController.navigate(NavRoutes.CREDIBILITY_SCORE) },
+            isPrimary = true
         )
         ConfigButton(
-            text = "Go Back",
-            onClick = { navController.popBackStack() }
+            text = "GO BACK",
+            onClick = { navController.popBackStack() },
+            isPrimary = true
         )
         ConfigButton(
-            text = "Logout",
+            text = "LOGOUT",
             onClick = { authViewModel.logout() },
-            containerColor = Color(0xFFFF5722),
-            textColor = Color.White
+            isPrimary = false
         )
         ConfigButton(
-            text = "Delete Account",
+            text = "DELETE ACCOUNT",
             onClick = {
                 authViewModel.deleteAccount() {
                     // Auth data already cleared in repository
@@ -110,8 +125,7 @@ private fun ProfileConfigContent(
                     }
                 }
             },
-            containerColor = Color(0xFFFF5722),
-            textColor = Color.White
+            isPrimary = false
         )
     }
 }
@@ -120,19 +134,44 @@ private fun ProfileConfigContent(
 private fun ConfigButton(
     text: String,
     onClick: () -> Unit,
-    containerColor: Color = Color(0xFFFFD54F),
-    textColor: Color = Color.Black
+    isPrimary: Boolean = true
 ) {
-    Button(
-        onClick = onClick,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = containerColor)
+            .height(60.dp)
+            .background(
+                brush = if (isPrimary) {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFE596FF), // Light purple
+                            Color(0xFF9D4EDD), // Medium purple
+                            Color(0xFF7B2CBF)  // Dark purple
+                        )
+                    )
+                } else {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF7B2CBF), // Dark purple
+                            Color(0xFF5A189A), // Darker purple
+                            Color(0xFF290C2F)  // Very dark purple
+                        )
+                    )
+                },
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Text(text = text, color = textColor, fontSize = 20.sp)
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
     }
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(16.dp))
 }
 
 @Composable
@@ -145,7 +184,7 @@ private fun DeleteInGroupAlertDialog(
             Text(
                 "Cannot Delete Account",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFFF5722)
+                color = Color(0xFF7B2CBF)
             )
         },
         text = {
@@ -153,7 +192,7 @@ private fun DeleteInGroupAlertDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK", color = Color(0xFFFF5722), fontWeight = FontWeight.Bold)
+                Text("OK", color = Color(0xFF7B2CBF), fontWeight = FontWeight.Bold)
             }
         },
         containerColor = Color.White
