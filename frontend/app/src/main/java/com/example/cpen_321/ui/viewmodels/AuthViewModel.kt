@@ -26,8 +26,12 @@ class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     private val socketManager: SocketManager,
-    private val tokenManager: TokenManager  // ✅ ADDED: Inject TokenManager
+    private val tokenManager: TokenManager
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "AuthViewModel"
+    }
 
     // Authentication state
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
@@ -62,7 +66,6 @@ class AuthViewModel @Inject constructor(
         initializeAuthState()
     }
 
-
     private fun initializeAuthState() {
         if (authRepository.isLoggedIn()) {
             _authState.value = AuthState.Authenticated
@@ -92,13 +95,16 @@ class AuthViewModel @Inject constructor(
                 _currentUser.value = result.data
                 _authState.value = AuthState.Authenticated
 
-                // ✅ FIXED: Connect to socket with JWT token, not userId
+                // Connect to socket with JWT token
                 if (!socketManager.isConnected()) {
-                    val token = tokenManager.getToken()  // Get the JWT token
+                    val token = tokenManager.getToken()
                     if (token != null) {
-                        socketManager.connect(token)  // Pass the token, not userId!
+                        socketManager.connect(token)
                     }
                 }
+
+                // ✅ NEW: Register FCM token if available
+                registerFcmTokenAfterLogin()
             }
             is ApiResult.Error -> {
                 // Token is invalid
@@ -140,7 +146,7 @@ class AuthViewModel @Inject constructor(
                     // Signup successful - show success message (not as error)
                     // User is NOT automatically signed in - they must sign in separately
                     _authState.value = AuthState.Unauthenticated
-                    _successMessage.value = result.data.message // "Account created successfully. Please sign in to continue."
+                    _successMessage.value = result.data.message
                 }
                 is ApiResult.Error -> {
                     _authState.value = AuthState.Error(result.message)
@@ -178,10 +184,13 @@ class AuthViewModel @Inject constructor(
 
                     // Check if user has preferences set (first-time user check)
                     checkIfFirstTimeUser()
-                    
+
+                    // ✅ NEW: Register FCM token after successful login
+                    registerFcmTokenAfterLogin()
+
                     // Small delay to ensure the check completes and flag is set
                     delay(100)
-                    
+
                     // Now set authenticated state (this will trigger navigation)
                     _authState.value = AuthState.Authenticated
 
@@ -210,7 +219,7 @@ class AuthViewModel @Inject constructor(
                 val settings = settingsResult.data
                 // Check if user has no preferences set (empty preference list)
                 val hasNoPreferences = settings.preference.isEmpty()
-                
+
                 if (hasNoPreferences) {
                     _shouldRedirectToPreferences.value = true
                 }
@@ -244,8 +253,11 @@ class AuthViewModel @Inject constructor(
                     _currentUser.value = result.data.user
                     _authState.value = AuthState.Authenticated
 
-                    // ✅ CORRECT: Connect to socket with token
+                    // Connect to socket with token
                     socketManager.connect(result.data.token)
+
+                    // ✅ NEW: Register FCM token after successful authentication
+                    registerFcmTokenAfterLogin()
 
                     _errorMessage.value = null
                 }
@@ -268,6 +280,9 @@ class AuthViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             _isLoading.value = true
+
+            // ✅ NEW: Unregister FCM token before logout
+            unregisterFcmTokenBeforeLogout()
 
             // Disconnect socket
             socketManager.disconnect()
@@ -303,6 +318,9 @@ class AuthViewModel @Inject constructor(
 
             when (val result = authRepository.deleteAccount()) {
                 is ApiResult.Success -> {
+                    // ✅ NEW: Unregister FCM token
+                    unregisterFcmTokenBeforeLogout()
+
                     // Disconnect socket
                     socketManager.disconnect()
 
@@ -315,7 +333,7 @@ class AuthViewModel @Inject constructor(
                 }
                 is ApiResult.Error -> {
                     // Check if error is about being in a room or group
-                    if (result.message.contains("room or group", ignoreCase = true) || 
+                    if (result.message.contains("room or group", ignoreCase = true) ||
                         result.message.contains("Cannot delete", ignoreCase = true)) {
                         _showDeleteInGroupAlert.value = true
                     } else {
@@ -361,35 +379,137 @@ class AuthViewModel @Inject constructor(
         _isLoading.value = false
     }
 
-
     private fun syncProfilePictureToBackend(profilePicture: String) {
         viewModelScope.launch {
             try {
-                android.util.Log.d("AuthViewModel", "Syncing profile picture to backend (${profilePicture.length} chars)")
+                Log.d(TAG, "Syncing profile picture to backend (${profilePicture.length} chars)")
                 val result = userRepository.updateUserProfile(
                     name = null,
                     bio = null,
                     profilePicture = profilePicture,
                     contactNumber = null
                 )
-                
+
                 when (result) {
                     is ApiResult.Success -> {
-                        android.util.Log.d("AuthViewModel", "Profile picture synced successfully")
+                        Log.d(TAG, "Profile picture synced successfully")
                     }
                     is ApiResult.Error -> {
-                        android.util.Log.w("AuthViewModel", "Failed to sync profile picture: ${result.message}")
+                        Log.w(TAG, "Failed to sync profile picture: ${result.message}")
                     }
                     is ApiResult.Loading -> {
                     }
                 }
             } catch (e: IOException) {
-                android.util.Log.w("AuthViewModel", "Network error syncing profile picture: ${e.message}")
+                Log.w(TAG, "Network error syncing profile picture: ${e.message}")
             } catch (e: IllegalStateException) {
-                android.util.Log.w("AuthViewModel", "Invalid state while syncing profile picture: ${e.message}")
+                Log.w(TAG, "Invalid state while syncing profile picture: ${e.message}")
             }
         }
     }
+
+    // ==================== NEW: FCM TOKEN METHODS ====================
+
+    /**
+     * Register FCM token with backend after successful login
+     */
+    private fun registerFcmTokenAfterLogin() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "🔍 Checking for FCM token...")
+
+                // First check if we have a saved token
+                var fcmToken = tokenManager.getFcmToken()
+                val userId = tokenManager.getUserId()
+
+                if (fcmToken != null && userId != null) {
+                    // We have a token, register it
+                    Log.d(TAG, "📤 Found saved FCM token, registering...")
+
+                    when (val result = userRepository.registerFcmToken(userId, fcmToken)) {
+                        is ApiResult.Success -> {
+                            Log.d(TAG, "✅ FCM token registered successfully")
+                        }
+                        is ApiResult.Error -> {
+                            Log.e(TAG, "⚠️ Failed to register FCM token: ${result.message}")
+                        }
+                        is ApiResult.Loading -> {
+                            // Ignore
+                        }
+                    }
+                } else {
+                    // No saved token, request a fresh one from Firebase
+                    Log.d(TAG, "📲 No saved token, requesting fresh token from Firebase...")
+
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                        .addOnCompleteListener { task ->
+                            if (!task.isSuccessful) {
+                                Log.e(TAG, "❌ Failed to get FCM token", task.exception)
+                                return@addOnCompleteListener
+                            }
+
+                            val token = task.result
+                            if (token != null && userId != null) {
+                                Log.d(TAG, "✅ Fresh FCM token received: ${token.take(20)}...")
+
+                                // Save it locally first
+                                tokenManager.saveFcmToken(token)
+
+                                // Register with backend
+                                viewModelScope.launch {
+                                    when (val result = userRepository.registerFcmToken(userId, token)) {
+                                        is ApiResult.Success -> {
+                                            Log.d(TAG, "✅ Fresh FCM token registered successfully")
+                                        }
+                                        is ApiResult.Error -> {
+                                            Log.e(TAG, "⚠️ Failed to register fresh FCM token: ${result.message}")
+                                        }
+                                        is ApiResult.Loading -> {
+                                            // Ignore
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error during FCM token registration", e)
+            }
+        }
+    }
+
+    /**
+     * Unregister FCM token from backend before logout
+     */
+    private suspend fun unregisterFcmTokenBeforeLogout() {
+        try {
+            val userId = tokenManager.getUserId()
+
+            if (userId != null) {
+                Log.d(TAG, "📤 Unregistering FCM token from backend...")
+
+                when (val result = userRepository.unregisterFcmToken(userId)) {
+                    is ApiResult.Success -> {
+                        Log.d(TAG, "✅ FCM token unregistered successfully")
+                    }
+                    is ApiResult.Error -> {
+                        Log.e(TAG, "⚠️ Failed to unregister FCM token: ${result.message}")
+                        // Don't block logout if unregistration fails
+                    }
+                    is ApiResult.Loading -> {
+                        // Ignore
+                    }
+                }
+            } else {
+                Log.d(TAG, "ℹ️ No user ID available for FCM unregistration")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error during FCM token unregistration", e)
+            // Don't throw - FCM unregistration shouldn't block logout
+        }
+    }
+
+    // ================================================================
 
     /**
      * Get current user ID

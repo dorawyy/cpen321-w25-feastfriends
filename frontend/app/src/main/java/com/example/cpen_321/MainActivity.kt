@@ -28,7 +28,8 @@ import com.example.cpen_321.ui.theme.Cpen321Theme
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.ConnectionResult
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -57,6 +58,19 @@ class MainActivity : ComponentActivity() {
 
         // Handle notification intent if app was opened from notification
         handleNotificationIntent(intent)
+
+
+        // In onCreate(), add:
+        val googleApiAvailability = GoogleApiAvailability.getInstance()
+        val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this)
+        if (resultCode != ConnectionResult.SUCCESS) {
+            Log.e("MainActivity", "❌ Google Play Services not available: $resultCode")
+            if (googleApiAvailability.isUserResolvableError(resultCode)) {
+                Log.e("MainActivity", "   This is a user-resolvable error")
+            }
+        } else {
+            Log.d("MainActivity", "✅ Google Play Services available")
+        }
 
         setContent {
             Cpen321Theme {
