@@ -4,6 +4,7 @@ import com.example.cpen_321.BuildConfig
 import com.example.cpen_321.data.local.TokenManager
 import com.example.cpen_321.data.network.RetrofitClient
 import com.example.cpen_321.data.network.api.AuthAPI
+import com.example.cpen_321.data.network.api.CredibilityAPI  // ← ADD THIS IMPORT
 import com.example.cpen_321.data.network.api.GroupAPI
 import com.example.cpen_321.data.network.api.MatchAPI
 import com.example.cpen_321.data.network.api.RestaurantAPI
@@ -22,21 +23,12 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
-/**
- * Hilt module for network-related dependencies
- */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // TODO: Replace with your actual backend URL
-    private const val BASE_URL = BuildConfig.IMAGE_BASE_URL // Android emulator localhost
-    // For physical device, use: "http://YOUR_COMPUTER_IP:3000/"
-    // For production: "https://your-backend-domain.com/"
+    private const val BASE_URL = BuildConfig.IMAGE_BASE_URL
 
-    /**
-     * Provide Gson instance
-     */
     @Provides
     @Singleton
     fun provideGson(): Gson {
@@ -46,18 +38,12 @@ object NetworkModule {
             .create()
     }
 
-    /**
-     * Provide AuthInterceptor
-     */
     @Provides
     @Singleton
     fun provideAuthInterceptor(tokenManager: TokenManager): AuthInterceptor {
         return AuthInterceptor(tokenManager)
     }
 
-    /**
-     * Provide HttpLoggingInterceptor
-     */
     @Provides
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
@@ -66,9 +52,6 @@ object NetworkModule {
         }
     }
 
-    /**
-     * Provide OkHttpClient
-     */
     @Provides
     @Singleton
     fun provideOkHttpClient(
@@ -84,9 +67,6 @@ object NetworkModule {
             .build()
     }
 
-    /**
-     * Provide Retrofit instance
-     */
     @Provides
     @Singleton
     fun provideRetrofit(
@@ -100,48 +80,40 @@ object NetworkModule {
             .build()
     }
 
-    /**
-     * Provide AuthAPI
-     */
     @Provides
     @Singleton
     fun provideAuthAPI(retrofit: Retrofit): AuthAPI {
         return retrofit.create(AuthAPI::class.java)
     }
 
-    /**
-     * Provide UserAPI
-     */
     @Provides
     @Singleton
     fun provideUserAPI(retrofit: Retrofit): UserAPI {
         return retrofit.create(UserAPI::class.java)
     }
 
-    /**
-     * Provide MatchAPI
-     */
     @Provides
     @Singleton
     fun provideMatchAPI(retrofit: Retrofit): MatchAPI {
         return retrofit.create(MatchAPI::class.java)
     }
 
-    /**
-     * Provide GroupAPI
-     */
     @Provides
     @Singleton
     fun provideGroupAPI(retrofit: Retrofit): GroupAPI {
         return retrofit.create(GroupAPI::class.java)
     }
 
-    /**
-     * Provide RestaurantAPI
-     */
     @Provides
     @Singleton
     fun provideRestaurantAPI(retrofit: Retrofit): RestaurantAPI {
         return retrofit.create(RestaurantAPI::class.java)
+    }
+
+    // ← ADD THIS METHOD
+    @Provides
+    @Singleton
+    fun provideCredibilityAPI(retrofit: Retrofit): CredibilityAPI {
+        return retrofit.create(CredibilityAPI::class.java)
     }
 }

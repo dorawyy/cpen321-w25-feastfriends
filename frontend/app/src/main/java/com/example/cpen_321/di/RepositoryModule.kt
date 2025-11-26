@@ -2,8 +2,11 @@ package com.example.cpen_321.di
 
 import com.example.cpen_321.data.local.PreferencesManager
 import com.example.cpen_321.data.local.TokenManager
+import com.example.cpen_321.data.network.api.CredibilityAPI  // ← ADD THIS IMPORT
 import com.example.cpen_321.data.repository.AuthRepository
 import com.example.cpen_321.data.repository.AuthRepositoryImpl
+import com.example.cpen_321.data.repository.CredibilityRepository  // ← ADD THIS IMPORT
+import com.example.cpen_321.data.repository.CredibilityRepositoryImpl  // ← ADD THIS IMPORT
 import com.example.cpen_321.data.repository.GroupRepository
 import com.example.cpen_321.data.repository.GroupRepositoryImpl
 import com.example.cpen_321.data.repository.MatchRepository
@@ -18,16 +21,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/**
- * Hilt module for repository dependencies
- */
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
 
-    /**
-     * Provide AuthRepository
-     */
     @Provides
     @Singleton
     fun provideAuthRepository(
@@ -37,10 +34,6 @@ object RepositoryModule {
         return AuthRepositoryImpl(tokenManager, preferencesManager)
     }
 
-    /**
-     * Provide UserRepository
-     * ✅ UPDATED: Now injects TokenManager for FCM token management
-     */
     @Provides
     @Singleton
     fun provideUserRepository(
@@ -51,22 +44,15 @@ object RepositoryModule {
         return UserRepositoryImpl(preferencesManager, tokenManager, userAPI)
     }
 
-    /**
-     * Provide MatchRepository
-     * ✅ UPDATED: Now injects UserRepository to check user status before joining
-     */
     @Provides
     @Singleton
     fun provideMatchRepository(
         preferencesManager: PreferencesManager,
-        userRepository: UserRepository  // ✅ ADDED
+        userRepository: UserRepository
     ): MatchRepository {
-        return MatchRepositoryImpl(preferencesManager, userRepository)  // ✅ ADDED
+        return MatchRepositoryImpl(preferencesManager, userRepository)
     }
 
-    /**
-     * Provide GroupRepository
-     */
     @Provides
     @Singleton
     fun provideGroupRepository(
@@ -75,12 +61,18 @@ object RepositoryModule {
         return GroupRepositoryImpl(preferencesManager)
     }
 
-    /**
-     * Provide RestaurantRepository
-     */
     @Provides
     @Singleton
     fun provideRestaurantRepository(): RestaurantRepository {
         return RestaurantRepositoryImpl()
+    }
+
+    // ← ADD THIS METHOD
+    @Provides
+    @Singleton
+    fun provideCredibilityRepository(
+        credibilityAPI: CredibilityAPI
+    ): CredibilityRepository {
+        return CredibilityRepositoryImpl(credibilityAPI)
     }
 }
