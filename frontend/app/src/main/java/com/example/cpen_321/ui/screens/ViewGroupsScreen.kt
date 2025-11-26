@@ -638,25 +638,6 @@ private fun GroupActionButtons(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE0E0E0)
-            )
-        ) {
-            Text(
-                text = "Go Back",
-                color = Color.Black,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
