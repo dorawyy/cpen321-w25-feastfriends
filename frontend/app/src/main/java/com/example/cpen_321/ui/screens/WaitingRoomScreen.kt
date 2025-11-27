@@ -464,7 +464,7 @@ private fun AnimatedFloatingBubble(
 
     // Start animations
     LaunchedEffect(user.userId) {
-        // Movement animation - continuous random walks
+
         launch {
             while (true) {
                 val targetX = random.nextFloat() * (containerWidth - bubbleSize)
