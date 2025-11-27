@@ -305,10 +305,22 @@ class MatchViewModel @Inject constructor(
                     _timeRemaining.value = 0L
                     _groupReady.value = false
                     _groupId.value = null
+                    
+                    // ✅ FIX: Set success flag to trigger navigation
+                    _leaveRoomSuccess.value = true
+                    Log.d(TAG, "✅ Set leaveRoomSuccess flag - navigation should trigger")
                 }
                 is ApiResult.Error -> {
                     Log.e(TAG, "🔴 ERROR: Leave room failed: ${result.message}")
                     _errorMessage.value = result.message
+                    // Even on error, try to clear local state and navigate
+                    _currentRoom.value = null
+                    _roomMembers.value = emptyList()
+                    _timeRemaining.value = 0L
+                    _groupReady.value = false
+                    _groupId.value = null
+                    timerJob?.cancel()
+                    _leaveRoomSuccess.value = true // Still navigate even on error
                 }
                 is ApiResult.Loading -> {
                     // Ignore
