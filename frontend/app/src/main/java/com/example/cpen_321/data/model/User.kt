@@ -79,7 +79,10 @@ data class UserProfile(
     val profilePicture: String? = null,
 
     @SerializedName("contactNumber")
-    val contactNumber: String? = null
+    val contactNumber: String? = null,
+
+    @SerializedName("credibilityScore")  // ✅ ADDED
+    val credibilityScore: Double = 100.0  // ✅ ADDED
 )
 
 /**

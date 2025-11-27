@@ -337,7 +337,7 @@ constructor(
                         GroupMember(
                             userId = profile.userId,
                             name = profile.name,
-                            credibilityScore = 100.0,
+                            credibilityScore = profile.credibilityScore,  // ✅ FIXED: Use actual credibility score
                             phoneNumber = profile.contactNumber,
                             profilePicture = profile.profilePicture,
                             hasVoted = votes.containsKey(profile.userId)
