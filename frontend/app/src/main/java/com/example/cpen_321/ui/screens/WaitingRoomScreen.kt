@@ -92,6 +92,26 @@ fun WaitingRoomScreen(
 
     val minNumberOfPeople = 2
 
+//    // ✅ NEW: Reload room status when screen is opened
+//    LaunchedEffect(Unit) {
+//        Log.d("WaitingRoom", "Screen opened/resumed - checking current room status")
+//        (currentRoom as? com.example.cpen_321.data.model.Room)?.let { room ->
+//            Log.d("WaitingRoom", "Reloading room status for: ${room.roomId}")
+//            viewModel.getRoomStatus(room.roomId)
+//        } ?: run {
+//            Log.w("WaitingRoom", "No current room found - user may need to leave")
+//            // Optionally navigate back to home if no room exists
+//            delay(500)
+//            if (currentRoom == null) {
+//                Log.w("WaitingRoom", "Still no room after delay - navigating to home")
+//                navController.navigate("home") {
+//                    popUpTo("home") { inclusive = true }
+//                }
+//            }
+//        }
+//    }
+
+
     // ✅ FIX: Navigate immediately when leaveRoom succeeds
     LaunchedEffect(leaveRoomSuccess) {
         if (leaveRoomSuccess) {

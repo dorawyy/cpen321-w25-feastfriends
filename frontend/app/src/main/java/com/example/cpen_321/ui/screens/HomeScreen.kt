@@ -35,11 +35,9 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import NavRoutes
 
-// Add font
 val PlaywriteFontFamily = FontFamily(
     Font(R.font.playwrite_usmodern_variablefont_wght)
 )
-
 
 private fun isTestEnvironment(): Boolean {
     return try {
@@ -58,20 +56,17 @@ fun HomeScreen(
     groupViewModel: GroupViewModel = hiltViewModel(),
     userViewModel: UserViewModel = hiltViewModel()
 ) {
-    // Collect states
     val currentUser by authViewModel.currentUser.collectAsState()
     val userSettings by userViewModel.userSettings.collectAsState()
     val currentGroup by groupViewModel.currentGroup.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val isTest = remember { isTestEnvironment() }
 
-    // ✅ ADD THESE FOR LOCATION HANDLING
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var locationPermissionGranted by remember { mutableStateOf(false) }
     var isJoiningMatch by remember { mutableStateOf(false) }
 
-    // ✅ ADD LOCATION PERMISSION LAUNCHER
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -80,12 +75,10 @@ fun HomeScreen(
         Log.d("HomeScreen", "Location permission granted: $locationPermissionGranted")
     }
 
-    // Check location permission on startup
     LaunchedEffect(Unit) {
         locationPermissionGranted = LocationHelper.hasLocationPermission(context)
     }
 
-    // FIXED: Only verify token in production, skip in tests
     LaunchedEffect(Unit) {
         if (!isTest && currentUser == null) {
             println("HomeScreen: Verifying token (production)")
@@ -95,12 +88,10 @@ fun HomeScreen(
         }
     }
 
-    // ✅ Load user settings when screen opens - this refreshes name and credibility score
     LaunchedEffect(Unit) {
         userViewModel.loadUserSettings()
     }
 
-    // Check if user has an active group
     LaunchedEffect(Unit) {
         groupViewModel.loadGroupStatus()
     }
@@ -112,10 +103,9 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
+                .background(Color(0xFFFFFFFF))
                 .padding(innerPadding)
         ) {
-            // Profile icon in top right
             IconButton(
                 onClick = {
                     navController.navigate("profile_config")
@@ -134,7 +124,6 @@ fun HomeScreen(
                 )
             }
 
-            // Center content with buttons
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -142,7 +131,6 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // ✅ FIXED: Welcome text with user's name from userSettings
                 Text(
                     text = "Welcome${userSettings?.name?.let { ", $it" } ?: ""}!",
                     fontSize = 28.sp,
@@ -155,7 +143,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // ✅ FIXED: Show credibility score from userSettings
                 userSettings?.credibilityScore?.let { score ->
                     Text(
                         text = "Credibility Score: ${score.toInt()}",
@@ -167,38 +154,48 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // Start Matchmaking Button
+                // ✅ FIXED: Check if user is in a room and show appropriate button
+                val isInRoom = !userSettings?.roomID.isNullOrEmpty()
+                val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
+
+                // Start/Resume Matchmaking Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
                         .background(
                             brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFFE596FF), // Light purple
-                                    Color(0xFF9D4EDD), // Medium purple
-                                    Color(0xFF7B2CBF)  // Dark purple
-                                )
+                                colors = if (isInRoom) {
+                                    // Different gradient for "Resume" state
+                                    listOf(
+                                        Color(0xFFFFB347), // Orange
+                                        Color(0xFFFF8C42),
+                                        Color(0xFFFF6B35)
+                                    )
+                                } else {
+                                    listOf(
+                                        Color(0xFFE596FF),
+                                        Color(0xFF9D4EDD),
+                                        Color(0xFF7B2CBF)
+                                    )
+                                }
                             ),
                             shape = MaterialTheme.shapes.medium
                         )
                         .clickable(enabled = !isJoiningMatch) {
-                            if (isJoiningMatch) return@clickable  // Prevent double clicks
+                            if (isJoiningMatch) return@clickable
 
-                            // Check if user is already in a room or group
-                            val isInRoom = !userSettings?.roomID.isNullOrEmpty()
-                            val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
-
-                            if (isInGroup) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
-                                }
+                            // ✅ NEW: If already in a room, navigate directly to waiting room
+                            if (isInRoom) {
+                                Log.d("HomeScreen", "User already in room, navigating to waiting_room")
+                                navController.navigate("waiting_room")
                                 return@clickable
                             }
 
-                            if (isInRoom) {
+                            // Check if user is in a group
+                            if (isInGroup) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a room")
+                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
                                 }
                                 return@clickable
                             }
@@ -210,9 +207,7 @@ fun HomeScreen(
                             if (cuisines.isEmpty()) {
                                 navController.navigate("preferences")
                             } else {
-                                // Check location permission first
                                 if (!locationPermissionGranted) {
-                                    // Request location permission
                                     locationPermissionLauncher.launch(
                                         arrayOf(
                                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -220,7 +215,6 @@ fun HomeScreen(
                                         )
                                     )
                                 } else {
-                                    // Permission granted - get location and join matching
                                     isJoiningMatch = true
                                     scope.launch {
                                         try {
@@ -263,14 +257,13 @@ fun HomeScreen(
                         )
                     } else {
                         Text(
-                            text = "START MATCHMAKING",
+                            text = if (isInRoom) "RESUME WAITING ROOM" else "START MATCHMAKING",
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -283,15 +276,15 @@ fun HomeScreen(
                             brush = Brush.linearGradient(
                                 colors = if (currentGroup != null) {
                                     listOf(
-                                        Color(0xFF7B2CBF), // Dark purple
-                                        Color(0xFF5A189A), // Darker purple
-                                        Color(0xFF290C2F)  // Very dark purple
+                                        Color(0xFF7B2CBF),
+                                        Color(0xFF5A189A),
+                                        Color(0xFF290C2F)
                                     )
                                 } else {
                                     listOf(
-                                        Color(0xFFE596FF), // Light purple
-                                        Color(0xFF9D4EDD), // Medium purple
-                                        Color(0xFF7B2CBF)  // Dark purple
+                                        Color(0xFFE596FF),
+                                        Color(0xFF9D4EDD),
+                                        Color(0xFF7B2CBF)
                                     )
                                 }
                             ),
@@ -300,23 +293,17 @@ fun HomeScreen(
                         .clickable {
                             val group = currentGroup
 
-                            // Check if user has an active group
                             if (group != null) {
                                 val groupId = group.groupId
 
-                                // Check if voting is in progress
                                 if (group.restaurantSelected == false && groupId != null) {
-                                    // Voting still in progress - go to sequential voting
                                     navController.navigate("sequential_voting/$groupId")
                                 } else if (groupId != null) {
-                                    // Restaurant already selected - go to group screen
                                     navController.navigate(NavRoutes.VIEW_GROUPS)
                                 } else {
-                                    // Fallback to view groups
                                     navController.navigate(NavRoutes.VIEW_GROUPS)
                                 }
                             } else {
-                                // No active group - show all groups
                                 navController.navigate(NavRoutes.VIEW_GROUPS)
                             }
                         },
