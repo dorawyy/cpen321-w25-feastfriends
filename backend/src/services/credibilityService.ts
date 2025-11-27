@@ -24,26 +24,16 @@ export class CredibilityService {
 
     const previousScore = user.credibilityScore;
     
-    // Get score change using switch statement to avoid insecure dynamic property access
+    // Get score change
     let scoreChange: number;
     switch (action) {
-      case CredibilityAction.NO_SHOW:
-        scoreChange = -15;
-        break;
-      case CredibilityAction.LATE_CANCEL:
-        scoreChange = -10;
-        break;
-      case CredibilityAction.LEFT_GROUP_EARLY:
-        scoreChange = -5;
-        break;
-      case CredibilityAction.COMPLETED_MEETUP:
+      case CredibilityAction.CHECK_IN:
+        // Gain 5% of current score (rounded down)
         scoreChange = 5;
         break;
-      case CredibilityAction.POSITIVE_REVIEW:
-        scoreChange = 3;
-        break;
-      case CredibilityAction.NEGATIVE_REVIEW:
-        scoreChange = -8;
+      case CredibilityAction.LEFT_WITHOUT_CHECKIN:
+        // Lose 10% of current score (rounded down)
+        scoreChange = -10;
         break;
       default:
         throw new Error(`Invalid credibility action: ${String(action)}`);
@@ -79,70 +69,6 @@ export class CredibilityService {
       newScore,
       scoreChange,
     };
-  }
-
-  /**
-   * Record a completed meetup (positive action)
-   */
-  async recordCompletedMeetup(
-    userId: string,
-    groupId: string
-  ): Promise<void> {
-    await this.updateCredibilityScore(
-      userId,
-      CredibilityAction.COMPLETED_MEETUP,
-      groupId,
-      undefined,
-      'User completed meetup'
-    );
-  }
-
-  /**
-   * Record a no-show (negative action)
-   */
-  async recordNoShow(
-    userId: string,
-    groupId: string
-  ): Promise<void> {
-    await this.updateCredibilityScore(
-      userId,
-      CredibilityAction.NO_SHOW,
-      groupId,
-      undefined,
-      'User did not show up'
-    );
-  }
-
-  /**
-   * Record leaving group early (negative action)
-   */
-  async recordLeftGroupEarly(
-    userId: string,
-    groupId: string
-  ): Promise<void> {
-    await this.updateCredibilityScore(
-      userId,
-      CredibilityAction.LEFT_GROUP_EARLY,
-      groupId,
-      undefined,
-      'User left group before restaurant selected'
-    );
-  }
-
-  /**
-   * Record late cancellation (negative action)
-   */
-  async recordLateCancellation(
-    userId: string,
-    roomId: string
-  ): Promise<void> {
-    await this.updateCredibilityScore(
-      userId,
-      CredibilityAction.LATE_CANCEL,
-      undefined,
-      roomId,
-      'User canceled late'
-    );
   }
 
   /**
@@ -199,39 +125,6 @@ export class CredibilityService {
    */
   isCredibilityAcceptable(score: number, minimumRequired: number = 50): boolean {
     return score >= minimumRequired;
-  }
-
-  /**
-   * Restore credibility score (admin function or after appeal)
-   */
-  async restoreCredibilityScore(
-    userId: string,
-    amount: number,
-    notes: string
-  ): Promise<void> {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    const previousScore = user.credibilityScore;
-    const newScore = Math.min(100, previousScore + amount);
-
-    user.credibilityScore = newScore;
-    await user.save();
-
-    // Log the restoration
-    await CredibilityLog.create({
-      userId,
-      action: CredibilityAction.POSITIVE_REVIEW, // Use as a generic positive action
-      scoreChange: amount,
-      previousScore,
-      newScore,
-      notes: `Manual restoration: ${notes}`,
-    });
-
-    console.log(`✅ Restored ${amount} points to user ${userId}: ${previousScore} → ${newScore}`);
   }
 }
 

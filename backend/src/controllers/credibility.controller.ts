@@ -143,17 +143,27 @@ export class CredibilityController {
       // Verify the code
       await codeDoc.verify(verifierId);
 
+      // Give +5% credibility to the VERIFIER (person entering the code)
+      const result = await credibilityService.updateCredibilityScore(
+        verifierId,
+        CredibilityAction.CHECK_IN,
+        codeDoc.groupId,
+        undefined,
+        'Verified another user\'s code - checked in at restaurant'
+      );
+
       console.log(`✅ Code ${code} verified by user ${verifierId} for user ${codeDoc.userId}`);
+      console.log(`✅ Verifier gained credibility: ${result.previousScore} → ${result.newScore} (+${result.scoreChange})`);
 
       const response: VerifyCodeResponse = {
         success: true,
-        message: 'Code verified successfully',
+        message: `Code verified! You gained ${result.scoreChange} credibility points`,
         verifiedUserId: codeDoc.userId
       };
 
       res.status(200).json({
         Status: 200,
-        Message: { text: 'Code verified successfully' },
+        Message: { text: response.message },
         Body: response
       });
     } catch (error) {
@@ -184,19 +194,28 @@ export class CredibilityController {
 
       const groupId = user.groupId;
 
-      // Find user's active code for this group
-      let codeDoc = null;
+      // CHECK 1: Did someone verify MY code?
+      let myCode = null;
       if (groupId) {
-        codeDoc = await CredibilityCode.findActiveCode(userId, groupId);
+        myCode = await CredibilityCode.findActiveCode(userId, groupId);
+      }
+      const myCodeWasVerified = myCode && myCode.verifiedBy.length > 0;
+
+      // CHECK 2: Did I verify someone else's code?
+      let verifiedSomeoneElse = false;
+      if (groupId) {
+        const someoneElsesCode = await CredibilityCode.findOne({
+          groupId: groupId,
+          verifiedBy: userId
+        });
+        verifiedSomeoneElse = someoneElsesCode !== null;
       }
 
-      // Check if code was verified
-      const wasVerified = codeDoc && codeDoc.verifiedBy.length > 0;
-
-      if (wasVerified) {
-        // Code was verified, no penalty
-        if (codeDoc) {
-          await codeDoc.deleteOne();
+      // No penalty if EITHER condition is true
+      if (myCodeWasVerified || verifiedSomeoneElse) {
+        // Clean up my code if it exists
+        if (myCode) {
+          await myCode.deleteOne();
         }
 
         const response: DeductScoreResponse = {
@@ -214,18 +233,18 @@ export class CredibilityController {
         return;
       }
 
-      // Code wasn't verified, deduct score
+      // Neither condition met - deduct score
       const result = await credibilityService.updateCredibilityScore(
         userId,
-        CredibilityAction.LEFT_GROUP_EARLY,
+        CredibilityAction.LEFT_WITHOUT_CHECKIN,
         groupId || undefined,
         undefined,
-        'Left group before code verification'
+        'Left group without verifying any code'
       );
 
-      // Clean up the code
-      if (codeDoc) {
-        await codeDoc.deleteOne();
+      // Clean up my code
+      if (myCode) {
+        await myCode.deleteOne();
       }
 
       console.log(`⚠️ Deducted credibility for user ${userId}: ${result.previousScore} → ${result.newScore}`);
