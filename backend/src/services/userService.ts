@@ -1,4 +1,4 @@
-import User from '../models/User';
+import User, { IUserProfile } from '../models/User';
 import { UserProfileResponse, UserSettingsResponse } from '../types';
 import axios from 'axios';
 
@@ -36,18 +36,19 @@ export class UserService {
   /**
    * Get user profiles by IDs
    */
-  async getUserProfiles(userIds: string[]): Promise<UserProfileResponse[]> {
+  async getUserProfiles(userIds: string[]): Promise<IUserProfile[]> {
     const users = await User.find({ _id: { $in: userIds } });
-
+    
     return users.map(user => ({
       userId: user._id.toString(),
       name: user.name,
       bio: user.bio,
+      preference: user.preference,
       profilePicture: user.profilePicture,
-      contactNumber: user.contactNumber,
+      credibilityScore: user.credibilityScore,  // ✅ ADD THIS LINE
+      contactNumber: user.contactNumber         // ✅ ADD THIS LINE (if not already there)
     }));
   }
-
   /**
    * Get user settings
    */
