@@ -38,6 +38,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +71,15 @@ import com.example.cpen_321.ui.components.MainBottomBar
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlin.math.roundToInt
+
+// Purple Color Palette (matching app theme)
+private val PurpleLight = Color(0xFFE6E6FA) // Lavender
+private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
+private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
+private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
+private val PurpleGradientStart = Color(0xFFE8DAFF)
+private val PurpleGradientEnd = Color(0xFFD4C5F9)
+private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
 
 @Composable
 fun ViewGroupsScreen(
@@ -98,7 +109,15 @@ fun ViewGroupsScreen(
     )
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { 
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = PurpleAccent,
+                    contentColor = Color.White
+                )
+            }
+        },
         bottomBar = { MainBottomBar(navController = navController) }
     ) { innerPadding ->
         Box(
@@ -431,7 +450,7 @@ private fun LoadingOverlay() {
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(48.dp),
-            color = Color(0xFFFFD54F)
+            color = PurpleAccent
         )
     }
 }
@@ -449,7 +468,7 @@ private fun LeaveGroupDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Leave", color = Color(0xFFFF6B6B))
+                Text("Leave", color = Color(0xFFD88BB7))
             }
         },
         dismissButton = {
@@ -514,7 +533,7 @@ private fun NoGroupContent(navController: NavController) {
         Text(
             text = "Join a waiting room to get matched with a group!",
             fontSize = 16.sp,
-            color = Color.Gray,
+            color = PurpleDark.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
         )
 
@@ -526,12 +545,12 @@ private fun NoGroupContent(navController: NavController) {
                 .fillMaxWidth(0.7f)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFFD54F)
+                containerColor = PurpleAccent
             )
         ) {
             Text(
                 text = "Go Back",
-                color = Color.Black,
+                color = Color.White,
                 fontSize = 18.sp
             )
         }
@@ -545,7 +564,7 @@ private fun CredibilityCodeCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE3F2FD)
+            containerColor = PurpleLight
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -561,7 +580,7 @@ private fun CredibilityCodeCard(
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
-                    tint = Color(0xFF1976D2),
+                    tint = PurpleAccent,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -569,7 +588,7 @@ private fun CredibilityCodeCard(
                     text = "Your Credibility Code",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1976D2)
+                    color = PurpleAccent
                 )
             }
 
@@ -585,7 +604,7 @@ private fun CredibilityCodeCard(
                         )
                         .border(
                             width = 2.dp,
-                            color = Color(0xFF1976D2),
+                            color = PurpleAccent,
                             shape = RoundedCornerShape(8.dp)
                         )
                         .padding(16.dp),
@@ -595,7 +614,7 @@ private fun CredibilityCodeCard(
                         text = credibilityState.currentCode,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1976D2),
+                        color = PurpleAccent,
                         letterSpacing = 4.sp
                     )
                 }
@@ -605,13 +624,13 @@ private fun CredibilityCodeCard(
                 Text(
                     text = "Share this code with other members",
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = PurpleDark.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
                 )
             } else {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
-                    color = Color(0xFF1976D2)
+                    color = PurpleAccent
                 )
             }
         }
@@ -626,7 +645,7 @@ private fun GroupHeaderCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF9C4)
+            containerColor = GlassWhite
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -640,7 +659,7 @@ private fun GroupHeaderCard(
                 text = "Welcome to your Group!",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = PurpleDark,
                 textAlign = TextAlign.Center
             )
 
@@ -649,7 +668,7 @@ private fun GroupHeaderCard(
             Text(
                 text = "${currentGroup.numMembers} members",
                 fontSize = 16.sp,
-                color = Color.Gray
+                color = PurpleDark.copy(alpha = 0.7f)
             )
 
             RestaurantSelectionStatus(
@@ -674,14 +693,14 @@ private fun RestaurantSelectionStatus(
             Icon(
                 imageVector = Icons.Default.Restaurant,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50),
+                tint = Color(0xFF9D4EDD),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Selected: ${selectedRestaurant.name}",
                 fontSize = 16.sp,
-                color = Color(0xFF4CAF50),
+                color = Color(0xFF9D4EDD),
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -690,7 +709,7 @@ private fun RestaurantSelectionStatus(
         Text(
             text = "Voting in progress...",
             fontSize = 14.sp,
-            color = Color(0xFFFF9800),
+            color = PurpleAccent,
             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
         )
     }
@@ -714,7 +733,7 @@ private fun GroupActionButtons(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1976D2)
+                containerColor = PurpleAccent
             )
         ) {
             Icon(
@@ -746,7 +765,7 @@ private fun GroupActionButtons(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF6B6B)
+                containerColor = Color(0xFFD88BB7)
             )
         ) {
             Text(
@@ -778,12 +797,12 @@ private fun ViewOrVoteButton(
             .fillMaxWidth()
             .height(56.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFFFD54F)
+            containerColor = PurpleAccent
         )
     ) {
         Text(
             text = if (currentGroup.restaurantSelected) "View Details" else "Vote Now",
-            color = Color.Black,
+            color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -803,7 +822,7 @@ private fun MemberCard(
                 navController.navigate("member_profile/${member.userId}")
             },
         colors = CardDefaults.cardColors(
-            containerColor = if (member.hasVoted) Color(0xFFE8F5E9) else Color.White
+            containerColor = if (member.hasVoted) PurpleLight else Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -838,7 +857,7 @@ private fun MemberInfo(member: GroupMember) {
                 text = member.name,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.Black
+                color = PurpleDark
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -846,7 +865,7 @@ private fun MemberInfo(member: GroupMember) {
             Text(
                 text = "Credibility: ${String.format("%.1f", member.credibilityScore)}",
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = PurpleDark.copy(alpha = 0.7f)
             )
         }
     }
@@ -885,7 +904,14 @@ private fun MemberProfilePicture(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFD54F)),
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF9D4EDD),
+                            Color(0xFF7B2CBF)
+                        )
+                    )
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -904,7 +930,7 @@ private fun VoteStatusIndicator(hasVoted: Boolean) {
         Icon(
             imageVector = Icons.Default.CheckCircle,
             contentDescription = "Has voted",
-            tint = Color(0xFF4CAF50),
+            tint = Color(0xFF9D4EDD),
             modifier = Modifier.size(32.dp)
         )
     } else {

@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -26,6 +27,15 @@ import coil.compose.AsyncImage
 import com.example.cpen_321.data.model.Restaurant
 import com.example.cpen_321.ui.viewmodels.SequentialVotingViewModel
 import kotlinx.coroutines.launch
+
+// Purple Color Palette (matching app theme)
+private val PurpleLight = Color(0xFFE6E6FA) // Lavender
+private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
+private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
+private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
+private val PurpleGradientStart = Color(0xFFE8DAFF)
+private val PurpleGradientEnd = Color(0xFFD4C5F9)
+private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
 
 @Composable
 fun SequentialVotingScreen(
@@ -83,34 +93,55 @@ fun SequentialVotingScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Color(0xFFF5F5F5)
+        snackbarHost = { 
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = PurpleAccent,
+                    contentColor = Color.White
+                )
+            }
+        },
+        containerColor = PurpleGradientStart
     ) { padding ->
-        if (votingComplete && selectedRestaurant != null) {
-            // Show success screen
-            RestaurantSelectedScreen(
-                restaurant = selectedRestaurant!!,
-                modifier = Modifier.padding(padding)
-            )
-        } else if (currentRestaurant != null) {
-            // Show voting screen
-            VotingContent(
-                restaurant = currentRestaurant!!,
-                roundNumber = roundNumber,
-                totalRounds = totalRounds,
-                timeRemaining = timeRemaining,
-                yesVotes = yesVotes,
-                noVotes = noVotes,
-                totalMembers = totalMembers,
-                userVote = userVote,
-                isLoading = isLoading,
-                onVoteYes = { viewModel.submitVote(groupId, true) },
-                onVoteNo = { viewModel.submitVote(groupId, false) },
-                modifier = Modifier.padding(padding)
-            )
-        } else {
-            // Loading state
-            LoadingVotingScreen(modifier = Modifier.padding(padding))
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            PurpleGradientStart,
+                            PurpleGradientEnd
+                        )
+                    )
+                )
+        ) {
+            if (votingComplete && selectedRestaurant != null) {
+                // Show success screen
+                RestaurantSelectedScreen(
+                    restaurant = selectedRestaurant!!,
+                    modifier = Modifier.padding(padding)
+                )
+            } else if (currentRestaurant != null) {
+                // Show voting screen
+                VotingContent(
+                    restaurant = currentRestaurant!!,
+                    roundNumber = roundNumber,
+                    totalRounds = totalRounds,
+                    timeRemaining = timeRemaining,
+                    yesVotes = yesVotes,
+                    noVotes = noVotes,
+                    totalMembers = totalMembers,
+                    userVote = userVote,
+                    isLoading = isLoading,
+                    onVoteYes = { viewModel.submitVote(groupId, true) },
+                    onVoteNo = { viewModel.submitVote(groupId, false) },
+                    modifier = Modifier.padding(padding)
+                )
+            } else {
+                // Loading state
+                LoadingVotingScreen(modifier = Modifier.padding(padding))
+            }
         }
     }
 }
@@ -201,13 +232,13 @@ private fun ProgressIndicator(
                 text = "Restaurant $roundNumber of $totalRounds",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333)
+                color = PurpleDark
             )
 
             Text(
                 text = "${((roundNumber.toFloat() / totalRounds) * 100).toInt()}%",
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = PurpleDark.copy(alpha = 0.7f)
             )
         }
 
@@ -219,8 +250,8 @@ private fun ProgressIndicator(
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(4.dp)),
-            color = Color(0xFFFFD54F),
-            trackColor = Color(0xFFE0E0E0)
+            color = PurpleAccent,
+            trackColor = GlassWhite
         )
     }
 }
@@ -231,9 +262,9 @@ private fun CountdownTimer(
     modifier: Modifier = Modifier
 ) {
     val timerColor = when {
-        timeRemaining > 30 -> Color(0xFF4CAF50)
-        timeRemaining > 10 -> Color(0xFFFFC107)
-        else -> Color(0xFFF44336)
+        timeRemaining > 30 -> Color(0xFF9D4EDD) // Medium purple
+        timeRemaining > 10 -> Color(0xFFB39DDB) // Purple accent
+        else -> Color(0xFFD88BB7) // Pink-purple for urgency
     }
 
     // Pulse animation when time is low
@@ -297,7 +328,7 @@ private fun RestaurantVoteCard(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = GlassWhite
         )
     ) {
         Column(
@@ -347,7 +378,7 @@ private fun RestaurantVoteCard(
                     text = restaurant.name,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333),
+                    color = PurpleDark,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -363,14 +394,14 @@ private fun RestaurantVoteCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Rating",
-                                tint = Color(0xFFFFC107),
+                                tint = Color(0xFF9D4EDD), // Medium purple
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = restaurant.getRatingString(),
                                 fontSize = 16.sp,
-                                color = Color.Gray
+                                color = PurpleDark.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -380,7 +411,7 @@ private fun RestaurantVoteCard(
                         Text(
                             text = restaurant.getPriceLevelString(),
                             fontSize = 16.sp,
-                            color = Color.Gray,
+                            color = PurpleDark.copy(alpha = 0.7f),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -395,14 +426,14 @@ private fun RestaurantVoteCard(
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Location",
-                        tint = Color(0xFF666666),
+                        tint = PurpleDark.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = restaurant.location,
                         fontSize = 14.sp,
-                        color = Color(0xFF666666),
+                        color = PurpleDark.copy(alpha = 0.7f),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -423,7 +454,7 @@ private fun VoteStatus(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = GlassWhite
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -440,7 +471,7 @@ private fun VoteStatus(
                     text = "${yesVotes + noVotes}/$totalMembers members voted",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Gray
+                    color = PurpleDark.copy(alpha = 0.7f)
                 )
             }
 
@@ -453,14 +484,14 @@ private fun VoteStatus(
                 VoteCount(
                     count = yesVotes,
                     label = "Yes",
-                    color = Color(0xFF4CAF50),
+                    color = Color(0xFF9D4EDD), // Medium purple
                     icon = Icons.Default.ThumbUp
                 )
 
                 VoteCount(
                     count = noVotes,
                     label = "No",
-                    color = Color(0xFFF44336),
+                    color = Color(0xFFD88BB7), // Pink-purple
                     icon = Icons.Default.ThumbDown
                 )
             }
@@ -475,7 +506,7 @@ private fun VoteStatus(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = if (userVote) Color(0xFF4CAF50) else Color(0xFFF44336),
+                        tint = if (userVote) Color(0xFF9D4EDD) else Color(0xFFD88BB7),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -483,7 +514,7 @@ private fun VoteStatus(
                         text = "You voted ${if (userVote) "YES" else "NO"}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (userVote) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        color = if (userVote) Color(0xFF9D4EDD) else Color(0xFFD88BB7)
                     )
                 }
             }
@@ -517,7 +548,7 @@ private fun VoteCount(
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Color.Gray
+            color = PurpleDark.copy(alpha = 0.7f)
         )
     }
 }
@@ -542,8 +573,8 @@ private fun VoteButtons(
                 .height(70.dp),
             enabled = userVote == null && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFF44336),
-                disabledContainerColor = Color.Gray
+                containerColor = Color(0xFFD88BB7), // Pink-purple
+                disabledContainerColor = PurpleDark.copy(alpha = 0.5f)
             ),
             shape = RoundedCornerShape(35.dp),
             elevation = ButtonDefaults.buttonElevation(
@@ -585,8 +616,8 @@ private fun VoteButtons(
                 .height(70.dp),
             enabled = userVote == null && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4CAF50),
-                disabledContainerColor = Color.Gray
+                containerColor = Color(0xFF9D4EDD), // Medium purple
+                disabledContainerColor = PurpleDark.copy(alpha = 0.5f)
             ),
             shape = RoundedCornerShape(35.dp),
             elevation = ButtonDefaults.buttonElevation(
@@ -633,13 +664,14 @@ private fun LoadingVotingScreen(modifier: Modifier = Modifier) {
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(64.dp),
-                color = Color(0xFFFFD54F)
+                color = PurpleAccent
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Preparing restaurants...",
                 fontSize = 18.sp,
-                color = Color.Gray
+                color = PurpleDark,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -673,7 +705,15 @@ private fun RestaurantSelectedScreen(
             Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .background(Color(0xFF4CAF50), CircleShape),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF9D4EDD), // Medium purple
+                                Color(0xFF7B2CBF)  // Dark purple
+                            )
+                        ),
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -690,7 +730,7 @@ private fun RestaurantSelectedScreen(
                 text = "Restaurant Selected!",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333),
+                color = PurpleDark,
                 textAlign = TextAlign.Center
             )
 
@@ -712,7 +752,7 @@ private fun RestaurantSelectedScreen(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        color = Color(0xFF333333)
+                        color = PurpleDark
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -720,7 +760,7 @@ private fun RestaurantSelectedScreen(
                     Text(
                         text = "Redirecting to group...",
                         fontSize = 14.sp,
-                        color = Color.Gray,
+                        color = PurpleDark.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -734,3 +774,4 @@ private fun formatTime(seconds: Int): String {
     val secs = seconds % 60
     return String.format("%d:%02d", mins, secs)
 }
+

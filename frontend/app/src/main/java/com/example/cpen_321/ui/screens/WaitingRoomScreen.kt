@@ -16,7 +16,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -32,10 +34,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.Canvas
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -62,6 +72,7 @@ private val PurpleGradientStart = Color(0xFFE8DAFF)
 private val PurpleGradientEnd = Color(0xFFD4C5F9)
 private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
 private val GlassBorder = Color(0x33FFFFFF) // Subtle white border
+private val CarbonBlack = Color(0xFF1C1D21) // Dark gray/black
 
 @Composable
 fun WaitingRoomScreen(
@@ -289,121 +300,301 @@ private fun WaitingRoomContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Top banner with "X friends joined"
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, PurpleAccent)
             ) {
-                // Glass effect timer card
-                Card(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = GlassWhite),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Column(
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Friends",
+                        modifier = Modifier.size(20.dp),
+                        tint = PurpleAccent
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${roomMembers.size} friend${if (roomMembers.size != 1) "s" else ""} joined",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = PurpleAccent
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // FeastFriends title
+            Text(
+                text = "FeastFriends",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = CarbonBlack,
+                letterSpacing = 0.5.sp
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // Large circular timer ring with profile pictures around it
+            BoxWithConstraints(
+                modifier = Modifier.size(320.dp)
+            ) {
+                val centerX = constraints.maxWidth / 2f
+                val centerY = constraints.maxHeight / 2f
+                
+                // Circular progress ring (incomplete circle)
+                CircularTimerRing(
+                    timeRemaining = timeRemaining,
+                    modifier = Modifier.fillMaxSize()
+                )
+                
+                // Profile pictures positioned around the ring with floating animation
+                roomMembers.forEachIndexed { index, user ->
+                    val angle = (index * 360f / maxOf(roomMembers.size, 1)) - 90f // Start from top
+                    val radius = 140.dp
+                    val density = LocalDensity.current
+                    val radiusPx = with(density) { radius.toPx() }
+                    val profileSizePx = with(density) { 60.dp.toPx() }
+                    val angleRad = (angle * PI / 180).toFloat()
+                    val xPx = centerX + (cos(angleRad) * radiusPx) - (profileSizePx / 2)
+                    val yPx = centerY + (sin(angleRad) * radiusPx) - (profileSizePx / 2)
+                    
+                    // Floating animation
+                    val infiniteTransition = rememberInfiniteTransition(label = "float_$index")
+                    val floatOffset by infiniteTransition.animateFloat(
+                        initialValue = -5f,
+                        targetValue = 5f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(
+                                durationMillis = 2000 + (index * 200),
+                                easing = FastOutSlowInEasing
+                            ),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "float_offset"
+                    )
+                    
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .offset { 
+                                IntOffset(
+                                    xPx.toInt(), 
+                                    (yPx + floatOffset).toInt()
+                                ) 
+                            }
+                            .size(60.dp)
+                            .shadow(8.dp, CircleShape)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Timer",
-                                modifier = Modifier.size(28.dp),
-                                tint = PurpleDark
-                            )
-
-                            val timeRemainingSeconds = (timeRemaining / 1000).toInt()
-                            val minutes = timeRemainingSeconds / 60
-                            val seconds = timeRemainingSeconds % 60
-
-                            Text(
-                                text = String.format("%d:%02d", minutes, seconds),
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (timeRemaining < 60000) Color(0xFFD88BB7) else PurpleDark
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            text = "Waiting Room",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PurpleDark
+                        ProfilePictureOnRing(
+                            user = user,
+                            angle = angle,
+                            radius = radius
                         )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Members",
-                                modifier = Modifier.size(20.dp),
-                                tint = PurpleAccent
-                            )
-                            Text(
-                                text = "${roomMembers.size} member${if (roomMembers.size != 1) "s" else ""} joined",
-                                fontSize = 16.sp,
-                                color = PurpleDark.copy(alpha = 0.7f)
-                            )
-                        }
-
-                        if (roomMembers.size < minNumberOfPeople) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Waiting for ${minNumberOfPeople - roomMembers.size} more...",
-                                fontSize = 14.sp,
-                                color = PurpleAccent,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Timer and "Waiting Room" text in center
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Waiting Room",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PurpleAccent
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val timeRemainingSeconds = (timeRemaining / 1000).toInt()
+                    val minutes = timeRemainingSeconds / 60
+                    val seconds = timeRemainingSeconds % 60
+                    Text(
+                        text = String.format("%d:%02d", minutes, seconds),
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CarbonBlack,
+                        letterSpacing = 2.sp
+                    )
+                }
             }
-
-            // ANIMATED MEMBERS SECTION
-            AnimatedUserBubbles(users = roomMembers)
-
-            Button(
-                onClick = onLeaveClick,
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // "Your table will be ready soon..." message
+            Text(
+                text = "Your table will be ready soon...",
+                fontSize = 16.sp,
+                color = PurpleAccent,
+                fontWeight = FontWeight.Normal
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Leave Room button
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PurpleAccent
-                ),
-                shape = RoundedCornerShape(16.dp),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 8.dp,
-                    pressedElevation = 12.dp
+                    .height(56.dp)
+                    .clickable(onClick = onLeaveClick),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Leave Room",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CarbonBlack
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun CircularTimerRing(
+    timeRemaining: Long,
+    modifier: Modifier = Modifier
+) {
+    val totalTime = 300000L // 5 minutes in milliseconds
+    val progress = if (totalTime > 0) {
+        (totalTime - timeRemaining).toFloat() / totalTime.toFloat()
+    } else {
+        0f
+    }
+    
+    // Draw incomplete circular progress ring
+    Canvas(
+        modifier = modifier
+    ) {
+        val strokeWidth = 12.dp.toPx()
+        val radius = (size.minDimension - strokeWidth) / 2
+        val center = Offset(size.width / 2, size.height / 2)
+        
+        // Background ring (full circle, light)
+        drawCircle(
+            color = PurpleAccent.copy(alpha = 0.2f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = strokeWidth)
+        )
+        
+        // Progress ring (incomplete, based on time)
+        val sweepAngle = progress * 360f
+        drawArc(
+            color = PurpleAccent,
+            startAngle = -90f, // Start from top
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            style = Stroke(width = strokeWidth),
+            topLeft = Offset(
+                center.x - radius,
+                center.y - radius
+            ),
+            size = Size(radius * 2, radius * 2)
+        )
+    }
+}
+
+@Composable
+private fun ProfilePictureOnRing(
+    user: UserProfile,
+    angle: Float,
+    radius: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        modifier = Modifier.size(60.dp)
+    ) {
+        // Profile picture
+        if (user.profilePicture?.isNotEmpty() == true) {
+            if (user.profilePicture.startsWith("data:image/")) {
+                val painter = rememberBase64ImagePainter(user.profilePicture)
+                Image(
+                    painter = painter,
+                    contentDescription = user.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(3.dp, Color.White, CircleShape)
                 )
+            } else {
+                AsyncImage(
+                    model = user.profilePicture,
+                    contentDescription = user.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(3.dp, Color.White, CircleShape)
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF9D4EDD),
+                                Color(0xFF7B2CBF)
+                            )
+                        ),
+                        CircleShape
+                    )
+                    .border(3.dp, Color.White, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Leave",
-                    modifier = Modifier.size(20.dp)
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    modifier = Modifier.size(30.dp),
+                    tint = Color.White
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+        
+        // Name tag below profile picture
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .offset(y = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(
+                        GlassWhite,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .border(1.dp, PurpleAccent.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+            ) {
                 Text(
-                    text = "Leave Room",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    text = user.name.split(" ").firstOrNull() ?: user.name.take(8),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = PurpleDark,
+                    maxLines = 1
                 )
             }
         }

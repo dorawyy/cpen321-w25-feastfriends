@@ -155,6 +155,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.google.dagger:hilt-android:2.57.2")
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.ink.brush)
     kapt("com.google.dagger:hilt-compiler:2.57.2")
 
     // Retrofit & OkHttp
