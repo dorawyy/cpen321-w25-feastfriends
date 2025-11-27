@@ -251,9 +251,17 @@ class SequentialVotingViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     val response = result.data
 
-                    // Update user's vote locally
-                    _userVote.value = vote
+                    // ✅ CRITICAL FIX: DO NOT set _userVote here!
+                    // The WebSocket events will handle updating the state.
+                    // Setting it here causes a race condition where we set the vote
+                    // AFTER the new_round event has already cleared it.
 
+                    // OLD CODE (REMOVE THIS):
+                    // _userVote.value = vote  ← THIS WAS THE BUG!
+
+                    Log.d(TAG, "Vote API response received, majority: ${response.majorityReached}")
+
+                    // The rest is fine - these are handled by the next round
                     if (response.majorityReached) {
                         if (response.result == "yes" && response.selectedRestaurant != null) {
                             // Restaurant accepted!
@@ -261,17 +269,10 @@ class SequentialVotingViewModel @Inject constructor(
                             _votingComplete.value = true
                             _successMessage.value = "Restaurant selected!"
                             stopTimer()
-                        } else if (response.nextRestaurant != null) {
-                            // Rejected, move to next
-                            _currentRestaurant.value = response.nextRestaurant
-                            _userVote.value = null
-                            _yesVotes.value = 0
-                            _noVotes.value = 0
-                            _roundNumber.value = _roundNumber.value + 1
                         }
+                        // Note: We don't need to handle the "no" case here
+                        // because the new_round WebSocket event will arrive
                     }
-
-                    Log.d(TAG, "Vote submitted: $vote, majority: ${response.majorityReached}")
                 }
                 is ApiResult.Error -> {
                     _errorMessage.value = result.message
@@ -331,8 +332,17 @@ class SequentialVotingViewModel @Inject constructor(
 
     private fun handleNewVotingRound(data: JSONObject) {
         viewModelScope.launch {
-            Log.d(TAG, "🎯 New voting round received")
+            Log.d(TAG, "═══════════════════════════════════")
+            Log.d(TAG, "🎯 NEW VOTING ROUND RECEIVED")
             Log.d(TAG, "📦 Full JSON data: $data")
+            Log.d(TAG, "🔍 Current state BEFORE reset:")
+            Log.d(TAG, "   userVote: ${_userVote.value}")
+            Log.d(TAG, "   isLoading: ${_isLoading.value}")
+            Log.d(TAG, "   yesVotes: ${_yesVotes.value}")
+            Log.d(TAG, "   noVotes: ${_noVotes.value}")
+
+            // ✅ FORCE CLEAR VOTE STATE IMMEDIATELY - before parsing anything
+            clearVotingState()
 
             val restaurantJson = data.getJSONObjectSafe("restaurant")
             val roundNumber = data.getIntSafe("roundNumber")
@@ -360,23 +370,42 @@ class SequentialVotingViewModel @Inject constructor(
                 _currentRestaurant.value = restaurant
                 _roundNumber.value = roundNumber
                 _totalRounds.value = totalRounds
-                _userVote.value = null  // ✅ Already there
-                _yesVotes.value = 0
-                _noVotes.value = 0
-                _isLoading.value = false  // ← ADD THIS LINE - reset loading state!
+
+                Log.d(TAG, "✅ State after new round setup:")
+                Log.d(TAG, "   userVote: ${_userVote.value}")
+                Log.d(TAG, "   isLoading: ${_isLoading.value}")
+                Log.d(TAG, "   yesVotes: ${_yesVotes.value}")
+                Log.d(TAG, "   noVotes: ${_noVotes.value}")
+                Log.d(TAG, "   restaurant: ${restaurant.name}")
+                Log.d(TAG, "   round: $roundNumber/$totalRounds")
 
                 // Start countdown timer
                 startTimer(timeoutSeconds)
 
-                Log.d(TAG, "New round: ${restaurant.name}, round $roundNumber/$totalRounds")
-                Log.d(TAG, "Reset state: userVote=null, isLoading=false")  // ← ADD THIS LOG
+                Log.d(TAG, "═══════════════════════════════════")
+            } ?: run {
+                Log.e(TAG, "❌ ERROR: No restaurant data in new_round event!")
+                Log.e(TAG, "Raw data: $data")
             }
         }
+    }
+
+    /**
+     * ✅ NEW: Helper function to clear all voting state
+     */
+    private fun clearVotingState() {
+        Log.d(TAG, "🧹 Clearing voting state...")
+        _userVote.value = null
+        _yesVotes.value = 0
+        _noVotes.value = 0
+        _isLoading.value = false
+        Log.d(TAG, "✅ Voting state cleared")
     }
 
     private fun handleVoteUpdate(data: JSONObject) {
         viewModelScope.launch {
             Log.d(TAG, "🗳️ Vote update received")
+            Log.d(TAG, "Current userVote state: ${_userVote.value}")
 
             val yesVotes = data.getIntSafe("yesVotes")
             val noVotes = data.getIntSafe("noVotes")
@@ -387,6 +416,7 @@ class SequentialVotingViewModel @Inject constructor(
             _totalMembers.value = totalMembers
 
             Log.d(TAG, "Votes: $yesVotes yes, $noVotes no (${yesVotes + noVotes}/$totalMembers)")
+            Log.d(TAG, "userVote remains: ${_userVote.value}")
         }
     }
 
