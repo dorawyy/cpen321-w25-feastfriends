@@ -52,6 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
+import androidx.activity.compose.BackHandler
 
 // Purple Color Palette
 private val PurpleLight = Color(0xFFE6E6FA) // Lavender
@@ -91,6 +92,13 @@ fun WaitingRoomScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val minNumberOfPeople = 2
+
+    // ✅ NEW: Handle back press - call leaveRoom before navigating
+    BackHandler(enabled = !groupReady) {
+        Log.d("WaitingRoom", "Back button pressed - calling leaveRoom()")
+        viewModel.leaveRoom()
+        // Navigation will happen automatically via leaveRoomSuccess
+    }
 
     // ✅ FIX: Navigate immediately when leaveRoom succeeds
     LaunchedEffect(leaveRoomSuccess) {
