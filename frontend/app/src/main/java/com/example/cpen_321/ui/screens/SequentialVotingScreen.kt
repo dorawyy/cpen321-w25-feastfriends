@@ -86,7 +86,7 @@ fun SequentialVotingScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = GradientTop
+        containerColor = SoftWhite
     ) { padding ->
         if (votingComplete && selectedRestaurant != null) {
             // Show success screen
@@ -135,15 +135,7 @@ private fun VotingContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        GradientTop,
-                        GradientMiddle,
-                        GradientBottom
-                    )
-                )
-            )
+            .background(SoftWhite)
     ) {
         Column(
             modifier = Modifier
@@ -235,7 +227,7 @@ private fun ProgressIndicator(
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(4.dp)),
-            color = VividPurple,
+            color = SoftViolet,
             trackColor = LightBorder
         )
     }
@@ -247,9 +239,9 @@ private fun CountdownTimer(
     modifier: Modifier = Modifier
 ) {
     val timerColor = when {
-        timeRemaining > 30 -> VividPurple
+        timeRemaining > 30 -> SoftViolet
         timeRemaining > 10 -> MediumPurple
-        else -> SoftViolet
+        else -> VividPurple
     }
 
     // Pulse animation when time is low
@@ -379,7 +371,7 @@ private fun RestaurantVoteCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Rating",
-                                tint = VividPurple,
+                                tint = SoftViolet,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -469,7 +461,7 @@ private fun VoteStatus(
                 VoteCount(
                     count = yesVotes,
                     label = "Yes",
-                    color = VividPurple,
+                    color = SoftViolet,
                     icon = Icons.Default.ThumbUp
                 )
 
@@ -491,7 +483,7 @@ private fun VoteStatus(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = if (userVote) VividPurple else MediumPurple,
+                        tint = if (userVote) SoftViolet else MediumPurple,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -499,7 +491,7 @@ private fun VoteStatus(
                         text = "You voted ${if (userVote) "YES" else "NO"}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (userVote) VividPurple else MediumPurple
+                        color = if (userVote) SoftViolet else MediumPurple
                     )
                 }
             }
@@ -601,7 +593,7 @@ private fun VoteButtons(
                 .height(70.dp),
             enabled = userVote == null && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = VividPurple,
+                containerColor = SoftViolet,
                 disabledContainerColor = TextSecondary
             ),
             shape = RoundedCornerShape(35.dp),
@@ -649,7 +641,7 @@ private fun LoadingVotingScreen(modifier: Modifier = Modifier) {
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(64.dp),
-                color = VividPurple
+                color = SoftViolet
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -689,7 +681,7 @@ private fun RestaurantSelectedScreen(
             Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .background(VividPurple, CircleShape),
+                    .background(SoftViolet, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
