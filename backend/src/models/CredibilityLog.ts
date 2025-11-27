@@ -2,12 +2,8 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 
 // Credibility action types
 export enum CredibilityAction {
-  NO_SHOW = 'no_show',                    // User didn't show up to restaurant
-  LATE_CANCEL = 'late_cancel',            // Canceled too late
-  LEFT_GROUP_EARLY = 'left_group_early',  // Left group before restaurant selected
-  COMPLETED_MEETUP = 'completed_meetup',  // Successfully completed meetup
-  POSITIVE_REVIEW = 'positive_review',    // Received positive review from group
-  NEGATIVE_REVIEW = 'negative_review'     // Received negative review from group
+  CHECK_IN = 'check_in',              // +5% when code is verified
+  LEFT_WITHOUT_CHECKIN = 'left_without_checkin'  // -10% when leaving without verification
 }
 
 // Base CredibilityLog interface

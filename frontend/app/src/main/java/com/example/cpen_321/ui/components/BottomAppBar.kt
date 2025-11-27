@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavController
@@ -46,6 +47,7 @@ fun MainBottomBar(navController: NavController) {
                         contentDescription = "Groups",
                     )
                 }
+
             }
         }
     )

@@ -301,6 +301,32 @@ export interface NotificationPayload {
 
 
 /**
+ * Credibility Code Types
+ */
+export interface CredibilityCodeResponse {
+  code: string;
+  expiresAt: number;
+  groupId: string;
+}
+
+export interface VerifyCodeRequest {
+  code: string;
+}
+
+export interface VerifyCodeResponse {
+  success: boolean;
+  message: string;
+  verifiedUserId: string;
+}
+
+export interface DeductScoreResponse {
+  success: boolean;
+  message: string;
+  scoreDeducted: number;
+  newScore: number;
+}
+
+/**
  * Utility Types
  */
 export type UserStatus = 'active' | 'in_waiting_room' | 'in_group' | 'inactive';

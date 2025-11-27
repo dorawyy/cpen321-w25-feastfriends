@@ -10,8 +10,9 @@ import userRoutes from './routes/user.routes';
 import matchingRoutes from './routes/matching.routes';
 import groupRoutes from './routes/group.routes';
 import restaurantRoutes from './routes/restaurant.routes';
-import votingRoutes from './routes/voting.routes';  // ← ADD THIS
+import votingRoutes from './routes/voting.routes';
 import notificationRoutes from './routes/notification.routes';
+import credibilityRoutes from './routes/credibility.routes';  // ← ADD THIS
 
 const app: Express = express();
 
@@ -38,8 +39,9 @@ app.use('/api/user', userRoutes);
 app.use('/api/matching', matchingRoutes);
 app.use('/api/group', groupRoutes);
 app.use('/api/restaurant', restaurantRoutes);
-app.use('/api/groups', votingRoutes);  // ← ADD THIS (note: /api/groups not /api/group)
+app.use('/api/groups', votingRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/credibility', credibilityRoutes);  // ← ADD THIS
 
 // 404 handler
 app.use(notFoundHandler);

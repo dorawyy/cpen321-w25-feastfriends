@@ -1,0 +1,1312 @@
+Index: app/src/main/java/com/example/cpen_321/ui/viewmodels/GroupViewModel.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.example.cpen_321.ui.viewmodels\r\n\r\nimport android.util.Log\r\nimport androidx.lifecycle.ViewModel\r\nimport androidx.lifecycle.viewModelScope\r\nimport com.example.cpen_321.data.model.Group\r\nimport com.example.cpen_321.data.model.GroupMember\r\nimport com.example.cpen_321.data.model.Restaurant\r\nimport com.example.cpen_321.data.network.dto.ApiResult\r\nimport com.example.cpen_321.data.repository.GroupRepository\r\nimport com.example.cpen_321.data.repository.UserRepository\r\nimport com.example.cpen_321.utils.JsonUtils.getIntSafe\r\nimport com.example.cpen_321.utils.JsonUtils.getJSONObjectSafe\r\nimport com.example.cpen_321.utils.JsonUtils.getStringSafe\r\nimport com.example.cpen_321.utils.SocketManager\r\nimport dagger.hilt.android.lifecycle.HiltViewModel\r\nimport javax.inject.Inject\r\nimport kotlinx.coroutines.flow.MutableStateFlow\r\nimport kotlinx.coroutines.flow.StateFlow\r\nimport kotlinx.coroutines.flow.asStateFlow\r\nimport kotlinx.coroutines.launch\r\nimport org.json.JSONObject\r\n\r\n/** ViewModel for group management and voting */\r\n@HiltViewModel\r\nclass GroupViewModel\r\n@Inject\r\nconstructor(\r\n        private val groupRepository: GroupRepository,\r\n        private val userRepository: UserRepository,\r\n        private val socketManager: SocketManager\r\n) : ViewModel() {\r\n\r\n    // Current group\r\n    private val _currentGroup = MutableStateFlow<Group?>(null)\r\n    val currentGroup: StateFlow<Group?> = _currentGroup.asStateFlow()\r\n\r\n    // Group members with details\r\n    private val _groupMembers = MutableStateFlow<List<GroupMember>>(emptyList())\r\n    val groupMembers: StateFlow<List<GroupMember>> = _groupMembers.asStateFlow()\r\n\r\n    // Current votes (restaurantId -> vote count)\r\n    private val _currentVotes = MutableStateFlow<Map<String, Int>>(emptyMap())\r\n    val currentVotes: StateFlow<Map<String, Int>> = _currentVotes.asStateFlow()\r\n\r\n    // Selected restaurant (after voting)\r\n    private val _selectedRestaurant = MutableStateFlow<Restaurant?>(null)\r\n    val selectedRestaurant: StateFlow<Restaurant?> = _selectedRestaurant.asStateFlow()\r\n\r\n    // User's vote\r\n    private val _userVote = MutableStateFlow<String?>(null)\r\n    val userVote: StateFlow<String?> = _userVote.asStateFlow()\r\n\r\n    // Time remaining in milliseconds\r\n    private val _timeRemaining = MutableStateFlow<Long>(0L)\r\n    val timeRemaining: StateFlow<Long> = _timeRemaining.asStateFlow()\r\n\r\n    // Loading state\r\n    private val _isLoading = MutableStateFlow(false)\r\n    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()\r\n\r\n    // Error message\r\n    private val _errorMessage = MutableStateFlow<String?>(null)\r\n    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()\r\n\r\n    // Success message\r\n    private val _successMessage = MutableStateFlow<String?>(null)\r\n    val successMessage: StateFlow<String?> = _successMessage.asStateFlow()\r\n\r\n    init {\r\n        setupSocketListeners()\r\n    }\r\n\r\n    private fun setupSocketListeners() {\r\n        socketManager.onVoteUpdate { data -> handleVoteUpdate(data) }\r\n\r\n        socketManager.onRestaurantSelected { data -> handleRestaurantSelected(data) }\r\n\r\n        socketManager.onMemberLeft { data -> handleMemberLeft(data) }\r\n    }\r\n\r\n    /** Load group status UPDATED: Properly handles 404 \"Not in a group\" as a normal state */\r\n    fun loadGroupStatus() {\r\n        viewModelScope.launch {\r\n            _isLoading.value = true\r\n            _errorMessage.value = null\r\n\r\n            when (val result = groupRepository.getGroupStatus()) {\r\n                is ApiResult.Success -> {\r\n                    val group = result.data\r\n                    _currentGroup.value = group\r\n\r\n                    // Subscribe to group updates via socket\r\n                    group.groupId?.let { groupId -> socketManager.subscribeToGroup(groupId) }\r\n\r\n                    // Load group members\r\n                    loadGroupMembers(group.getAllMembers())\r\n\r\n                    // Update votes\r\n                    _currentVotes.value = group.restaurantVotes ?: emptyMap()\r\n\r\n                    // Update selected restaurant\r\n                    _selectedRestaurant.value = group.restaurant\r\n\r\n                    // Calculate time remaining\r\n                    _timeRemaining.value = group.completionTime - System.currentTimeMillis()\r\n                }\r\n                is ApiResult.Error -> {\r\n                    // IMPORTANT: Check if this is a 404 \"not in group\" error\r\n                    // If so, treat it as a normal state, not an error\r\n                    if (result.code == 404 &&\r\n                                    result.message.contains(\"not in a group\", ignoreCase = true)\r\n                    ) {\r\n                        // User is not in a group - this is a normal state, not an error\r\n                        _currentGroup.value = null\r\n                        clearGroupState()\r\n                        // Don't set error message for this case\r\n                    } else {\r\n                        // This is an actual error\r\n                        _errorMessage.value = result.message\r\n                    }\r\n                }\r\n                is ApiResult.Loading -> {\r\n                    // Already handled\r\n                }\r\n            }\r\n\r\n            _isLoading.value = false\r\n        }\r\n    }\r\n\r\n    /** Vote for a restaurant */\r\n    // GroupViewModel.kt - Add detailed logging in voteForRestaurant\r\n    fun voteForRestaurant(restaurantId: String, restaurant: Restaurant) {\r\n        viewModelScope.launch {\r\n            val groupId = _currentGroup.value?.groupId\r\n            if (groupId == null) {\r\n                Log.e(\"VoteDebug\", \"ERROR: groupId is null!\")\r\n            } else {\r\n                _isLoading.value = true\r\n                _errorMessage.value = null\r\n\r\n                when (val result =\r\n                                groupRepository.voteForRestaurant(groupId, restaurantId, restaurant)\r\n                ) {\r\n                    is ApiResult.Success -> {\r\n                        Log.d(\"VoteDebug\", \"✅ Vote API Success\")\r\n                        Log.d(\"VoteDebug\", \"Returned votes: ${result.data}\")\r\n\r\n                        // ✅ CRITICAL: Update votes immediately\r\n                        _currentVotes.value = result.data\r\n                        _userVote.value = restaurantId\r\n\r\n                        // ✅ Force UI update by creating new map instance\r\n                        _currentVotes.value = result.data.toMap()\r\n\r\n                        _successMessage.value = \"Vote submitted successfully\"\r\n\r\n                        // ✅ Don't call loadGroupStatus() here - it causes race condition\r\n                        // The socket event will update other users\r\n                        // loadGroupStatus()  // ← REMOVE THIS\r\n                    }\r\n                    is ApiResult.Error -> {\r\n                        Log.e(\"VoteDebug\", \"❌ Vote API Error: ${result.message}\")\r\n                        _errorMessage.value = result.message\r\n                    }\r\n                    is ApiResult.Loading -> {}\r\n                }\r\n\r\n                _isLoading.value = false\r\n            }\r\n        }\r\n    }\r\n\r\n    /** Leave current group */\r\n    fun leaveGroup(onSuccess: () -> Unit) {\r\n        viewModelScope.launch {\r\n            val groupId = _currentGroup.value?.groupId // ?: return@viewScopeLaunch\r\n            if (groupId == null) {\r\n                Log.e(\"LeaveDebug\", \"groupId is NULL\")\r\n            } else {\r\n                _isLoading.value = true\r\n\r\n                when (val result = groupRepository.leaveGroup(groupId)) {\r\n                    is ApiResult.Success -> {\r\n                        // Unsubscribe from group updates\r\n                        socketManager.unsubscribeFromGroup(groupId)\r\n\r\n                        // Clear state\r\n                        clearGroupState()\r\n\r\n                        _successMessage.value = \"Left group successfully\"\r\n\r\n                        onSuccess()\r\n                    }\r\n                    is ApiResult.Error -> {\r\n                        _errorMessage.value = result.message\r\n                    }\r\n                    is ApiResult.Loading -> {\r\n                        // Ignore\r\n                    }\r\n                }\r\n\r\n                _isLoading.value = false\r\n            }\r\n        }\r\n    }\r\n\r\n    /** Subscribe to group socket channel (for external use) */\r\n    fun subscribeToGroup(groupId: String) {\r\n        Log.d(\"SocketDebug\", \"=== SUBSCRIBING TO GROUP ===\")\r\n        Log.d(\"SocketDebug\", \"groupId: $groupId\")\r\n        Log.d(\"SocketDebug\", \"Socket connected: ${socketManager.isConnected()}\")\r\n\r\n        // Get the current user ID from the current group data\r\n        val userId = _currentGroup.value?.members?.firstOrNull() // Or get from preferences\r\n\r\n        socketManager.subscribeToGroup(groupId, userId)\r\n        Log.d(\"SocketDebug\", \"Subscription command sent with userId: $userId\")\r\n    }\r\n\r\n    /** Unsubscribe from group socket channel (for external use) */\r\n    fun unsubscribeFromGroup(groupId: String) {\r\n        val userId = _currentGroup.value?.members?.firstOrNull()\r\n        socketManager.unsubscribeFromGroup(groupId, userId)\r\n    }\r\n\r\n    private fun loadGroupMembers(memberIds: List<String>) {\r\n        viewModelScope.launch {\r\n            if (memberIds.isEmpty()) {\r\n                Log.e(\"LoadDebug\", \"memberIds is empty\")\r\n            } else {\r\n\r\n                when (val result = userRepository.getUserProfiles(memberIds)) {\r\n                    is ApiResult.Success -> {\r\n                        val profiles = result.data\r\n                        val votes = _currentGroup.value?.votes ?: emptyMap()\r\n\r\n                        val members =\r\n                                profiles.map { profile ->\r\n                                    GroupMember(\r\n                                            userId = profile.userId,\r\n                                            name = profile.name,\r\n                                            credibilityScore = 100.0,\r\n                                            phoneNumber = profile.contactNumber,\r\n                                            profilePicture = profile.profilePicture,\r\n                                            hasVoted = votes.containsKey(profile.userId)\r\n                                    )\r\n                                }\r\n\r\n                        _groupMembers.value = members\r\n                    }\r\n                    is ApiResult.Error -> {}\r\n                    is ApiResult.Loading -> {}\r\n                }\r\n            }\r\n        }\r\n    }\r\n\r\n    private fun handleVoteUpdate(data: JSONObject) {\r\n        Log.d(\"SocketDebug\", \"\uD83D\uDD14 VOTE_UPDATE EVENT RECEIVED\")\r\n        Log.d(\"SocketDebug\", \"Raw data: $data\")\r\n\r\n        viewModelScope.launch {\r\n            val restaurantId = data.getStringSafe(\"restaurantId\")\r\n            val votes = data.getJSONObjectSafe(\"votes\")\r\n\r\n            Log.d(\"SocketDebug\", \"restaurantId: $restaurantId\")\r\n            Log.d(\"SocketDebug\", \"votes JSON: $votes\")\r\n\r\n            votes?.let { votesJson ->\r\n                val votesMap = mutableMapOf<String, Int>()\r\n                votesJson.keys().forEach { key ->\r\n                    val keyStr = key.toString()\r\n                    val count = votesJson.getIntSafe(keyStr)\r\n                    votesMap[keyStr] = count\r\n                    Log.d(\"SocketDebug\", \"Vote: $keyStr -> $count\")\r\n                }\r\n\r\n                Log.d(\"SocketDebug\", \"Setting votes: $votesMap\")\r\n\r\n                _currentVotes.value = votesMap.toMap()\r\n\r\n                Log.d(\"SocketDebug\", \"Votes updated. Current: ${_currentVotes.value}\")\r\n            }\r\n\r\n            updateMemberVoteStatus()\r\n        }\r\n    }\r\n\r\n    private fun handleRestaurantSelected(data: JSONObject) {\r\n        viewModelScope.launch {\r\n            android.util.Log.d(\"GroupViewModel\", \"═══════════════════════════════════\")\r\n            android.util.Log.d(\"GroupViewModel\", \"\uD83C\uDF89 RESTAURANT_SELECTED EVENT RECEIVED!\")\r\n            android.util.Log.d(\"GroupViewModel\", \"Raw data: $data\")\r\n\r\n            val restaurantId = data.getStringSafe(\"restaurantId\")\r\n            val restaurantName = data.getStringSafe(\"restaurantName\")\r\n            val votes = data.getJSONObjectSafe(\"votes\")\r\n\r\n            android.util.Log.d(\"GroupViewModel\", \"restaurantId: $restaurantId\")\r\n            android.util.Log.d(\"GroupViewModel\", \"restaurantName: $restaurantName\")\r\n            android.util.Log.d(\"GroupViewModel\", \"votes: $votes\")\r\n\r\n            val restaurant =\r\n                    Restaurant(restaurantId = restaurantId, name = restaurantName, location = \"\")\r\n\r\n            android.util.Log.d(\"GroupViewModel\", \"\uD83C\uDFEA Created restaurant object: $restaurant\")\r\n\r\n            android.util.Log.d(\"GroupViewModel\", \"⬆\uFE0F Setting _selectedRestaurant.value...\")\r\n            _selectedRestaurant.value = restaurant\r\n            android.util.Log.d(\"GroupViewModel\", \"✅ _selectedRestaurant.value SET!\")\r\n            android.util.Log.d(\"GroupViewModel\", \"Current value: ${_selectedRestaurant.value}\")\r\n\r\n            _currentGroup.value =\r\n                    _currentGroup.value?.copy(restaurantSelected = true, restaurant = restaurant)\r\n\r\n            _successMessage.value = \"Restaurant selected: $restaurantName\"\r\n            android.util.Log.d(\"GroupViewModel\", \"═══════════════════════════════════\")\r\n        }\r\n    }\r\n\r\n    private fun handleMemberLeft(data: JSONObject) {\r\n        viewModelScope.launch {\r\n            val userId = data.getStringSafe(\"userId\")\r\n\r\n            _groupMembers.value = _groupMembers.value.filter { it.userId != userId }\r\n\r\n            _currentGroup.value = _currentGroup.value?.copy(numMembers = _groupMembers.value.size)\r\n        }\r\n    }\r\n\r\n    private fun updateMemberVoteStatus() {\r\n        val votes = _currentGroup.value?.votes ?: emptyMap()\r\n        _groupMembers.value =\r\n                _groupMembers.value.map { member ->\r\n                    member.copy(hasVoted = votes.containsKey(member.userId))\r\n                }\r\n    }\r\n\r\n    private fun clearGroupState() {\r\n        _currentGroup.value = null\r\n        _groupMembers.value = emptyList()\r\n        _currentVotes.value = emptyMap()\r\n        _selectedRestaurant.value = null\r\n        _userVote.value = null\r\n        _timeRemaining.value = 0L\r\n    }\r\n\r\n    /** Clear error message */\r\n    fun clearError() {\r\n        _errorMessage.value = null\r\n    }\r\n\r\n    /** Clear success message */\r\n    fun clearSuccess() {\r\n        _successMessage.value = null\r\n    }\r\n\r\n    override fun onCleared() {\r\n        super.onCleared()\r\n        // Clean up socket listeners\r\n        socketManager.off(\"vote_update\")\r\n        socketManager.off(\"restaurant_selected\")\r\n        socketManager.off(\"member_left\")\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/ui/viewmodels/GroupViewModel.kt b/app/src/main/java/com/example/cpen_321/ui/viewmodels/GroupViewModel.kt
+--- a/app/src/main/java/com/example/cpen_321/ui/viewmodels/GroupViewModel.kt	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/app/src/main/java/com/example/cpen_321/ui/viewmodels/GroupViewModel.kt	(date 1764194235833)
+@@ -3,10 +3,12 @@
+ import android.util.Log
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.example.cpen_321.data.model.CredibilityState
+ import com.example.cpen_321.data.model.Group
+ import com.example.cpen_321.data.model.GroupMember
+ import com.example.cpen_321.data.model.Restaurant
+ import com.example.cpen_321.data.network.dto.ApiResult
++import com.example.cpen_321.data.repository.CredibilityRepository
+ import com.example.cpen_321.data.repository.GroupRepository
+ import com.example.cpen_321.data.repository.UserRepository
+ import com.example.cpen_321.utils.JsonUtils.getIntSafe
+@@ -26,9 +28,10 @@
+ class GroupViewModel
+ @Inject
+ constructor(
+-        private val groupRepository: GroupRepository,
+-        private val userRepository: UserRepository,
+-        private val socketManager: SocketManager
++    private val groupRepository: GroupRepository,
++    private val userRepository: UserRepository,
++    private val socketManager: SocketManager,
++    private val credibilityRepository: CredibilityRepository
+ ) : ViewModel() {
+ 
+     // Current group
+@@ -55,6 +58,10 @@
+     private val _timeRemaining = MutableStateFlow<Long>(0L)
+     val timeRemaining: StateFlow<Long> = _timeRemaining.asStateFlow()
+ 
++    // Credibility state
++    private val _credibilityState = MutableStateFlow(CredibilityState())
++    val credibilityState: StateFlow<CredibilityState> = _credibilityState.asStateFlow()
++
+     // Loading state
+     private val _isLoading = MutableStateFlow(false)
+     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+@@ -73,13 +80,11 @@
+ 
+     private fun setupSocketListeners() {
+         socketManager.onVoteUpdate { data -> handleVoteUpdate(data) }
+-
+         socketManager.onRestaurantSelected { data -> handleRestaurantSelected(data) }
+-
+         socketManager.onMemberLeft { data -> handleMemberLeft(data) }
+     }
+ 
+-    /** Load group status UPDATED: Properly handles 404 "Not in a group" as a normal state */
++    /** Load group status - handles 404 "Not in a group" as a normal state */
+     fun loadGroupStatus() {
+         viewModelScope.launch {
+             _isLoading.value = true
+@@ -104,25 +109,73 @@
+ 
+                     // Calculate time remaining
+                     _timeRemaining.value = group.completionTime - System.currentTimeMillis()
++
++                    // Generate credibility code when user is in a group
++                    generateCredibilityCode()
+                 }
+                 is ApiResult.Error -> {
+-                    // IMPORTANT: Check if this is a 404 "not in group" error
+-                    // If so, treat it as a normal state, not an error
++                    // Check if this is a 404 "not in group" error
+                     if (result.code == 404 &&
+-                                    result.message.contains("not in a group", ignoreCase = true)
++                        result.message.contains("not in a group", ignoreCase = true)
+                     ) {
+                         // User is not in a group - this is a normal state, not an error
+                         _currentGroup.value = null
+                         clearGroupState()
+-                        // Don't set error message for this case
+                     } else {
+                         // This is an actual error
+                         _errorMessage.value = result.message
+                     }
+                 }
+-                is ApiResult.Loading -> {
+-                    // Already handled
+-                }
++                is ApiResult.Loading -> {}
++            }
++
++            _isLoading.value = false
++        }
++    }
++
++    /** Generate credibility code */
++    fun generateCredibilityCode() {
++        viewModelScope.launch {
++            when (val result = credibilityRepository.generateCode()) {
++                is ApiResult.Success -> {
++                    val codeData = result.data
++                    _credibilityState.value = CredibilityState(
++                        hasActiveCode = true,
++                        currentCode = codeData.code,
++                        codeExpiresAt = codeData.expiresAt
++                    )
++                    Log.d("CredibilityDebug", "Generated code: ${codeData.code}")
++                }
++                is ApiResult.Error -> {
++                    Log.e("CredibilityDebug", "Failed to generate code: ${result.message}")
++                    // Don't show error to user, it's optional
++                }
++                is ApiResult.Loading -> {}
++            }
++        }
++    }
++
++    /** Verify credibility code */
++    fun verifyCredibilityCode(code: String) {
++        viewModelScope.launch {
++            // Check if user is trying to enter their own code
++            if (code.uppercase() == _credibilityState.value.currentCode) {
++                _errorMessage.value = "You cannot verify your own code"
++                return@launch
++            }
++
++            _isLoading.value = true
++
++            when (val result = credibilityRepository.verifyCode(code)) {
++                is ApiResult.Success -> {
++                    val response = result.data
++                    _successMessage.value = response.message
++                    Log.d("CredibilityDebug", "Code verified successfully")
++                }
++                is ApiResult.Error -> {
++                    _errorMessage.value = result.message
++                }
++                is ApiResult.Loading -> {}
+             }
+ 
+             _isLoading.value = false
+@@ -130,96 +183,100 @@
+     }
+ 
+     /** Vote for a restaurant */
+-    // GroupViewModel.kt - Add detailed logging in voteForRestaurant
+     fun voteForRestaurant(restaurantId: String, restaurant: Restaurant) {
+         viewModelScope.launch {
+             val groupId = _currentGroup.value?.groupId
+             if (groupId == null) {
+                 Log.e("VoteDebug", "ERROR: groupId is null!")
+-            } else {
+-                _isLoading.value = true
+-                _errorMessage.value = null
++                return@launch
++            }
++
++            _isLoading.value = true
++            _errorMessage.value = null
+ 
+-                when (val result =
+-                                groupRepository.voteForRestaurant(groupId, restaurantId, restaurant)
+-                ) {
+-                    is ApiResult.Success -> {
+-                        Log.d("VoteDebug", "✅ Vote API Success")
+-                        Log.d("VoteDebug", "Returned votes: ${result.data}")
++            when (val result = groupRepository.voteForRestaurant(groupId, restaurantId, restaurant)) {
++                is ApiResult.Success -> {
++                    Log.d("VoteDebug", "✅ Vote API Success")
++                    Log.d("VoteDebug", "Returned votes: ${result.data}")
+ 
+-                        // ✅ CRITICAL: Update votes immediately
+-                        _currentVotes.value = result.data
+-                        _userVote.value = restaurantId
+-
+-                        // ✅ Force UI update by creating new map instance
+-                        _currentVotes.value = result.data.toMap()
+-
+-                        _successMessage.value = "Vote submitted successfully"
+-
+-                        // ✅ Don't call loadGroupStatus() here - it causes race condition
+-                        // The socket event will update other users
+-                        // loadGroupStatus()  // ← REMOVE THIS
+-                    }
+-                    is ApiResult.Error -> {
+-                        Log.e("VoteDebug", "❌ Vote API Error: ${result.message}")
+-                        _errorMessage.value = result.message
+-                    }
+-                    is ApiResult.Loading -> {}
+-                }
++                    // Update votes immediately
++                    _currentVotes.value = result.data.toMap()
++                    _userVote.value = restaurantId
++                    _successMessage.value = "Vote submitted successfully"
++                }
++                is ApiResult.Error -> {
++                    Log.e("VoteDebug", "❌ Vote API Error: ${result.message}")
++                    _errorMessage.value = result.message
++                }
++                is ApiResult.Loading -> {}
++            }
+ 
+-                _isLoading.value = false
+-            }
++            _isLoading.value = false
+         }
+     }
+ 
+     /** Leave current group */
+     fun leaveGroup(onSuccess: () -> Unit) {
+         viewModelScope.launch {
+-            val groupId = _currentGroup.value?.groupId // ?: return@viewScopeLaunch
++            val groupId = _currentGroup.value?.groupId
+             if (groupId == null) {
+                 Log.e("LeaveDebug", "groupId is NULL")
+-            } else {
+-                _isLoading.value = true
++                return@launch
++            }
++
++            _isLoading.value = true
+ 
+-                when (val result = groupRepository.leaveGroup(groupId)) {
+-                    is ApiResult.Success -> {
+-                        // Unsubscribe from group updates
+-                        socketManager.unsubscribeFromGroup(groupId)
+-
+-                        // Clear state
+-                        clearGroupState()
+-
+-                        _successMessage.value = "Left group successfully"
+-
+-                        onSuccess()
+-                    }
+-                    is ApiResult.Error -> {
+-                        _errorMessage.value = result.message
+-                    }
+-                    is ApiResult.Loading -> {
+-                        // Ignore
+-                    }
+-                }
++            // First check if code needs deduction
++            val shouldDeduct = _credibilityState.value.hasActiveCode
++
++            // Deduct score if code wasn't verified
++            if (shouldDeduct) {
++                when (val deductResult = credibilityRepository.deductScore()) {
++                    is ApiResult.Success -> {
++                        val response = deductResult.data
++                        Log.d("CredibilityDebug", "Score deducted: ${response.scoreDeducted}")
++                        if (response.scoreDeducted > 0) {
++                            _successMessage.value = response.message
++                        }
++                    }
++                    is ApiResult.Error -> {
++                        Log.e("CredibilityDebug", "Failed to deduct score: ${deductResult.message}")
++                        // Continue with leaving even if deduction fails
++                    }
++                    is ApiResult.Loading -> {}
++                }
++            }
++
++            // Now leave the group
++            when (val result = groupRepository.leaveGroup(groupId)) {
++                is ApiResult.Success -> {
++                    socketManager.unsubscribeFromGroup(groupId)
++                    clearGroupState()
++                    _successMessage.value = "Left group successfully"
++                    onSuccess()
++                }
++                is ApiResult.Error -> {
++                    _errorMessage.value = result.message
++                }
++                is ApiResult.Loading -> {}
++            }
+ 
+-                _isLoading.value = false
+-            }
++            _isLoading.value = false
+         }
+     }
+ 
+-    /** Subscribe to group socket channel (for external use) */
++    /** Subscribe to group socket channel */
+     fun subscribeToGroup(groupId: String) {
+         Log.d("SocketDebug", "=== SUBSCRIBING TO GROUP ===")
+         Log.d("SocketDebug", "groupId: $groupId")
+         Log.d("SocketDebug", "Socket connected: ${socketManager.isConnected()}")
+ 
+-        // Get the current user ID from the current group data
+-        val userId = _currentGroup.value?.members?.firstOrNull() // Or get from preferences
+-
++        val userId = _currentGroup.value?.members?.firstOrNull()
+         socketManager.subscribeToGroup(groupId, userId)
+         Log.d("SocketDebug", "Subscription command sent with userId: $userId")
+     }
+ 
+-    /** Unsubscribe from group socket channel (for external use) */
++    /** Unsubscribe from group socket channel */
+     fun unsubscribeFromGroup(groupId: String) {
+         val userId = _currentGroup.value?.members?.firstOrNull()
+         socketManager.unsubscribeFromGroup(groupId, userId)
+@@ -229,30 +286,29 @@
+         viewModelScope.launch {
+             if (memberIds.isEmpty()) {
+                 Log.e("LoadDebug", "memberIds is empty")
+-            } else {
++                return@launch
++            }
+ 
+-                when (val result = userRepository.getUserProfiles(memberIds)) {
+-                    is ApiResult.Success -> {
+-                        val profiles = result.data
+-                        val votes = _currentGroup.value?.votes ?: emptyMap()
++            when (val result = userRepository.getUserProfiles(memberIds)) {
++                is ApiResult.Success -> {
++                    val profiles = result.data
++                    val votes = _currentGroup.value?.votes ?: emptyMap()
+ 
+-                        val members =
+-                                profiles.map { profile ->
+-                                    GroupMember(
+-                                            userId = profile.userId,
+-                                            name = profile.name,
+-                                            credibilityScore = 100.0,
+-                                            phoneNumber = profile.contactNumber,
+-                                            profilePicture = profile.profilePicture,
+-                                            hasVoted = votes.containsKey(profile.userId)
+-                                    )
+-                                }
++                    val members = profiles.map { profile ->
++                        GroupMember(
++                            userId = profile.userId,
++                            name = profile.name,
++                            credibilityScore = 100.0,
++                            phoneNumber = profile.contactNumber,
++                            profilePicture = profile.profilePicture,
++                            hasVoted = votes.containsKey(profile.userId)
++                        )
++                    }
+ 
+-                        _groupMembers.value = members
+-                    }
+-                    is ApiResult.Error -> {}
+-                    is ApiResult.Loading -> {}
+-                }
++                    _groupMembers.value = members
++                }
++                is ApiResult.Error -> {}
++                is ApiResult.Loading -> {}
+             }
+         }
+     }
+@@ -278,9 +334,7 @@
+                 }
+ 
+                 Log.d("SocketDebug", "Setting votes: $votesMap")
+-
+                 _currentVotes.value = votesMap.toMap()
+-
+                 Log.d("SocketDebug", "Votes updated. Current: ${_currentVotes.value}")
+             }
+ 
+@@ -290,52 +344,55 @@
+ 
+     private fun handleRestaurantSelected(data: JSONObject) {
+         viewModelScope.launch {
+-            android.util.Log.d("GroupViewModel", "═══════════════════════════════════")
+-            android.util.Log.d("GroupViewModel", "🎉 RESTAURANT_SELECTED EVENT RECEIVED!")
+-            android.util.Log.d("GroupViewModel", "Raw data: $data")
++            Log.d("GroupViewModel", "═══════════════════════════════════")
++            Log.d("GroupViewModel", "🎉 RESTAURANT_SELECTED EVENT RECEIVED!")
++            Log.d("GroupViewModel", "Raw data: $data")
+ 
+             val restaurantId = data.getStringSafe("restaurantId")
+             val restaurantName = data.getStringSafe("restaurantName")
+             val votes = data.getJSONObjectSafe("votes")
+ 
+-            android.util.Log.d("GroupViewModel", "restaurantId: $restaurantId")
+-            android.util.Log.d("GroupViewModel", "restaurantName: $restaurantName")
+-            android.util.Log.d("GroupViewModel", "votes: $votes")
++            Log.d("GroupViewModel", "restaurantId: $restaurantId")
++            Log.d("GroupViewModel", "restaurantName: $restaurantName")
++            Log.d("GroupViewModel", "votes: $votes")
+ 
+-            val restaurant =
+-                    Restaurant(restaurantId = restaurantId, name = restaurantName, location = "")
++            val restaurant = Restaurant(
++                restaurantId = restaurantId,
++                name = restaurantName,
++                location = ""
++            )
+ 
+-            android.util.Log.d("GroupViewModel", "🏪 Created restaurant object: $restaurant")
++            Log.d("GroupViewModel", "🏪 Created restaurant object: $restaurant")
++            Log.d("GroupViewModel", "⬆️ Setting _selectedRestaurant.value...")
+ 
+-            android.util.Log.d("GroupViewModel", "⬆️ Setting _selectedRestaurant.value...")
+             _selectedRestaurant.value = restaurant
+-            android.util.Log.d("GroupViewModel", "✅ _selectedRestaurant.value SET!")
+-            android.util.Log.d("GroupViewModel", "Current value: ${_selectedRestaurant.value}")
+ 
+-            _currentGroup.value =
+-                    _currentGroup.value?.copy(restaurantSelected = true, restaurant = restaurant)
++            Log.d("GroupViewModel", "✅ _selectedRestaurant.value SET!")
++            Log.d("GroupViewModel", "Current value: ${_selectedRestaurant.value}")
++
++            _currentGroup.value = _currentGroup.value?.copy(
++                restaurantSelected = true,
++                restaurant = restaurant
++            )
+ 
+             _successMessage.value = "Restaurant selected: $restaurantName"
+-            android.util.Log.d("GroupViewModel", "═══════════════════════════════════")
++            Log.d("GroupViewModel", "═══════════════════════════════════")
+         }
+     }
+ 
+     private fun handleMemberLeft(data: JSONObject) {
+         viewModelScope.launch {
+             val userId = data.getStringSafe("userId")
+-
+             _groupMembers.value = _groupMembers.value.filter { it.userId != userId }
+-
+             _currentGroup.value = _currentGroup.value?.copy(numMembers = _groupMembers.value.size)
+         }
+     }
+ 
+     private fun updateMemberVoteStatus() {
+         val votes = _currentGroup.value?.votes ?: emptyMap()
+-        _groupMembers.value =
+-                _groupMembers.value.map { member ->
+-                    member.copy(hasVoted = votes.containsKey(member.userId))
+-                }
++        _groupMembers.value = _groupMembers.value.map { member ->
++            member.copy(hasVoted = votes.containsKey(member.userId))
++        }
+     }
+ 
+     private fun clearGroupState() {
+@@ -345,6 +402,7 @@
+         _selectedRestaurant.value = null
+         _userVote.value = null
+         _timeRemaining.value = 0L
++        _credibilityState.value = CredibilityState()
+     }
+ 
+     /** Clear error message */
+@@ -359,9 +417,8 @@
+ 
+     override fun onCleared() {
+         super.onCleared()
+-        // Clean up socket listeners
+         socketManager.off("vote_update")
+         socketManager.off("restaurant_selected")
+         socketManager.off("member_left")
+     }
+-}
++}
+\ No newline at end of file
+Index: app/src/main/java/com/example/cpen_321/di/RepositoryModule.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.example.cpen_321.di\r\n\r\nimport com.example.cpen_321.data.local.PreferencesManager\r\nimport com.example.cpen_321.data.local.TokenManager\r\nimport com.example.cpen_321.data.repository.AuthRepository\r\nimport com.example.cpen_321.data.repository.AuthRepositoryImpl\r\nimport com.example.cpen_321.data.repository.GroupRepository\r\nimport com.example.cpen_321.data.repository.GroupRepositoryImpl\r\nimport com.example.cpen_321.data.repository.MatchRepository\r\nimport com.example.cpen_321.data.repository.MatchRepositoryImpl\r\nimport com.example.cpen_321.data.repository.RestaurantRepository\r\nimport com.example.cpen_321.data.repository.RestaurantRepositoryImpl\r\nimport com.example.cpen_321.data.repository.UserRepository\r\nimport com.example.cpen_321.data.repository.UserRepositoryImpl\r\nimport dagger.Module\r\nimport dagger.Provides\r\nimport dagger.hilt.InstallIn\r\nimport dagger.hilt.components.SingletonComponent\r\nimport javax.inject.Singleton\r\n\r\n/**\r\n * Hilt module for repository dependencies\r\n */\r\n@Module\r\n@InstallIn(SingletonComponent::class)\r\nobject RepositoryModule {\r\n\r\n    /**\r\n     * Provide AuthRepository\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideAuthRepository(\r\n        tokenManager: TokenManager,\r\n        preferencesManager: PreferencesManager\r\n    ): AuthRepository {\r\n        return AuthRepositoryImpl(tokenManager, preferencesManager)\r\n    }\r\n\r\n    /**\r\n     * Provide UserRepository\r\n     * ✅ UPDATED: Now injects TokenManager for FCM token management\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideUserRepository(\r\n        preferencesManager: PreferencesManager,\r\n        tokenManager: TokenManager,\r\n        userAPI: com.example.cpen_321.data.network.api.UserAPI\r\n    ): UserRepository {\r\n        return UserRepositoryImpl(preferencesManager, tokenManager, userAPI)\r\n    }\r\n\r\n    /**\r\n     * Provide MatchRepository\r\n     * ✅ UPDATED: Now injects UserRepository to check user status before joining\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideMatchRepository(\r\n        preferencesManager: PreferencesManager,\r\n        userRepository: UserRepository  // ✅ ADDED\r\n    ): MatchRepository {\r\n        return MatchRepositoryImpl(preferencesManager, userRepository)  // ✅ ADDED\r\n    }\r\n\r\n    /**\r\n     * Provide GroupRepository\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideGroupRepository(\r\n        preferencesManager: PreferencesManager\r\n    ): GroupRepository {\r\n        return GroupRepositoryImpl(preferencesManager)\r\n    }\r\n\r\n    /**\r\n     * Provide RestaurantRepository\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideRestaurantRepository(): RestaurantRepository {\r\n        return RestaurantRepositoryImpl()\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/di/RepositoryModule.kt b/app/src/main/java/com/example/cpen_321/di/RepositoryModule.kt
+--- a/app/src/main/java/com/example/cpen_321/di/RepositoryModule.kt	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/app/src/main/java/com/example/cpen_321/di/RepositoryModule.kt	(date 1764193972493)
+@@ -4,6 +4,8 @@
+ import com.example.cpen_321.data.local.TokenManager
+ import com.example.cpen_321.data.repository.AuthRepository
+ import com.example.cpen_321.data.repository.AuthRepositoryImpl
++import com.example.cpen_321.data.repository.CredibilityRepository
++import com.example.cpen_321.data.repository.CredibilityRepositoryImpl
+ import com.example.cpen_321.data.repository.GroupRepository
+ import com.example.cpen_321.data.repository.GroupRepositoryImpl
+ import com.example.cpen_321.data.repository.MatchRepository
+@@ -83,4 +85,16 @@
+     fun provideRestaurantRepository(): RestaurantRepository {
+         return RestaurantRepositoryImpl()
+     }
++
++
++    /**
++     * Provide CredibilityRepository
++     */
++    @Provides
++    @Singleton
++    fun provideCredibilityRepository(
++        credibilityAPI: com.example.cpen_321.data.network.api.CredibilityAPI
++    ): CredibilityRepository {
++        return CredibilityRepositoryImpl(credibilityAPI)
++    }
+ }
+\ No newline at end of file
+Index: app/src/main/java/com/example/cpen_321/di/NetworkModule.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.example.cpen_321.di\r\n\r\nimport com.example.cpen_321.BuildConfig\r\nimport com.example.cpen_321.data.local.TokenManager\r\nimport com.example.cpen_321.data.network.RetrofitClient\r\nimport com.example.cpen_321.data.network.api.AuthAPI\r\nimport com.example.cpen_321.data.network.api.GroupAPI\r\nimport com.example.cpen_321.data.network.api.MatchAPI\r\nimport com.example.cpen_321.data.network.api.RestaurantAPI\r\nimport com.example.cpen_321.data.network.api.UserAPI\r\nimport com.example.cpen_321.data.network.interceptors.AuthInterceptor\r\nimport com.google.gson.Gson\r\nimport com.google.gson.GsonBuilder\r\nimport dagger.Module\r\nimport dagger.Provides\r\nimport dagger.hilt.InstallIn\r\nimport dagger.hilt.components.SingletonComponent\r\nimport okhttp3.OkHttpClient\r\nimport okhttp3.logging.HttpLoggingInterceptor\r\nimport retrofit2.Retrofit\r\nimport retrofit2.converter.gson.GsonConverterFactory\r\nimport java.util.concurrent.TimeUnit\r\nimport javax.inject.Singleton\r\n\r\n/**\r\n * Hilt module for network-related dependencies\r\n */\r\n@Module\r\n@InstallIn(SingletonComponent::class)\r\nobject NetworkModule {\r\n\r\n    // TODO: Replace with your actual backend URL\r\n    private const val BASE_URL = BuildConfig.IMAGE_BASE_URL // Android emulator localhost\r\n    // For physical device, use: \"http://YOUR_COMPUTER_IP:3000/\"\r\n    // For production: \"https://your-backend-domain.com/\"\r\n\r\n    /**\r\n     * Provide Gson instance\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideGson(): Gson {\r\n        return GsonBuilder()\r\n            .setLenient()\r\n            .serializeNulls()\r\n            .create()\r\n    }\r\n\r\n    /**\r\n     * Provide AuthInterceptor\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideAuthInterceptor(tokenManager: TokenManager): AuthInterceptor {\r\n        return AuthInterceptor(tokenManager)\r\n    }\r\n\r\n    /**\r\n     * Provide HttpLoggingInterceptor\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideLoggingInterceptor(): HttpLoggingInterceptor {\r\n        return HttpLoggingInterceptor().apply {\r\n            level = HttpLoggingInterceptor.Level.BODY\r\n        }\r\n    }\r\n\r\n    /**\r\n     * Provide OkHttpClient\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideOkHttpClient(\r\n        authInterceptor: AuthInterceptor,\r\n        loggingInterceptor: HttpLoggingInterceptor\r\n    ): OkHttpClient {\r\n        return OkHttpClient.Builder()\r\n            .connectTimeout(30, TimeUnit.SECONDS)\r\n            .readTimeout(30, TimeUnit.SECONDS)\r\n            .writeTimeout(30, TimeUnit.SECONDS)\r\n            .addInterceptor(authInterceptor)\r\n            .addInterceptor(loggingInterceptor)\r\n            .build()\r\n    }\r\n\r\n    /**\r\n     * Provide Retrofit instance\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideRetrofit(\r\n        okHttpClient: OkHttpClient,\r\n        gson: Gson\r\n    ): Retrofit {\r\n        return Retrofit.Builder()\r\n            .baseUrl(BASE_URL)\r\n            .client(okHttpClient)\r\n            .addConverterFactory(GsonConverterFactory.create(gson))\r\n            .build()\r\n    }\r\n\r\n    /**\r\n     * Provide AuthAPI\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideAuthAPI(retrofit: Retrofit): AuthAPI {\r\n        return retrofit.create(AuthAPI::class.java)\r\n    }\r\n\r\n    /**\r\n     * Provide UserAPI\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideUserAPI(retrofit: Retrofit): UserAPI {\r\n        return retrofit.create(UserAPI::class.java)\r\n    }\r\n\r\n    /**\r\n     * Provide MatchAPI\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideMatchAPI(retrofit: Retrofit): MatchAPI {\r\n        return retrofit.create(MatchAPI::class.java)\r\n    }\r\n\r\n    /**\r\n     * Provide GroupAPI\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideGroupAPI(retrofit: Retrofit): GroupAPI {\r\n        return retrofit.create(GroupAPI::class.java)\r\n    }\r\n\r\n    /**\r\n     * Provide RestaurantAPI\r\n     */\r\n    @Provides\r\n    @Singleton\r\n    fun provideRestaurantAPI(retrofit: Retrofit): RestaurantAPI {\r\n        return retrofit.create(RestaurantAPI::class.java)\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/di/NetworkModule.kt b/app/src/main/java/com/example/cpen_321/di/NetworkModule.kt
+--- a/app/src/main/java/com/example/cpen_321/di/NetworkModule.kt	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/app/src/main/java/com/example/cpen_321/di/NetworkModule.kt	(date 1764194955118)
+@@ -8,6 +8,7 @@
+ import com.example.cpen_321.data.network.api.MatchAPI
+ import com.example.cpen_321.data.network.api.RestaurantAPI
+ import com.example.cpen_321.data.network.api.UserAPI
++import com.example.cpen_321.data.network.api.CredibilityAPI  // ← CHECK THIS LINE
+ import com.example.cpen_321.data.network.interceptors.AuthInterceptor
+ import com.google.gson.Gson
+ import com.google.gson.GsonBuilder
+@@ -144,4 +145,14 @@
+     fun provideRestaurantAPI(retrofit: Retrofit): RestaurantAPI {
+         return retrofit.create(RestaurantAPI::class.java)
+     }
++
++
++    /**
++     * Provide CredibilityAPI
++     */
++    @Provides
++    @Singleton
++    fun provideCredibilityAPI(retrofit: Retrofit): CredibilityAPI {
++        return retrofit.create(CredibilityAPI::class.java)
++    }
+ }
+\ No newline at end of file
+Index: app/src/main/java/com/example/cpen_321/ui/screens/ViewGroupsScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.example.cpen_321.ui.screens\r\n\r\nimport androidx.compose.foundation.background\r\nimport androidx.compose.foundation.clickable\r\nimport androidx.compose.foundation.layout.Arrangement\r\nimport androidx.compose.foundation.layout.Box\r\nimport androidx.compose.foundation.layout.Column\r\nimport androidx.compose.foundation.layout.Row\r\nimport androidx.compose.foundation.layout.Spacer\r\nimport androidx.compose.foundation.layout.fillMaxSize\r\nimport androidx.compose.foundation.layout.fillMaxWidth\r\nimport androidx.compose.foundation.layout.height\r\nimport androidx.compose.foundation.layout.padding\r\nimport androidx.compose.foundation.layout.size\r\nimport androidx.compose.foundation.layout.width\r\nimport androidx.compose.foundation.lazy.LazyColumn\r\nimport androidx.compose.foundation.lazy.items\r\nimport androidx.compose.foundation.shape.CircleShape\r\nimport androidx.compose.material.icons.Icons\r\nimport androidx.compose.material.icons.filled.CheckCircle\r\nimport androidx.compose.material.icons.filled.Person\r\nimport androidx.compose.material.icons.filled.Restaurant\r\nimport androidx.compose.material3.AlertDialog\r\nimport androidx.compose.material3.Button\r\nimport androidx.compose.material3.ButtonDefaults\r\nimport androidx.compose.material3.Card\r\nimport androidx.compose.material3.CardDefaults\r\nimport androidx.compose.material3.CircularProgressIndicator\r\nimport androidx.compose.material3.Icon\r\nimport androidx.compose.material3.Scaffold\r\nimport androidx.compose.material3.SnackbarHost\r\nimport androidx.compose.material3.SnackbarHostState\r\nimport androidx.compose.material3.Text\r\nimport androidx.compose.material3.TextButton\r\nimport androidx.compose.runtime.Composable\r\nimport androidx.compose.runtime.LaunchedEffect\r\nimport androidx.compose.runtime.collectAsState\r\nimport androidx.compose.runtime.getValue\r\nimport androidx.compose.runtime.mutableStateOf\r\nimport androidx.compose.runtime.remember\r\nimport androidx.compose.runtime.setValue\r\nimport androidx.compose.ui.Alignment\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.draw.clip\r\nimport androidx.compose.ui.graphics.Color\r\nimport androidx.compose.ui.layout.ContentScale\r\nimport androidx.compose.ui.text.font.FontWeight\r\nimport androidx.compose.ui.text.style.TextAlign\r\nimport androidx.compose.ui.unit.dp\r\nimport androidx.compose.ui.unit.sp\r\nimport androidx.hilt.navigation.compose.hiltViewModel\r\nimport androidx.navigation.NavController\r\nimport coil.compose.AsyncImage\r\nimport com.example.cpen_321.utils.rememberBase64ImagePainter\r\nimport androidx.compose.foundation.Image\r\nimport coil.compose.AsyncImage\r\nimport com.example.cpen_321.data.model.GroupMember\r\nimport com.example.cpen_321.ui.components.MainBottomBar\r\nimport com.example.cpen_321.ui.viewmodels.GroupViewModel\r\n\r\n@Composable\r\nfun ViewGroupsScreen(\r\n    navController: NavController,\r\n    viewModel: GroupViewModel = hiltViewModel()\r\n) {\r\n    val currentGroup by viewModel.currentGroup.collectAsState()\r\n    val groupMembers by viewModel.groupMembers.collectAsState()\r\n    val selectedRestaurant by viewModel.selectedRestaurant.collectAsState()\r\n    val isLoading by viewModel.isLoading.collectAsState()\r\n    val errorMessage by viewModel.errorMessage.collectAsState()\r\n    val successMessage by viewModel.successMessage.collectAsState()\r\n\r\n    val snackbarHostState = remember { SnackbarHostState() }\r\n    var showLeaveDialog by remember { mutableStateOf(false) }\r\n\r\n    ViewGroupsEffects(\r\n        viewModel = viewModel,\r\n        errorMessage = errorMessage,\r\n        successMessage = successMessage,\r\n        snackbarHostState = snackbarHostState\r\n    )\r\n\r\n    Scaffold(\r\n        snackbarHost = { SnackbarHost(snackbarHostState) },\r\n        bottomBar = { MainBottomBar(navController = navController) }\r\n    ) { innerPadding ->\r\n        Box(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(innerPadding)\r\n        ) {\r\n            ViewGroupsContent(\r\n                currentGroup = currentGroup,\r\n                groupMembers = groupMembers,\r\n                selectedRestaurant = selectedRestaurant,\r\n                isLoading = isLoading,\r\n                navController = navController,\r\n                onLeaveClick = { showLeaveDialog = true }\r\n            )\r\n\r\n            if (isLoading && currentGroup != null) {\r\n                LoadingOverlay()\r\n            }\r\n        }\r\n\r\n        if (showLeaveDialog) {\r\n            LeaveGroupDialog(\r\n                onDismiss = { showLeaveDialog = false },\r\n                onConfirm = {\r\n                    showLeaveDialog = false\r\n                    viewModel.leaveGroup(\r\n                        onSuccess = { navController.popBackStack() }\r\n                    )\r\n                }\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun ViewGroupsEffects(\r\n    viewModel: GroupViewModel,\r\n    errorMessage: String?,\r\n    successMessage: String?,\r\n    snackbarHostState: SnackbarHostState\r\n) {\r\n    LaunchedEffect(Unit) {\r\n        viewModel.loadGroupStatus()\r\n    }\r\n\r\n    LaunchedEffect(errorMessage) {\r\n        errorMessage?.let { error ->\r\n            snackbarHostState.showSnackbar(error)\r\n            viewModel.clearError()\r\n        }\r\n    }\r\n\r\n    LaunchedEffect(successMessage) {\r\n        successMessage?.let { success ->\r\n            snackbarHostState.showSnackbar(success)\r\n            viewModel.clearSuccess()\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun ViewGroupsContent(\r\n    currentGroup: com.example.cpen_321.data.model.Group?,\r\n    groupMembers: List<GroupMember>,\r\n    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,\r\n    isLoading: Boolean,\r\n    navController: NavController,\r\n    onLeaveClick: () -> Unit\r\n) {\r\n    when {\r\n        isLoading && currentGroup == null -> LoadingContent()\r\n        currentGroup == null -> NoGroupContent(navController = navController)\r\n        else -> GroupContent(\r\n            currentGroup = currentGroup,\r\n            groupMembers = groupMembers,\r\n            selectedRestaurant = selectedRestaurant,\r\n            navController = navController,\r\n            onLeaveClick = onLeaveClick\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun LoadingOverlay() {\r\n    Box(\r\n        modifier = Modifier\r\n            .fillMaxSize()\r\n            .background(Color.Black.copy(alpha = 0.3f)),\r\n        contentAlignment = Alignment.Center\r\n    ) {\r\n        CircularProgressIndicator(\r\n            modifier = Modifier.size(48.dp),\r\n            color = Color(0xFFFFD54F)\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun LeaveGroupDialog(\r\n    onDismiss: () -> Unit,\r\n    onConfirm: () -> Unit\r\n) {\r\n    AlertDialog(\r\n        onDismissRequest = onDismiss,\r\n        title = { Text(\"Leave Group\") },\r\n        text = {\r\n            Text(\"Are you sure you want to leave this group? You will lose your vote and have to join a new waiting room.\")\r\n        },\r\n        confirmButton = {\r\n            TextButton(onClick = onConfirm) {\r\n                Text(\"Leave\", color = Color(0xFFFF6B6B))\r\n            }\r\n        },\r\n        dismissButton = {\r\n            TextButton(onClick = onDismiss) {\r\n                Text(\"Cancel\")\r\n            }\r\n        }\r\n    )\r\n}\r\n\r\n@Composable\r\nprivate fun LoadingContent() {\r\n    Box(\r\n        modifier = Modifier.fillMaxSize(),\r\n        contentAlignment = Alignment.Center\r\n    ) {\r\n        Column(\r\n            horizontalAlignment = Alignment.CenterHorizontally,\r\n            verticalArrangement = Arrangement.Center\r\n        ) {\r\n            CircularProgressIndicator(\r\n                modifier = Modifier.size(48.dp),\r\n                color = Color(0xFFFFD54F)\r\n            )\r\n            Spacer(modifier = Modifier.height(16.dp))\r\n            Text(\r\n                text = \"Loading group...\",\r\n                fontSize = 16.sp,\r\n                color = Color.Gray\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun NoGroupContent(navController: NavController) {\r\n    Column(\r\n        modifier = Modifier\r\n            .fillMaxSize()\r\n            .padding(16.dp),\r\n        horizontalAlignment = Alignment.CenterHorizontally,\r\n        verticalArrangement = Arrangement.Center\r\n    ) {\r\n        Icon(\r\n            imageVector = Icons.Default.Person,\r\n            contentDescription = null,\r\n            modifier = Modifier.size(80.dp),\r\n            tint = Color.Gray\r\n        )\r\n\r\n        Spacer(modifier = Modifier.height(24.dp))\r\n\r\n        Text(\r\n            text = \"You are not in a group\",\r\n            fontSize = 24.sp,\r\n            fontWeight = FontWeight.Bold,\r\n            textAlign = TextAlign.Center\r\n        )\r\n\r\n        Spacer(modifier = Modifier.height(16.dp))\r\n\r\n        Text(\r\n            text = \"Join a waiting room to get matched with a group!\",\r\n            fontSize = 16.sp,\r\n            color = Color.Gray,\r\n            textAlign = TextAlign.Center\r\n        )\r\n\r\n        Spacer(modifier = Modifier.height(32.dp))\r\n\r\n        Button(\r\n            onClick = { navController.popBackStack() },\r\n            modifier = Modifier\r\n                .fillMaxWidth(0.7f)\r\n                .height(56.dp),\r\n            colors = ButtonDefaults.buttonColors(\r\n                containerColor = Color(0xFFFFD54F)\r\n            )\r\n        ) {\r\n            Text(\r\n                text = \"Go Back\",\r\n                color = Color.Black,\r\n                fontSize = 18.sp\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun GroupContent(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    groupMembers: List<GroupMember>,\r\n    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,\r\n    navController: NavController,\r\n    onLeaveClick: () -> Unit\r\n) {\r\n    Column(\r\n        modifier = Modifier\r\n            .fillMaxSize()\r\n            .padding(16.dp),\r\n        verticalArrangement = Arrangement.SpaceBetween\r\n    ) {\r\n        GroupInfoSection(\r\n            currentGroup = currentGroup,\r\n            groupMembers = groupMembers,\r\n            selectedRestaurant = selectedRestaurant,\r\n            navController = navController\r\n        )\r\n\r\n        GroupActionButtons(\r\n            currentGroup = currentGroup,\r\n            navController = navController,\r\n            onLeaveClick = onLeaveClick\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun GroupInfoSection(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    groupMembers: List<GroupMember>,\r\n    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,\r\n    navController: NavController\r\n) {\r\n    Column {  // Remove modifier = Modifier.weight(1f)\r\n        Spacer(modifier = Modifier.height(16.dp))\r\n        GroupHeaderCard(\r\n            currentGroup = currentGroup,\r\n            selectedRestaurant = selectedRestaurant\r\n        )\r\n        Spacer(modifier = Modifier.height(16.dp))\r\n        MembersSection(\r\n            groupMembers = groupMembers,\r\n            navController = navController\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun GroupHeaderCard(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?\r\n) {\r\n    Card(\r\n        modifier = Modifier.fillMaxWidth(),\r\n        colors = CardDefaults.cardColors(\r\n            containerColor = Color(0xFFFFF9C4)\r\n        ),\r\n        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)\r\n    ) {\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxWidth()\r\n                .padding(16.dp),\r\n            horizontalAlignment = Alignment.CenterHorizontally\r\n        ) {\r\n            Text(\r\n                text = \"Group - Room ${currentGroup.roomId}\",\r\n                fontSize = 24.sp,\r\n                fontWeight = FontWeight.Bold,\r\n                color = Color.Black,\r\n                textAlign = TextAlign.Center\r\n            )\r\n\r\n            Spacer(modifier = Modifier.height(8.dp))\r\n\r\n            Text(\r\n                text = \"${currentGroup.numMembers} members\",\r\n                fontSize = 16.sp,\r\n                color = Color.Gray\r\n            )\r\n\r\n            RestaurantSelectionStatus(\r\n                currentGroup = currentGroup,\r\n                selectedRestaurant = selectedRestaurant\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun RestaurantSelectionStatus(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?\r\n) {\r\n    if (currentGroup.restaurantSelected && selectedRestaurant != null) {\r\n        Spacer(modifier = Modifier.height(12.dp))\r\n        Row(\r\n            verticalAlignment = Alignment.CenterVertically,\r\n            horizontalArrangement = Arrangement.Center\r\n        ) {\r\n            Icon(\r\n                imageVector = Icons.Default.Restaurant,\r\n                contentDescription = null,\r\n                tint = Color(0xFF4CAF50),\r\n                modifier = Modifier.size(20.dp)\r\n            )\r\n            Spacer(modifier = Modifier.width(8.dp))\r\n            Text(\r\n                text = \"Selected: ${selectedRestaurant.name}\",\r\n                fontSize = 16.sp,\r\n                color = Color(0xFF4CAF50),\r\n                fontWeight = FontWeight.SemiBold\r\n            )\r\n        }\r\n    } else {\r\n        Spacer(modifier = Modifier.height(8.dp))\r\n        Text(\r\n            text = \"Voting in progress...\",\r\n            fontSize = 14.sp,\r\n            color = Color(0xFFFF9800),\r\n            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun MembersSection(\r\n    groupMembers: List<GroupMember>,\r\n    navController: NavController\r\n) {\r\n    Row(\r\n        modifier = Modifier.fillMaxWidth(),\r\n        horizontalArrangement = Arrangement.SpaceBetween,\r\n        verticalAlignment = Alignment.CenterVertically\r\n    ) {\r\n        Text(\r\n            text = \"Group Members\",\r\n            fontSize = 20.sp,\r\n            fontWeight = FontWeight.Bold\r\n        )\r\n\r\n        val votedCount = groupMembers.count { it.hasVoted }\r\n        Text(\r\n            text = \"$votedCount/${groupMembers.size} voted\",\r\n            fontSize = 14.sp,\r\n            color = if (votedCount == groupMembers.size) Color(0xFF4CAF50) else Color.Gray\r\n        )\r\n    }\r\n\r\n    Spacer(modifier = Modifier.height(12.dp))\r\n\r\n    LazyColumn(\r\n        verticalArrangement = Arrangement.spacedBy(8.dp)\r\n    ) {\r\n        items(groupMembers) { member ->\r\n            MemberCard(\r\n                member = member,\r\n                navController = navController\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun GroupActionButtons(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    navController: NavController,\r\n    onLeaveClick: () -> Unit\r\n) {\r\n    Column(\r\n        modifier = Modifier.fillMaxWidth(),\r\n        horizontalAlignment = Alignment.CenterHorizontally\r\n    ) {\r\n        Spacer(modifier = Modifier.height(16.dp))\r\n\r\n        ViewOrVoteButton(\r\n            currentGroup = currentGroup,\r\n            navController = navController\r\n        )\r\n\r\n        Spacer(modifier = Modifier.height(12.dp))\r\n\r\n        Button(\r\n            onClick = onLeaveClick,\r\n            modifier = Modifier\r\n                .fillMaxWidth()\r\n                .height(56.dp),\r\n            colors = ButtonDefaults.buttonColors(\r\n                containerColor = Color(0xFFFF6B6B)\r\n            )\r\n        ) {\r\n            Text(\r\n                text = \"Leave Group\",\r\n                color = Color.White,\r\n                fontSize = 18.sp,\r\n                fontWeight = FontWeight.SemiBold\r\n            )\r\n        }\r\n\r\n        Spacer(modifier = Modifier.height(12.dp))\r\n\r\n        Button(\r\n            onClick = { navController.popBackStack() },\r\n            modifier = Modifier\r\n                .fillMaxWidth()\r\n                .height(56.dp),\r\n            colors = ButtonDefaults.buttonColors(\r\n                containerColor = Color(0xFFE0E0E0)\r\n            )\r\n        ) {\r\n            Text(\r\n                text = \"Go Back\",\r\n                color = Color.Black,\r\n                fontSize = 18.sp,\r\n                fontWeight = FontWeight.SemiBold\r\n            )\r\n        }\r\n\r\n        Spacer(modifier = Modifier.height(16.dp))\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun ViewOrVoteButton(\r\n    currentGroup: com.example.cpen_321.data.model.Group,\r\n    navController: NavController\r\n) {\r\n    Button(\r\n        onClick = {\r\n            currentGroup.groupId?.let { groupId ->\r\n                if (currentGroup.restaurantSelected) {\r\n                    navController.navigate(\"group\")\r\n                } else {\r\n                    navController.navigate(\"vote_restaurant/$groupId\")\r\n                }\r\n            }\r\n        },\r\n        modifier = Modifier\r\n            .fillMaxWidth()\r\n            .height(56.dp),\r\n        colors = ButtonDefaults.buttonColors(\r\n            containerColor = Color(0xFFFFD54F)\r\n        )\r\n    ) {\r\n        Text(\r\n            text = if (currentGroup.restaurantSelected) \"View Details\" else \"Vote Now\",\r\n            color = Color.Black,\r\n            fontSize = 18.sp,\r\n            fontWeight = FontWeight.SemiBold\r\n        )\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun MemberCard(\r\n    member: GroupMember,\r\n    navController: NavController\r\n) {\r\n    Card(\r\n        modifier = Modifier\r\n            .fillMaxWidth()\r\n            .height(80.dp)\r\n            .clickable {\r\n                navController.navigate(\"member_profile/${member.userId}\")\r\n            },\r\n        colors = CardDefaults.cardColors(\r\n            containerColor = if (member.hasVoted) Color(0xFFE8F5E9) else Color.White\r\n        ),\r\n        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)\r\n    ) {\r\n        Row(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(12.dp),\r\n            verticalAlignment = Alignment.CenterVertically,\r\n            horizontalArrangement = Arrangement.SpaceBetween\r\n        ) {\r\n            MemberInfo(member = member)\r\n            VoteStatusIndicator(hasVoted = member.hasVoted)\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun MemberInfo(member: GroupMember) {\r\n    Row(\r\n        verticalAlignment = Alignment.CenterVertically,\r\n        modifier = Modifier.fillMaxWidth()  // Use fillMaxWidth instead of weight\r\n    ) {\r\n        MemberProfilePicture(\r\n            profilePicture = member.profilePicture,\r\n            memberName = member.name\r\n        )\r\n\r\n        Spacer(modifier = Modifier.width(12.dp))\r\n\r\n        Column(modifier = Modifier.weight(1f)) {\r\n            Text(\r\n                text = member.name,\r\n                fontSize = 18.sp,\r\n                fontWeight = FontWeight.SemiBold,\r\n                color = Color.Black\r\n            )\r\n\r\n            Spacer(modifier = Modifier.height(4.dp))\r\n\r\n            Text(\r\n                text = \"Credibility: ${String.format(\"%.1f\", member.credibilityScore)}\",\r\n                fontSize = 14.sp,\r\n                color = Color.Gray\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun MemberProfilePicture(\r\n    profilePicture: String?,\r\n    memberName: String\r\n) {\r\n    if (profilePicture != null && profilePicture.isNotEmpty()) {\r\n        if (profilePicture.startsWith(\"data:image/\")) {\r\n            // Base64 image - use rememberBase64ImagePainter\r\n            val painter = rememberBase64ImagePainter(profilePicture)\r\n            Image(\r\n                painter = painter,\r\n                contentDescription = \"Profile picture\",\r\n                modifier = Modifier\r\n                    .size(56.dp)\r\n                    .clip(CircleShape)\r\n                    .background(Color.LightGray),\r\n                contentScale = ContentScale.Crop\r\n            )\r\n        } else {\r\n            // Regular URL - use AsyncImage\r\n            AsyncImage(\r\n                model = profilePicture,\r\n                contentDescription = \"Profile picture\",\r\n                modifier = Modifier\r\n                    .size(56.dp)\r\n                    .clip(CircleShape)\r\n                    .background(Color.LightGray),\r\n                contentScale = ContentScale.Crop\r\n            )\r\n        }\r\n    } else {\r\n        Box(\r\n            modifier = Modifier\r\n                .size(56.dp)\r\n                .clip(CircleShape)\r\n                .background(Color(0xFFFFD54F)),\r\n            contentAlignment = Alignment.Center\r\n        ) {\r\n            Icon(\r\n                imageVector = Icons.Default.Person,\r\n                contentDescription = \"Default profile\",\r\n                modifier = Modifier.size(32.dp),\r\n                tint = Color.White\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nprivate fun VoteStatusIndicator(hasVoted: Boolean) {\r\n    if (hasVoted) {\r\n        Icon(\r\n            imageVector = Icons.Default.CheckCircle,\r\n            contentDescription = \"Has voted\",\r\n            tint = Color(0xFF4CAF50),\r\n            modifier = Modifier.size(32.dp)\r\n        )\r\n    } else {\r\n        Box(\r\n            modifier = Modifier\r\n                .size(32.dp)\r\n                .clip(CircleShape)\r\n                .background(Color(0xFFE0E0E0)),\r\n            contentAlignment = Alignment.Center\r\n        ) {\r\n            Text(\r\n                text = \"?\",\r\n                fontSize = 18.sp,\r\n                color = Color.Gray,\r\n                fontWeight = FontWeight.Bold\r\n            )\r\n        }\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/ui/screens/ViewGroupsScreen.kt b/app/src/main/java/com/example/cpen_321/ui/screens/ViewGroupsScreen.kt
+--- a/app/src/main/java/com/example/cpen_321/ui/screens/ViewGroupsScreen.kt	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/app/src/main/java/com/example/cpen_321/ui/screens/ViewGroupsScreen.kt	(date 1764196038035)
+@@ -1,6 +1,8 @@
+ package com.example.cpen_321.ui.screens
+ 
++import androidx.compose.foundation.Image
+ import androidx.compose.foundation.background
++import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+@@ -16,10 +18,12 @@
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.filled.CheckCircle
+ import androidx.compose.material.icons.filled.Person
+ import androidx.compose.material.icons.filled.Restaurant
++import androidx.compose.material.icons.filled.Shield
+ import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.ButtonDefaults
+@@ -27,6 +31,7 @@
+ import androidx.compose.material3.CardDefaults
+ import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.Icon
++import androidx.compose.material3.OutlinedTextField
+ import androidx.compose.material3.Scaffold
+ import androidx.compose.material3.SnackbarHost
+ import androidx.compose.material3.SnackbarHostState
+@@ -50,13 +55,11 @@
+ import androidx.compose.ui.unit.sp
+ import androidx.hilt.navigation.compose.hiltViewModel
+ import androidx.navigation.NavController
+-import coil.compose.AsyncImage
+-import com.example.cpen_321.utils.rememberBase64ImagePainter
+-import androidx.compose.foundation.Image
+ import coil.compose.AsyncImage
+ import com.example.cpen_321.data.model.GroupMember
+ import com.example.cpen_321.ui.components.MainBottomBar
+ import com.example.cpen_321.ui.viewmodels.GroupViewModel
++import com.example.cpen_321.utils.rememberBase64ImagePainter
+ 
+ @Composable
+ fun ViewGroupsScreen(
+@@ -66,12 +69,14 @@
+     val currentGroup by viewModel.currentGroup.collectAsState()
+     val groupMembers by viewModel.groupMembers.collectAsState()
+     val selectedRestaurant by viewModel.selectedRestaurant.collectAsState()
++    val credibilityState by viewModel.credibilityState.collectAsState()  // ← ADD
+     val isLoading by viewModel.isLoading.collectAsState()
+     val errorMessage by viewModel.errorMessage.collectAsState()
+     val successMessage by viewModel.successMessage.collectAsState()
+ 
+     val snackbarHostState = remember { SnackbarHostState() }
+     var showLeaveDialog by remember { mutableStateOf(false) }
++    var showVerifyDialog by remember { mutableStateOf(false) }  // ← ADD
+ 
+     ViewGroupsEffects(
+         viewModel = viewModel,
+@@ -93,9 +98,11 @@
+                 currentGroup = currentGroup,
+                 groupMembers = groupMembers,
+                 selectedRestaurant = selectedRestaurant,
++                credibilityState = credibilityState,  // ← ADD
+                 isLoading = isLoading,
+                 navController = navController,
+-                onLeaveClick = { showLeaveDialog = true }
++                onLeaveClick = { showLeaveDialog = true },
++                onVerifyCodeClick = { showVerifyDialog = true }  // ← ADD
+             )
+ 
+             if (isLoading && currentGroup != null) {
+@@ -114,6 +121,17 @@
+                 }
+             )
+         }
++
++        // ← ADD: Verify Code Dialog
++        if (showVerifyDialog) {
++            VerifyCodeDialog(
++                onDismiss = { showVerifyDialog = false },
++                onVerify = { code ->
++                    viewModel.verifyCredibilityCode(code)
++                    showVerifyDialog = false
++                }
++            )
++        }
+     }
+ }
+ 
+@@ -148,9 +166,11 @@
+     currentGroup: com.example.cpen_321.data.model.Group?,
+     groupMembers: List<GroupMember>,
+     selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
++    credibilityState: com.example.cpen_321.data.model.CredibilityState,  // ← ADD
+     isLoading: Boolean,
+     navController: NavController,
+-    onLeaveClick: () -> Unit
++    onLeaveClick: () -> Unit,
++    onVerifyCodeClick: () -> Unit  // ← ADD
+ ) {
+     when {
+         isLoading && currentGroup == null -> LoadingContent()
+@@ -159,10 +179,53 @@
+             currentGroup = currentGroup,
+             groupMembers = groupMembers,
+             selectedRestaurant = selectedRestaurant,
++            credibilityState = credibilityState,  // ← ADD
+             navController = navController,
+-            onLeaveClick = onLeaveClick
++            onLeaveClick = onLeaveClick,
++            onVerifyCodeClick = onVerifyCodeClick  // ← ADD
+         )
+     }
++}
++
++// ← ADD: Verify Code Dialog
++@Composable
++private fun VerifyCodeDialog(
++    onDismiss: () -> Unit,
++    onVerify: (String) -> Unit
++) {
++    var code by remember { mutableStateOf("") }
++
++    AlertDialog(
++        onDismissRequest = onDismiss,
++        title = { Text("Verify Credibility Code") },
++        text = {
++            Column {
++                Text("Enter another member's code to verify their attendance:")
++                Spacer(modifier = Modifier.height(16.dp))
++                OutlinedTextField(
++                    value = code,
++                    onValueChange = { code = it.uppercase() },
++                    label = { Text("Code") },
++                    modifier = Modifier.fillMaxWidth(),
++                    singleLine = true,
++                    placeholder = { Text("ABC123") }
++                )
++            }
++        },
++        confirmButton = {
++            TextButton(
++                onClick = { onVerify(code) },
++                enabled = code.isNotBlank()
++            ) {
++                Text("Verify")
++            }
++        },
++        dismissButton = {
++            TextButton(onClick = onDismiss) {
++                Text("Cancel")
++            }
++        }
++    )
+ }
+ 
+ @Composable
+@@ -189,7 +252,8 @@
+         onDismissRequest = onDismiss,
+         title = { Text("Leave Group") },
+         text = {
+-            Text("Are you sure you want to leave this group? You will lose your vote and have to join a new waiting room.")
++            // ← UPDATED: Mention credibility score penalty
++            Text("Are you sure you want to leave this group? If your code hasn't been verified by others, your credibility score will be reduced.")
+         },
+         confirmButton = {
+             TextButton(onClick = onConfirm) {
+@@ -287,27 +351,159 @@
+     currentGroup: com.example.cpen_321.data.model.Group,
+     groupMembers: List<GroupMember>,
+     selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
++    credibilityState: com.example.cpen_321.data.model.CredibilityState,
+     navController: NavController,
+-    onLeaveClick: () -> Unit
++    onLeaveClick: () -> Unit,
++    onVerifyCodeClick: () -> Unit
+ ) {
+     Column(
+         modifier = Modifier
+             .fillMaxSize()
+-            .padding(16.dp),
+-        verticalArrangement = Arrangement.SpaceBetween
++            .padding(16.dp)
+     ) {
+-        GroupInfoSection(
+-            currentGroup = currentGroup,
+-            groupMembers = groupMembers,
+-            selectedRestaurant = selectedRestaurant,
+-            navController = navController
+-        )
++        // Scrollable content with weight
++        LazyColumn(
++            modifier = Modifier.weight(1f),  // ← ADD: Takes available space but doesn't push buttons off screen
++            verticalArrangement = Arrangement.spacedBy(16.dp)
++        ) {
++            item {
++                Spacer(modifier = Modifier.height(16.dp))
++            }
++
++            // Credibility Code Card
++            item {
++                CredibilityCodeCard(credibilityState = credibilityState)
++            }
++
++            // Group Header Card
++            item {
++                GroupHeaderCard(
++                    currentGroup = currentGroup,
++                    selectedRestaurant = selectedRestaurant
++                )
++            }
++
++            // Members Section Header
++            item {
++                Row(
++                    modifier = Modifier.fillMaxWidth(),
++                    horizontalArrangement = Arrangement.SpaceBetween,
++                    verticalAlignment = Alignment.CenterVertically
++                ) {
++                    Text(
++                        text = "Group Members",
++                        fontSize = 20.sp,
++                        fontWeight = FontWeight.Bold
++                    )
++
++                    val votedCount = groupMembers.count { it.hasVoted }
++                    Text(
++                        text = "$votedCount/${groupMembers.size} voted",
++                        fontSize = 14.sp,
++                        color = if (votedCount == groupMembers.size) Color(0xFF4CAF50) else Color.Gray
++                    )
++                }
++            }
++
++            // Member Cards
++            items(groupMembers) { member ->
++                MemberCard(
++                    member = member,
++                    navController = navController
++                )
++            }
++        }
+ 
++        // Fixed buttons at bottom - always visible
+         GroupActionButtons(
+             currentGroup = currentGroup,
+             navController = navController,
+-            onLeaveClick = onLeaveClick
++            onLeaveClick = onLeaveClick,
++            onVerifyCodeClick = onVerifyCodeClick
+         )
++    }
++}
++
++// Remove the old MembersSection composable - we integrated it into GroupContent above
++
++// ← ADD: Credibility Code Card
++@Composable
++private fun CredibilityCodeCard(
++    credibilityState: com.example.cpen_321.data.model.CredibilityState
++) {
++    Card(
++        modifier = Modifier.fillMaxWidth(),
++        colors = CardDefaults.cardColors(
++            containerColor = Color(0xFFE3F2FD)
++        ),
++        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
++    ) {
++        Column(
++            modifier = Modifier
++                .fillMaxWidth()
++                .padding(16.dp),
++            horizontalAlignment = Alignment.CenterHorizontally
++        ) {
++            Row(
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                Icon(
++                    imageVector = Icons.Default.Shield,
++                    contentDescription = null,
++                    tint = Color(0xFF1976D2),
++                    modifier = Modifier.size(24.dp)
++                )
++                Spacer(modifier = Modifier.width(8.dp))
++                Text(
++                    text = "Your Credibility Code",
++                    fontSize = 18.sp,
++                    fontWeight = FontWeight.Bold,
++                    color = Color(0xFF1976D2)
++                )
++            }
++
++            Spacer(modifier = Modifier.height(12.dp))
++
++            if (credibilityState.hasActiveCode && credibilityState.currentCode != null) {
++                Box(
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .background(
++                            color = Color.White,
++                            shape = RoundedCornerShape(8.dp)
++                        )
++                        .border(
++                            width = 2.dp,
++                            color = Color(0xFF1976D2),
++                            shape = RoundedCornerShape(8.dp)
++                        )
++                        .padding(16.dp),
++                    contentAlignment = Alignment.Center
++                ) {
++                    Text(
++                        text = credibilityState.currentCode,
++                        fontSize = 32.sp,
++                        fontWeight = FontWeight.Bold,
++                        color = Color(0xFF1976D2),
++                        letterSpacing = 4.sp
++                    )
++                }
++
++                Spacer(modifier = Modifier.height(8.dp))
++
++                Text(
++                    text = "Share this code with other members",
++                    fontSize = 12.sp,
++                    color = Color.Gray,
++                    textAlign = TextAlign.Center
++                )
++            } else {
++                CircularProgressIndicator(
++                    modifier = Modifier.size(32.dp),
++                    color = Color(0xFF1976D2)
++                )
++            }
++        }
+     }
+ }
+ 
+@@ -318,7 +514,7 @@
+     selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
+     navController: NavController
+ ) {
+-    Column {  // Remove modifier = Modifier.weight(1f)
++    Column {
+         Spacer(modifier = Modifier.height(16.dp))
+         GroupHeaderCard(
+             currentGroup = currentGroup,
+@@ -452,7 +648,8 @@
+ private fun GroupActionButtons(
+     currentGroup: com.example.cpen_321.data.model.Group,
+     navController: NavController,
+-    onLeaveClick: () -> Unit
++    onLeaveClick: () -> Unit,
++    onVerifyCodeClick: () -> Unit
+ ) {
+     Column(
+         modifier = Modifier.fillMaxWidth(),
+@@ -460,24 +657,24 @@
+     ) {
+         Spacer(modifier = Modifier.height(16.dp))
+ 
+-        ViewOrVoteButton(
+-            currentGroup = currentGroup,
+-            navController = navController
+-        )
+-
+-        Spacer(modifier = Modifier.height(12.dp))
+-
++        // Verify Code Button
+         Button(
+-            onClick = onLeaveClick,
++            onClick = onVerifyCodeClick,
+             modifier = Modifier
+                 .fillMaxWidth()
+                 .height(56.dp),
+             colors = ButtonDefaults.buttonColors(
+-                containerColor = Color(0xFFFF6B6B)
++                containerColor = Color(0xFF1976D2)
+             )
+         ) {
++            Icon(
++                imageVector = Icons.Default.CheckCircle,
++                contentDescription = null,
++                modifier = Modifier.size(20.dp)
++            )
++            Spacer(modifier = Modifier.width(8.dp))
+             Text(
+-                text = "Leave Group",
++                text = "Verify Member Code",
+                 color = Color.White,
+                 fontSize = 18.sp,
+                 fontWeight = FontWeight.SemiBold
+@@ -486,18 +683,25 @@
+ 
+         Spacer(modifier = Modifier.height(12.dp))
+ 
++        ViewOrVoteButton(
++            currentGroup = currentGroup,
++            navController = navController
++        )
++
++        Spacer(modifier = Modifier.height(12.dp))
++
+         Button(
+-            onClick = { navController.popBackStack() },
++            onClick = onLeaveClick,
+             modifier = Modifier
+                 .fillMaxWidth()
+                 .height(56.dp),
+             colors = ButtonDefaults.buttonColors(
+-                containerColor = Color(0xFFE0E0E0)
++                containerColor = Color(0xFFFF6B6B)
+             )
+         ) {
+             Text(
+-                text = "Go Back",
+-                color = Color.Black,
++                text = "Leave Group",
++                color = Color.White,
+                 fontSize = 18.sp,
+                 fontWeight = FontWeight.SemiBold
+             )
+@@ -572,7 +776,7 @@
+ private fun MemberInfo(member: GroupMember) {
+     Row(
+         verticalAlignment = Alignment.CenterVertically,
+-        modifier = Modifier.fillMaxWidth()  // Use fillMaxWidth instead of weight
++        modifier = Modifier.fillMaxWidth()
+     ) {
+         MemberProfilePicture(
+             profilePicture = member.profilePicture,
+@@ -607,7 +811,6 @@
+ ) {
+     if (profilePicture != null && profilePicture.isNotEmpty()) {
+         if (profilePicture.startsWith("data:image/")) {
+-            // Base64 image - use rememberBase64ImagePainter
+             val painter = rememberBase64ImagePainter(profilePicture)
+             Image(
+                 painter = painter,
+@@ -619,7 +822,6 @@
+                 contentScale = ContentScale.Crop
+             )
+         } else {
+-            // Regular URL - use AsyncImage
+             AsyncImage(
+                 model = profilePicture,
+                 contentDescription = "Profile picture",
+Index: app/src/main/java/com/example/cpen_321/data/network/dto/CredibilityModels.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/data/network/dto/CredibilityModels.kt b/app/src/main/java/com/example/cpen_321/data/network/dto/CredibilityModels.kt
+new file mode 100644
+--- /dev/null	(date 1764193791228)
++++ b/app/src/main/java/com/example/cpen_321/data/network/dto/CredibilityModels.kt	(date 1764193791228)
+@@ -0,0 +1,12 @@
++package com.example.cpen_321.data.network.dto
++
++import com.google.gson.annotations.SerializedName
++
++/**
++ * Request to verify a credibility code
++ * POST /api/credibility/verify
++ */
++data class VerifyCodeRequest(
++    @SerializedName("code")
++    val code: String
++)
+\ No newline at end of file
+Index: .idea/deploymentTargetSelector.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"deploymentTargetSelector\">\r\n    <selectionStates>\r\n      <SelectionState runConfigName=\"app\">\r\n        <option name=\"selectionMode\" value=\"DROPDOWN\" />\r\n        <DropdownSelection timestamp=\"2025-11-26T03:55:16.343645Z\">\r\n          <Target type=\"DEFAULT_BOOT\">\r\n            <handle>\r\n              <DeviceId pluginId=\"LocalEmulator\" identifier=\"path=/Users/hashim/.android/avd/Pixel_7.avd\" />\r\n            </handle>\r\n          </Target>\r\n        </DropdownSelection>\r\n        <DialogSelection>\r\n          <targets>\r\n            <Target type=\"DEFAULT_BOOT\">\r\n              <handle>\r\n                <DeviceId pluginId=\"LocalEmulator\" identifier=\"path=C:\\Users\\dli9g\\.android\\avd\\Pixel_7_API_33.avd\" />\r\n              </handle>\r\n            </Target>\r\n            <Target type=\"DEFAULT_BOOT\">\r\n              <handle>\r\n                <DeviceId pluginId=\"LocalEmulator\" identifier=\"path=C:\\Users\\dli9g\\.android\\avd\\Test_apk.avd\" />\r\n              </handle>\r\n            </Target>\r\n          </targets>\r\n        </DialogSelection>\r\n      </SelectionState>\r\n    </selectionStates>\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/deploymentTargetSelector.xml b/.idea/deploymentTargetSelector.xml
+--- a/.idea/deploymentTargetSelector.xml	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/.idea/deploymentTargetSelector.xml	(date 1764141614943)
+@@ -3,7 +3,7 @@
+   <component name="deploymentTargetSelector">
+     <selectionStates>
+       <SelectionState runConfigName="app">
+-        <option name="selectionMode" value="DROPDOWN" />
++        <option name="selectionMode" value="DIALOG" />
+         <DropdownSelection timestamp="2025-11-26T03:55:16.343645Z">
+           <Target type="DEFAULT_BOOT">
+             <handle>
+Index: app/src/main/java/com/example/cpen_321/data/network/api/CredibilityAPI.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/data/network/api/CredibilityAPI.kt b/app/src/main/java/com/example/cpen_321/data/network/api/CredibilityAPI.kt
+new file mode 100644
+--- /dev/null	(date 1764193812685)
++++ b/app/src/main/java/com/example/cpen_321/data/network/api/CredibilityAPI.kt	(date 1764193812685)
+@@ -0,0 +1,40 @@
++package com.example.cpen_321.data.network.api
++
++import com.example.cpen_321.data.model.CredibilityCode
++import com.example.cpen_321.data.model.CredibilityDeductResponse
++import com.example.cpen_321.data.model.CredibilityVerifyResponse
++import com.example.cpen_321.data.network.dto.ApiResponse
++import com.example.cpen_321.data.network.dto.VerifyCodeRequest
++import retrofit2.Response
++import retrofit2.http.Body
++import retrofit2.http.GET
++import retrofit2.http.POST
++
++/**
++ * Credibility API endpoints
++ */
++interface CredibilityAPI {
++
++    /**
++     * GET /api/credibility/code
++     * Generate credibility code for current user
++     */
++    @GET("api/credibility/code")
++    suspend fun generateCode(): Response<ApiResponse<CredibilityCode>>
++
++    /**
++     * POST /api/credibility/verify
++     * Verify another user's credibility code
++     */
++    @POST("api/credibility/verify")
++    suspend fun verifyCode(
++        @Body request: VerifyCodeRequest
++    ): Response<ApiResponse<CredibilityVerifyResponse>>
++
++    /**
++     * POST /api/credibility/deduct
++     * Deduct credibility score when leaving without verification
++     */
++    @POST("api/credibility/deduct")
++    suspend fun deductScore(): Response<ApiResponse<CredibilityDeductResponse>>
++}
+\ No newline at end of file
+Index: ../backend/src/types/index.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import { Request } from 'express';\r\n\r\n/**\r\n * Express Request with authenticated user\r\n */\r\nexport interface AuthRequest extends Request {\r\n  user?: {\r\n    userId: string;\r\n    email: string;\r\n    googleId: string;\r\n  };\r\n}\r\n\r\n// NEW: this version guarantees user exists after authMiddleware\r\nexport interface AuthenticatedRequest extends Request {\r\n  user: {\r\n    userId: string;\r\n    email: string;\r\n    googleId: string;\r\n  };\r\n}\r\n\r\n/**\r\n * Socket Event Types\r\n */\r\nexport interface SocketJoinRoomData {\r\n  userId: string;\r\n}\r\n\r\nexport interface SocketLeaveRoomData {\r\n  userId: string;\r\n}\r\n\r\nexport interface SocketRoomUpdateData {\r\n  roomId: string;\r\n  members: string[];\r\n  expiresAt: string;\r\n  status: 'waiting' | 'matched' | 'expired';\r\n}\r\n\r\nexport interface SocketGroupReadyData {\r\n  groupId: string;\r\n  roomId: string;\r\n  members: string[];\r\n}\r\n\r\nexport interface SocketVoteUpdateData {\r\n  groupId: string;\r\n  votes: Record<string, number>;\r\n}\r\n\r\nexport interface SocketRestaurantSelectedData {\r\n  groupId: string;\r\n  restaurant: RestaurantType;\r\n}\r\n\r\n// ============================================\r\n// NEW: SEQUENTIAL VOTING SOCKET EVENT TYPES\r\n// ============================================\r\n\r\nexport interface NewVotingRoundEvent {\r\n  restaurant: RestaurantType;\r\n  roundNumber: number;\r\n  totalRounds: number;\r\n  timeoutSeconds: number;\r\n  expiresAt: string; // ISO string\r\n}\r\n\r\nexport interface VoteUpdateEvent {\r\n  userId: string;\r\n  vote: boolean;\r\n  yesVotes: number;\r\n  noVotes: number;\r\n  totalMembers: number;\r\n  votesRemaining: number;\r\n}\r\n\r\nexport interface MajorityReachedEvent {\r\n  result: 'yes' | 'no';\r\n  restaurantId: string;\r\n}\r\n\r\nexport interface RoundTimeoutEvent {\r\n  restaurantId: string;\r\n}\r\n\r\n/**\r\n * API Request/Response Types\r\n */\r\nexport interface UserProfileResponse {\r\n  userId: string;\r\n  name: string;\r\n  bio?: string;\r\n  profilePicture?: string;\r\n  contactNumber?: string;\r\n}\r\n\r\nexport interface UserSettingsResponse {\r\n  userId: string;\r\n  name: string;\r\n  bio?: string;\r\n  preference: string[];\r\n  profilePicture?: string;\r\n  credibilityScore: number;\r\n  contactNumber?: string;\r\n  budget: number;\r\n  radiusKm: number;\r\n  status: number;\r\n  roomID?: string;\r\n  groupID?: string;\r\n}\r\n\r\nexport interface RoomStatusResponse {\r\n  roomID: string;\r\n  completionTime: number;\r\n  members: string[];\r\n  groupReady: boolean;\r\n  status: 'waiting' | 'matched' | 'expired';\r\n}\r\n\r\nexport interface GroupStatusResponse {\r\n  roomId: string;\r\n  completionTime: number;\r\n  numMembers: number;\r\n  users: string[];\r\n  restaurantSelected: boolean;\r\n  restaurant?: RestaurantType;\r\n  status: 'voting' | 'matched' | 'completed' | 'disbanded';\r\n  cuisines?: string[];\r\n  averageBudget?: number;\r\n  averageRadius?: number;\r\n}\r\n\r\nexport interface RestaurantType {\r\n  name: string;\r\n  location: string;\r\n  restaurantId?: string;\r\n  address?: string;\r\n  priceLevel?: number;\r\n  rating?: number;\r\n  photos?: string[];\r\n  phoneNumber?: string;\r\n  website?: string;\r\n  url?: string;\r\n  cuisine?: string;\r\n  priceRange?: string;\r\n}\r\n\r\nexport interface JoinMatchingRequest {\r\n  cuisine: string[];\r\n  budget: number;\r\n  radiusKm: number;\r\n  credibilityScore: number;\r\n}\r\n\r\nexport interface LeaveRoomRequest {\r\n  status?: string;\r\n}\r\n\r\nexport interface VoteRestaurantRequest {\r\n  restaurantID: string;\r\n  restaurant?: RestaurantType;\r\n}\r\n\r\nexport interface VoteRestaurantResponse {\r\n  message: string;\r\n  Current_votes: Record<string, number>;\r\n}\r\n\r\n// ============================================\r\n// NEW: SEQUENTIAL VOTING REQUEST/RESPONSE TYPES\r\n// ============================================\r\n\r\nexport interface InitializeVotingRequest {\r\n  // No body needed, groupId comes from URL params\r\n}\r\n\r\nexport interface InitializeVotingResponse {\r\n  success: boolean;\r\n  currentRestaurant?: RestaurantType;\r\n  message: string;\r\n}\r\n\r\nexport interface SubmitSequentialVoteRequest {\r\n  vote: boolean; // true = yes, false = no\r\n}\r\n\r\nexport interface SubmitSequentialVoteResponse {\r\n  success: boolean;\r\n  majorityReached: boolean;\r\n  result?: 'yes' | 'no';\r\n  nextRestaurant?: RestaurantType;\r\n  selectedRestaurant?: RestaurantType;\r\n  votingComplete?: boolean;\r\n  message: string;\r\n}\r\n\r\nexport interface VotingRoundStatus {\r\n  hasActiveRound: boolean;\r\n  currentRestaurant?: RestaurantType;\r\n  votes?: Array<{ userId: string; vote: boolean }>;\r\n  yesVotes?: number;\r\n  noVotes?: number;\r\n  expiresAt?: Date;\r\n  roundNumber?: number;\r\n  totalRounds?: number;\r\n  timeRemaining?: number; // seconds\r\n}\r\n\r\n/**\r\n * Standard API Response Format\r\n */\r\nexport interface APIResponse<T = unknown> {\r\n  Status: number;\r\n  Message: {\r\n    error?: string;\r\n    text?: string;\r\n    [key: string]: unknown;\r\n  };\r\n  Body: T | null;\r\n}\r\n\r\n/**\r\n * Credibility Types\r\n */\r\nexport interface CredibilityChangeResponse {\r\n  message: string;\r\n  previousScore: number;\r\n  newScore: number;\r\n  scoreChange: number;\r\n}\r\n\r\nexport interface CredibilityStatsResponse {\r\n  currentScore: number;\r\n  totalCheckIns: number;\r\n  missedCheckIns: number;\r\n  totalLogs: number;\r\n  checkIns: number;\r\n  leftGroups: number;\r\n  lastCheckIn?: Date;\r\n}\r\n\r\n/**\r\n * Auth Types\r\n */\r\nexport interface GoogleAuthRequest {\r\n  idToken: string;\r\n}\r\n\r\nexport interface AuthResponse {\r\n  token: string;\r\n  user: {\r\n    userId: string;\r\n    name: string;\r\n    email: string;\r\n    profilePicture?: string;\r\n    credibilityScore: number;\r\n  };\r\n}\r\n\r\n/**\r\n * Pagination Types\r\n */\r\nexport interface PaginationParams {\r\n  page?: number;\r\n  limit?: number;\r\n  sortBy?: string;\r\n  sortOrder?: 'asc' | 'desc';\r\n}\r\n\r\nexport interface PaginatedResponse<T> {\r\n  data: T[];\r\n  pagination: {\r\n    currentPage: number;\r\n    totalPages: number;\r\n    totalItems: number;\r\n    itemsPerPage: number;\r\n  };\r\n}\r\n\r\n/**\r\n * Search/Filter Types\r\n */\r\nexport interface RestaurantSearchParams {\r\n  lat: number;\r\n  lng: number;\r\n  radius?: number;\r\n  cuisineTypes?: string[];\r\n  priceLevel?: number;\r\n  minRating?: number;\r\n}\r\n\r\n/**\r\n * Notification payload structure\r\n */\r\nexport interface NotificationPayload {\r\n  title: string;\r\n  body: string;\r\n  data?: Record<string, string>; // Changed to allow any string key-value pairs\r\n}\r\n\r\n\r\n/**\r\n * Utility Types\r\n */\r\nexport type UserStatus = 'active' | 'in_waiting_room' | 'in_group' | 'inactive';\r\nexport type RoomStatus = 'waiting' | 'matched' | 'expired';\r\nexport type GroupStatus = 'voting' | 'matched' | 'completed' | 'disbanded';\r\nexport type CredibilityAction = 'check_in' | 'missed_check_in' | 'left_group' | 'manual_adjustment';\r\nexport type VotingMode = 'list' | 'sequential';
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/../backend/src/types/index.ts b/../backend/src/types/index.ts
+--- a/../backend/src/types/index.ts	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/../backend/src/types/index.ts	(date 1764192871014)
+@@ -300,6 +300,33 @@
+ }
+ 
+ 
++/**
++ * Credibility Code Types
++ */
++export interface CredibilityCodeResponse {
++  code: string;
++  expiresAt: number;
++  groupId: string;
++}
++
++export interface VerifyCodeRequest {
++  code: string;
++}
++
++export interface VerifyCodeResponse {
++  success: boolean;
++  message: string;
++  verifiedUserId: string;
++}
++
++export interface DeductScoreResponse {
++  success: boolean;
++  message: string;
++  scoreDeducted: number;
++  newScore: number;
++}
++
++
+ /**
+  * Utility Types
+  */
+Index: app/src/main/java/com/example/cpen_321/data/model/CredibilityModels.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/data/model/CredibilityModels.kt b/app/src/main/java/com/example/cpen_321/data/model/CredibilityModels.kt
+new file mode 100644
+--- /dev/null	(date 1764193766322)
++++ b/app/src/main/java/com/example/cpen_321/data/model/CredibilityModels.kt	(date 1764193766322)
+@@ -0,0 +1,57 @@
++package com.example.cpen_321.data.model
++
++import com.google.gson.annotations.SerializedName
++
++/**
++ * Credibility code response from backend
++ */
++data class CredibilityCode(
++    @SerializedName("code")
++    val code: String,
++
++    @SerializedName("expiresAt")
++    val expiresAt: Long,
++
++    @SerializedName("groupId")
++    val groupId: String
++)
++
++/**
++ * Verify code response
++ */
++data class CredibilityVerifyResponse(
++    @SerializedName("success")
++    val success: Boolean,
++
++    @SerializedName("message")
++    val message: String,
++
++    @SerializedName("verifiedUserId")
++    val verifiedUserId: String
++)
++
++/**
++ * Deduct score response
++ */
++data class CredibilityDeductResponse(
++    @SerializedName("success")
++    val success: Boolean,
++
++    @SerializedName("message")
++    val message: String,
++
++    @SerializedName("scoreDeducted")
++    val scoreDeducted: Int,
++
++    @SerializedName("newScore")
++    val newScore: Double
++)
++
++/**
++ * UI state for credibility code
++ */
++data class CredibilityState(
++    val hasActiveCode: Boolean = false,
++    val currentCode: String? = null,
++    val codeExpiresAt: Long? = null
++)
+\ No newline at end of file
+Index: app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepository.kt b/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepository.kt
+new file mode 100644
+--- /dev/null	(date 1764193866396)
++++ b/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepository.kt	(date 1764193866396)
+@@ -0,0 +1,27 @@
++package com.example.cpen_321.data.repository
++
++import com.example.cpen_321.data.model.CredibilityCode
++import com.example.cpen_321.data.model.CredibilityDeductResponse
++import com.example.cpen_321.data.model.CredibilityVerifyResponse
++import com.example.cpen_321.data.network.dto.ApiResult
++
++/**
++ * Repository for credibility operations
++ */
++interface CredibilityRepository {
++
++    /**
++     * Generate credibility code
++     */
++    suspend fun generateCode(): ApiResult<CredibilityCode>
++
++    /**
++     * Verify another user's code
++     */
++    suspend fun verifyCode(code: String): ApiResult<CredibilityVerifyResponse>
++
++    /**
++     * Deduct score when leaving without verification
++     */
++    suspend fun deductScore(): ApiResult<CredibilityDeductResponse>
++}
+\ No newline at end of file
+Index: app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepositoryImpl.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepositoryImpl.kt b/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepositoryImpl.kt
+new file mode 100644
+--- /dev/null	(date 1764193892905)
++++ b/app/src/main/java/com/example/cpen_321/data/repository/CredibilityRepositoryImpl.kt	(date 1764193892905)
+@@ -0,0 +1,40 @@
++package com.example.cpen_321.data.repository
++
++import com.example.cpen_321.data.model.CredibilityCode
++import com.example.cpen_321.data.model.CredibilityDeductResponse
++import com.example.cpen_321.data.model.CredibilityVerifyResponse
++import com.example.cpen_321.data.network.api.CredibilityAPI
++import com.example.cpen_321.data.network.dto.ApiResult
++import com.example.cpen_321.data.network.dto.VerifyCodeRequest
++import com.example.cpen_321.data.network.safeApiCall
++import javax.inject.Inject
++
++/**
++ * Implementation of CredibilityRepository
++ */
++class CredibilityRepositoryImpl @Inject constructor(
++    private val credibilityAPI: CredibilityAPI
++) : CredibilityRepository {
++
++    override suspend fun generateCode(): ApiResult<CredibilityCode> {
++        return safeApiCall(
++            apiCall = { credibilityAPI.generateCode() },
++            customErrorCode = "Failed to generate credibility code"
++        )
++    }
++
++    override suspend fun verifyCode(code: String): ApiResult<CredibilityVerifyResponse> {
++        val request = VerifyCodeRequest(code)
++        return safeApiCall(
++            apiCall = { credibilityAPI.verifyCode(request) },
++            customErrorCode = "Failed to verify code"
++        )
++    }
++
++    override suspend fun deductScore(): ApiResult<CredibilityDeductResponse> {
++        return safeApiCall(
++            apiCall = { credibilityAPI.deductScore() },
++            customErrorCode = "Failed to deduct score"
++        )
++    }
++}
+\ No newline at end of file
+Index: ../backend/src/app.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// split app and server for testing\r\n\r\nimport express, { Express } from 'express';\r\nimport cors from 'cors';\r\nimport { errorHandler, notFoundHandler } from './middleware/errorHandler';\r\n\r\n// Import routes\r\nimport authRoutes from './routes/auth.routes';\r\nimport userRoutes from './routes/user.routes';\r\nimport matchingRoutes from './routes/matching.routes';\r\nimport groupRoutes from './routes/group.routes';\r\nimport restaurantRoutes from './routes/restaurant.routes';\r\nimport votingRoutes from './routes/voting.routes';  // ← ADD THIS\r\nimport notificationRoutes from './routes/notification.routes';\r\n\r\nconst app: Express = express();\r\n\r\n// Middleware\r\napp.use(cors({\r\n  origin: '*',\r\n  credentials: true,\r\n}));\r\napp.use(express.json());\r\napp.use(express.urlencoded({ extended: true }));\r\n\r\n// Health check\r\napp.get('/health', (_req, res) => {\r\n  res.status(200).json({ \r\n    status: 'ok', \r\n    timestamp: new Date().toISOString(),\r\n    uptime: process.uptime()\r\n  });\r\n});\r\n\r\n// API Routes\r\napp.use('/api/auth', authRoutes);\r\napp.use('/api/user', userRoutes);\r\napp.use('/api/matching', matchingRoutes);\r\napp.use('/api/group', groupRoutes);\r\napp.use('/api/restaurant', restaurantRoutes);\r\napp.use('/api/groups', votingRoutes);  // ← ADD THIS (note: /api/groups not /api/group)\r\napp.use('/api/notifications', notificationRoutes);\r\n\r\n// 404 handler\r\napp.use(notFoundHandler);\r\n\r\n// Error handling middleware (must be last)\r\napp.use(errorHandler);\r\n\r\nexport default app;
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/../backend/src/app.ts b/../backend/src/app.ts
+--- a/../backend/src/app.ts	(revision 711cfa188299584c8563bf2bdf830db7273c8a00)
++++ b/../backend/src/app.ts	(date 1764193126174)
+@@ -12,6 +12,7 @@
+ import restaurantRoutes from './routes/restaurant.routes';
+ import votingRoutes from './routes/voting.routes';  // ← ADD THIS
+ import notificationRoutes from './routes/notification.routes';
++import credibilityRoutes from './routes/credibility.routes';  // ← ADD THIS
+ 
+ const app: Express = express();
+ 
+@@ -40,6 +41,7 @@
+ app.use('/api/restaurant', restaurantRoutes);
+ app.use('/api/groups', votingRoutes);  // ← ADD THIS (note: /api/groups not /api/group)
+ app.use('/api/notifications', notificationRoutes);
++app.use('/api/credibility', credibilityRoutes);  // ← ADD THIS
+ 
+ // 404 handler
+ app.use(notFoundHandler);

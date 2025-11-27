@@ -41,23 +41,11 @@ data class CredibilityLog(
  * Credibility action enum
  */
 enum class CredibilityAction {
-    @SerializedName("no_show")
-    NO_SHOW,
+    @SerializedName("check_in")
+    CHECK_IN,
 
-    @SerializedName("late_cancel")
-    LATE_CANCEL,
-
-    @SerializedName("left_group_early")
-    LEFT_GROUP_EARLY,
-
-    @SerializedName("completed_meetup")
-    COMPLETED_MEETUP,
-
-    @SerializedName("positive_review")
-    POSITIVE_REVIEW,
-
-    @SerializedName("negative_review")
-    NEGATIVE_REVIEW
+    @SerializedName("left_without_checkin")
+    LEFT_WITHOUT_CHECKIN
 }
 
 /**

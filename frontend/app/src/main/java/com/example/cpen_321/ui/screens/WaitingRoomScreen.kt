@@ -1,3 +1,4 @@
+
 package com.example.cpen_321.ui.screens
 
 // ===============================================
@@ -91,10 +92,16 @@ fun WaitingRoomScreen(
 
     val minNumberOfPeople = 2
 
-    // Add this effect
+    // ✅ FIX: Navigate immediately when leaveRoom succeeds
     LaunchedEffect(leaveRoomSuccess) {
         if (leaveRoomSuccess) {
-            navController.popBackStack()
+            Log.d("WaitingRoom", "leaveRoomSuccess is true - navigating back to home")
+            // Small delay to ensure state is cleared
+            delay(100)
+            // Navigate to home and clear back stack
+            navController.navigate("home") {
+                popUpTo("home") { inclusive = true }
+            }
             viewModel.clearLeaveRoomSuccess() // Reset the state
         }
     }
@@ -151,25 +158,8 @@ fun WaitingRoomScreen(
             showLeaveDialog = false
             Log.d("WaitingRoom", "Leave confirmed, calling leaveRoom()")
 
-
-            // ✅ ADD THESE CHECKS
-            Log.d("WaitingRoom", "ViewModel instance: $viewModel")
-            Log.d("WaitingRoom", "ViewModel is null? ${viewModel == null}")
-            Log.d("WaitingRoom", "Current room: ${viewModel.currentRoom.value}")
-
-            try {
-                viewModel.leaveRoom()
-                Log.d("WaitingRoom", "leaveRoom() returned successfully")
-            } catch (e: Exception) {
-                Log.e("WaitingRoom", "ERROR calling leaveRoom: ${e.message}", e)
-            }
-
-            scope.launch {
-                delay(500)
-                Log.d("WaitingRoom", "Navigating back")
-                navController.popBackStack()
-            }
-
+            // ✅ FIX: Call leaveRoom() - navigation will happen automatically via leaveRoomSuccess
+            viewModel.leaveRoom()
         }
     )
 
@@ -177,11 +167,12 @@ fun WaitingRoomScreen(
         showDialog = showFailureDialog,
         minNumberOfPeople = minNumberOfPeople,
         onConfirm = {
-            viewModel.clearRoomExpired()
             showFailureDialog = false
-            navController.navigate("home") {
-                popUpTo("home") { inclusive = true }
-            }
+            Log.d("WaitingRoom", "Try Again clicked - leaving room and navigating home")
+
+            // ✅ FIX: Call leaveRoom() to clean up backend state before navigating
+            // Navigation will happen automatically via leaveRoomSuccess flag
+            viewModel.leaveRoom()
         }
     )
 }
@@ -209,10 +200,15 @@ private fun WaitingRoomEffects(
         }
     }
 
+    // ✅ FIX: Track if we've already shown the failure dialog to prevent duplicates
+    var hasShownFailureDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(currentRoom) {
         (currentRoom as? com.example.cpen_321.data.model.Room)?.let { room ->
             Log.d("WaitingRoom", "Loading room status for: ${room.roomId}")
             viewModel.getRoomStatus(room.roomId)
+            // Reset the failure dialog flag when room changes (new room joined)
+            hasShownFailureDialog = false
         }
     }
 
@@ -226,12 +222,13 @@ private fun WaitingRoomEffects(
     }
 
     LaunchedEffect(roomExpired, roomMembers.size, currentRoom) {
-        if (roomExpired) {
+        if (roomExpired && !hasShownFailureDialog) {
             // Check both roomMembers and currentRoom.members to ensure we have the latest count
             val currentRoomMembers = (currentRoom as? com.example.cpen_321.data.model.Room)?.members?.size ?: roomMembers.size
             val memberCount = maxOf(roomMembers.size, currentRoomMembers)
 
             if (memberCount < minNumberOfPeople) {
+                hasShownFailureDialog = true
                 onShowFailureDialog()
             }
         }
@@ -468,7 +465,7 @@ private fun AnimatedFloatingBubble(
 
     // Start animations
     LaunchedEffect(user.userId) {
-        // Movement animation - continuous random walks
+
         launch {
             while (true) {
                 val targetX = random.nextFloat() * (containerWidth - bubbleSize)
