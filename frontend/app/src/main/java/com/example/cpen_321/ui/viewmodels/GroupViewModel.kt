@@ -155,7 +155,13 @@ constructor(
         }
     }
 
-    /** Verify credibility code */
+
+    /**
+     * Verify credibility code
+     */
+    /**
+     * Verify credibility code
+     */
     fun verifyCredibilityCode(code: String) {
         viewModelScope.launch {
             // Check if user is trying to enter their own code
@@ -171,6 +177,9 @@ constructor(
                     val response = result.data
                     _successMessage.value = response.message
                     Log.d("CredibilityDebug", "Code verified successfully")
+
+                    // ✅ Refresh user settings to update credibility score
+                    userRepository.getUserSettings()
                 }
                 is ApiResult.Error -> {
                     _errorMessage.value = result.message
@@ -181,6 +190,62 @@ constructor(
             _isLoading.value = false
         }
     }
+
+    /**
+     * Leave current group
+     */
+    fun leaveGroup(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val groupId = _currentGroup.value?.groupId
+            if (groupId == null) {
+                Log.e("LeaveDebug", "groupId is NULL")
+                return@launch
+            }
+
+            _isLoading.value = true
+
+            // First check if code needs deduction
+            val shouldDeduct = _credibilityState.value.hasActiveCode
+
+            // Deduct score if code wasn't verified
+            if (shouldDeduct) {
+                when (val deductResult = credibilityRepository.deductScore()) {
+                    is ApiResult.Success -> {
+                        val response = deductResult.data
+                        Log.d("CredibilityDebug", "Score deducted: ${response.scoreDeducted}")
+                        if (response.scoreDeducted > 0) {
+                            _successMessage.value = response.message
+                        }
+
+                        // ✅ Refresh user settings to update credibility score
+                        userRepository.getUserSettings()
+                    }
+                    is ApiResult.Error -> {
+                        Log.e("CredibilityDebug", "Failed to deduct score: ${deductResult.message}")
+                        // Continue with leaving even if deduction fails
+                    }
+                    is ApiResult.Loading -> {}
+                }
+            }
+
+            // Now leave the group
+            when (val result = groupRepository.leaveGroup(groupId)) {
+                is ApiResult.Success -> {
+                    socketManager.unsubscribeFromGroup(groupId)
+                    clearGroupState()
+                    _successMessage.value = "Left group successfully"
+                    onSuccess()
+                }
+                is ApiResult.Error -> {
+                    _errorMessage.value = result.message
+                }
+                is ApiResult.Loading -> {}
+            }
+
+            _isLoading.value = false
+        }
+    }
+
 
     /** Vote for a restaurant */
     fun voteForRestaurant(restaurantId: String, restaurant: Restaurant) {
@@ -206,56 +271,6 @@ constructor(
                 }
                 is ApiResult.Error -> {
                     Log.e("VoteDebug", "❌ Vote API Error: ${result.message}")
-                    _errorMessage.value = result.message
-                }
-                is ApiResult.Loading -> {}
-            }
-
-            _isLoading.value = false
-        }
-    }
-
-    /** Leave current group */
-    fun leaveGroup(onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            val groupId = _currentGroup.value?.groupId
-            if (groupId == null) {
-                Log.e("LeaveDebug", "groupId is NULL")
-                return@launch
-            }
-
-            _isLoading.value = true
-
-            // First check if code needs deduction
-            val shouldDeduct = _credibilityState.value.hasActiveCode
-
-            // Deduct score if code wasn't verified
-            if (shouldDeduct) {
-                when (val deductResult = credibilityRepository.deductScore()) {
-                    is ApiResult.Success -> {
-                        val response = deductResult.data
-                        Log.d("CredibilityDebug", "Score deducted: ${response.scoreDeducted}")
-                        if (response.scoreDeducted > 0) {
-                            _successMessage.value = response.message
-                        }
-                    }
-                    is ApiResult.Error -> {
-                        Log.e("CredibilityDebug", "Failed to deduct score: ${deductResult.message}")
-                        // Continue with leaving even if deduction fails
-                    }
-                    is ApiResult.Loading -> {}
-                }
-            }
-
-            // Now leave the group
-            when (val result = groupRepository.leaveGroup(groupId)) {
-                is ApiResult.Success -> {
-                    socketManager.unsubscribeFromGroup(groupId)
-                    clearGroupState()
-                    _successMessage.value = "Left group successfully"
-                    onSuccess()
-                }
-                is ApiResult.Error -> {
                     _errorMessage.value = result.message
                 }
                 is ApiResult.Loading -> {}

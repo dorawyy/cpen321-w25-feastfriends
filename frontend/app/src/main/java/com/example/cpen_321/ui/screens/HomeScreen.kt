@@ -67,9 +67,9 @@ fun HomeScreen(
 
     // ✅ ADD THESE FOR LOCATION HANDLING
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()  // ← ADD THIS
+    val scope = rememberCoroutineScope()
     var locationPermissionGranted by remember { mutableStateOf(false) }
-    var isJoiningMatch by remember { mutableStateOf(false) }  // ← ADD THIS TO PREVENT DOUBLE CLICKS
+    var isJoiningMatch by remember { mutableStateOf(false) }
 
     // ✅ ADD LOCATION PERMISSION LAUNCHER
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -95,7 +95,7 @@ fun HomeScreen(
         }
     }
 
-    // Load user settings when screen opens
+    // ✅ Load user settings when screen opens - this refreshes name and credibility score
     LaunchedEffect(Unit) {
         userViewModel.loadUserSettings()
     }
@@ -103,7 +103,6 @@ fun HomeScreen(
     // Check if user has an active group
     LaunchedEffect(Unit) {
         groupViewModel.loadGroupStatus()
-        //Deleted catch, ViewModel already handles exception cases
     }
 
     Scaffold(
@@ -143,9 +142,9 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Welcome text with user's name
+                // ✅ FIXED: Welcome text with user's name from userSettings
                 Text(
-                    text = "Welcome${currentUser?.name?.let { ", $it" } ?: ""}!",
+                    text = "Welcome${userSettings?.name?.let { ", $it" } ?: ""}!",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
@@ -156,8 +155,8 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Show credibility score if available
-                currentUser?.credibilityScore?.let { score ->
+                // ✅ FIXED: Show credibility score from userSettings
+                userSettings?.credibilityScore?.let { score ->
                     Text(
                         text = "Credibility Score: ${score.toInt()}",
                         fontSize = 16.sp,
@@ -169,7 +168,6 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(48.dp))
 
                 // Start Matchmaking Button
-                // ✅ UPDATED START MATCHMAKING BUTTON
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -185,19 +183,19 @@ fun HomeScreen(
                             shape = MaterialTheme.shapes.medium
                         )
                         .clickable(enabled = !isJoiningMatch) {
-                            if (isJoiningMatch) return@clickable  // ← PREVENT DOUBLE CLICKS
+                            if (isJoiningMatch) return@clickable  // Prevent double clicks
 
                             // Check if user is already in a room or group
                             val isInRoom = !userSettings?.roomID.isNullOrEmpty()
                             val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
-                            
+
                             if (isInGroup) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
                                 }
                                 return@clickable
                             }
-                            
+
                             if (isInRoom) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a room")
@@ -223,7 +221,7 @@ fun HomeScreen(
                                     )
                                 } else {
                                     // Permission granted - get location and join matching
-                                    isJoiningMatch = true  // ← DISABLE BUTTON
+                                    isJoiningMatch = true
                                     scope.launch {
                                         try {
                                             val location = LocationHelper.getCurrentLocation(context)
@@ -240,15 +238,14 @@ fun HomeScreen(
                                                 navController.navigate("waiting_room")
                                             } else {
                                                 Log.e("HomeScreen", "Could not get location")
-                                                isJoiningMatch = false  // ← RE-ENABLE ON ERROR
-                                                // Show error message
+                                                isJoiningMatch = false
                                                 snackbarHostState.showSnackbar(
                                                     "Unable to get your location. Please check your GPS settings."
                                                 )
                                             }
                                         } catch (e: Exception) {
                                             Log.e("HomeScreen", "Location error", e)
-                                            isJoiningMatch = false  // ← RE-ENABLE ON ERROR
+                                            isJoiningMatch = false
                                             snackbarHostState.showSnackbar(
                                                 "Location error: ${e.message}"
                                             )
@@ -301,7 +298,6 @@ fun HomeScreen(
                             shape = MaterialTheme.shapes.medium
                         )
                         .clickable {
-                            // ✅ FIX: Store in local variable to enable smart casting
                             val group = currentGroup
 
                             // Check if user has an active group
@@ -326,7 +322,6 @@ fun HomeScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    // ✅ FIX: Use local variable for smart casting
                     val group = currentGroup
                     val buttonText = when {
                         group?.restaurantSelected == false -> "CONTINUE VOTING"
