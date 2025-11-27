@@ -9,7 +9,7 @@ def confirmConnection():
     totalTime = 30 #seconds
     timeTaken = 0
     atmNum = 0
-    totalAttempts = waitTime/totalTime
+    totalAttempts = totalTime/waitTime
 
     url = "http://3.135.231.73:3000/health/"
 

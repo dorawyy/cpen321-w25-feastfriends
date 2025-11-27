@@ -1,12 +1,19 @@
 name: Nonfunctional tests
 
 on:
-  push: {}
-  pull_request: {}
+  # will only run when we have finished the deploy to ec2 workflow; before I had a wait till 
+  # server is live code (still there; waits 150 s) this just means we can wait longer 
+  workflow_run:
+    workflows: ["Deploy to EC2"]
+    types:
+      - completed 
+    branches:
+      - main
 
 jobs:
   nonfunctional:
     name: Run nonfunctional Python scripts
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
