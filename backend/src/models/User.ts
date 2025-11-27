@@ -51,6 +51,8 @@ export interface IUserProfile {
   bio?: string;
   preference: string[];
   profilePicture?: string;
+  credibilityScore: number;  // ✅ ADD THIS
+  contactNumber?: string;     // ✅ ADD THIS (if not already there)
 }
 
 // Schema definition

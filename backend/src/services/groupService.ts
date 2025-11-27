@@ -702,6 +702,8 @@ export class GroupService {
       // Update user status
       user.status = UserStatus.ONLINE;
       user.groupId = undefined;
+      // ✅ FIX: Also clear roomId when leaving group (in case user was in a room that became a group)
+      user.roomId = undefined;
       await user.save();
 
       if (group.members.length === 0) {
