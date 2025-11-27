@@ -770,7 +770,7 @@ private fun ViewOrVoteButton(
                 if (currentGroup.restaurantSelected) {
                     navController.navigate("group")
                 } else {
-                    navController.navigate("vote_restaurant/$groupId")
+                    navController.navigate("sequential_voting/$groupId")
                 }
             }
         },
