@@ -14,7 +14,6 @@ object NavRoutes {
     const val VIEW_GROUPS = "view_groups"
     const val MEMBER_PROFILE = "member_profile"
 
-
     const val SPLASH_SCREEN = "splash"
 
     // Navigation helpers with parameters

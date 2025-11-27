@@ -310,7 +310,7 @@ fun HomeScreen(
                                     navController.navigate("sequential_voting/$groupId")
                                 } else if (groupId != null) {
                                     // Restaurant already selected - go to group screen
-                                    navController.navigate("group/$groupId")
+                                    navController.navigate(NavRoutes.VIEW_GROUPS)
                                 } else {
                                     // Fallback to view groups
                                     navController.navigate(NavRoutes.VIEW_GROUPS)
