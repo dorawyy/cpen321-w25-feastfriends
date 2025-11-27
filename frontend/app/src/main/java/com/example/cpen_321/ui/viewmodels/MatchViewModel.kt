@@ -86,10 +86,10 @@ class MatchViewModel @Inject constructor(
 
     private fun startTimer(completionTimeMillis: Long) {
         timerJob?.cancel()
-        
+
         val currentTime = System.currentTimeMillis()
         val initialRemaining = completionTimeMillis - currentTime
-        
+
         Log.d(TAG, "Starting timer with completion time: $completionTimeMillis")
         Log.d(TAG, "Current time: $currentTime")
         Log.d(TAG, "Initial remaining: ${initialRemaining / 1000}s")
@@ -102,7 +102,7 @@ class MatchViewModel @Inject constructor(
 
         timerJob = viewModelScope.launch {
             _timeRemaining.value = initialRemaining // Set immediately
-            
+
             while (true) {
                 val now = System.currentTimeMillis()
                 val remaining = completionTimeMillis - now
@@ -111,12 +111,12 @@ class MatchViewModel @Inject constructor(
                     _timeRemaining.value = 0
                     _roomExpired.value = true
                     Log.d(TAG, "⏰ Timer expired - setting roomExpired to true")
-                    
+
                     // Refresh room members to get accurate count before showing failure dialog
                     _currentRoom.value?.roomId?.let { roomId ->
                         getRoomStatus(roomId, updateTimer = false)
                     }
-                    
+
                     break
                 }
 
@@ -130,7 +130,7 @@ class MatchViewModel @Inject constructor(
                 delay(1000)
             }
         }
-        
+
         Log.d(TAG, "✅ Timer job started successfully")
     }
 
@@ -221,7 +221,7 @@ class MatchViewModel @Inject constructor(
                     Log.d(TAG, "Parsed completion time (ms): $completionTime")
                     Log.d(TAG, "Current time (ms): $currentTime")
                     Log.d(TAG, "Time difference (ms): ${completionTime - currentTime}")
-                    
+
                     if (completionTime > 0 && completionTime > currentTime) {
                         startTimer(completionTime)
                         val secondsRemaining = (completionTime - currentTime) / 1000
@@ -233,7 +233,7 @@ class MatchViewModel @Inject constructor(
                         val fallbackCompletionTime = currentTime + (2 * 60 * 1000) // 2 minutes
                         startTimer(fallbackCompletionTime)
                         Log.d(TAG, "✅ Timer started with fallback time - 120 seconds remaining")
-                        
+
                         // Also try to get room status to get correct completion time
                         viewModelScope.launch {
                             delay(100)
@@ -305,7 +305,7 @@ class MatchViewModel @Inject constructor(
                     _timeRemaining.value = 0L
                     _groupReady.value = false
                     _groupId.value = null
-                    
+
                     // ✅ FIX: Set success flag to trigger navigation
                     _leaveRoomSuccess.value = true
                     Log.d(TAG, "✅ Set leaveRoomSuccess flag - navigation should trigger")
@@ -422,7 +422,7 @@ class MatchViewModel @Inject constructor(
                 val currentTime = System.currentTimeMillis()
                 val remaining = expiresAtMillis - currentTime
                 Log.d(TAG, "Socket update - expiresAt: $expiresAtMillis, current: $currentTime, remaining: ${remaining / 1000}s")
-                
+
                 if (remaining > 0) {
                     startTimer(expiresAtMillis)
                     Log.d(TAG, "✅ Timer updated from socket - ${remaining / 1000}s remaining")
