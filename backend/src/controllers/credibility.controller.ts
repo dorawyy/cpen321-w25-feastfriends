@@ -100,41 +100,42 @@ export class CredibilityController {
       // Find the code
       const codeDoc = await CredibilityCode.findByCode(code.toUpperCase());
 
+      // ✅ IMPROVED: User-friendly error message for invalid code
       if (!codeDoc) {
-        res.status(404).json({
-          Status: 404,
-          Message: { error: 'Invalid code' },
+        res.status(400).json({
+          Status: 400,
+          Message: { error: 'This code is not valid. Please check the code and try again.' },
           Body: null
         });
         return;
       }
 
-      // Check if expired
+      // ✅ IMPROVED: User-friendly error message for expired code
       if (codeDoc.isExpired()) {
         await codeDoc.deleteOne();
         res.status(400).json({
           Status: 400,
-          Message: { error: 'Code has expired' },
+          Message: { error: 'This code has expired. Please ask for a new code.' },
           Body: null
         });
         return;
       }
 
-      // Prevent self-verification
+      // ✅ IMPROVED: User-friendly error message for self-verification
       if (codeDoc.userId === verifierId) {
         res.status(400).json({
           Status: 400,
-          Message: { error: 'Cannot verify your own code' },
+          Message: { error: 'You cannot verify your own code.' },
           Body: null
         });
         return;
       }
 
-      // Check if already verified by this user
+      // ✅ IMPROVED: User-friendly error message for already verified
       if (codeDoc.verifiedBy.includes(verifierId)) {
         res.status(400).json({
           Status: 400,
-          Message: { error: 'You have already verified this code' },
+          Message: { error: 'You have already verified this code.' },
           Body: null
         });
         return;
