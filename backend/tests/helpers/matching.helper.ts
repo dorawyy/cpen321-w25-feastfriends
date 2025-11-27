@@ -10,7 +10,7 @@ export interface TestRoom {
   maxMembers: number;
   members: string[];
   status: RoomStatus;
-  cuisine?: string | null;
+  cuisines: string[] | [];
   averageBudget?: number;
   averageRadius?: number;
 }
@@ -34,7 +34,7 @@ export async function createTestRoom(data: Partial<TestRoom>): Promise<TestRoom>
     maxMembers: data.maxMembers || 10,
     members: data.members || [],
     status: data.status || RoomStatus.WAITING,
-    cuisine: data.cuisine || 'italian',
+    cuisine: data.cuisines || 'italian',
     averageBudget: data.averageBudget || 50,
     averageRadius: data.averageRadius || 5
   };
@@ -47,7 +47,7 @@ export async function createTestRoom(data: Partial<TestRoom>): Promise<TestRoom>
     maxMembers: room.maxMembers,
     members: room.members,
     status: room.status,
-    cuisine: room.cuisine,
+    cuisines: room.cuisines,
     averageBudget: room.averageBudget,
     averageRadius: room.averageRadius
   };
@@ -58,7 +58,7 @@ export async function createTestRoom(data: Partial<TestRoom>): Promise<TestRoom>
  */
 export async function createTestRoomWithMembers(
   memberCount: number,
-  cuisine: string = 'italian'
+  cuisines: string[] = ['italian']
 ): Promise<{ room: TestRoom; memberIds: string[] }> {
   const memberIds: string[] = [];
   
@@ -68,7 +68,7 @@ export async function createTestRoomWithMembers(
       googleId: `google-room-test-${Date.now()}-${i}`,
       email: `roomtest${Date.now()}-${i}@example.com`,
       name: `Room Test User ${i}`,
-      preference: [cuisine],
+      preference: cuisines,
       budget: 50,
       radiusKm: 5,
       status: UserStatus.IN_WAITING_ROOM,
@@ -79,7 +79,7 @@ export async function createTestRoomWithMembers(
 
   const room = await createTestRoom({
     members: memberIds,
-    cuisine,
+    cuisines,
     status: RoomStatus.WAITING
   });
 
@@ -112,7 +112,7 @@ export async function createExpiredTestRoom(
  * Create a full test room (10 members)
  */
 export async function createFullTestRoom(): Promise<{ room: TestRoom; memberIds: string[] }> {
-  return createTestRoomWithMembers(10, 'italian');
+  return createTestRoomWithMembers(10, ['italian']);
 }
 
 /**
@@ -151,7 +151,7 @@ export async function getTestRoom(roomId: string): Promise<TestRoom | null> {
     maxMembers: room.maxMembers,
     members: room.members,
     status: room.status,
-    cuisine: room.cuisine,
+    cuisines: room.cuisines,
     averageBudget: room.averageBudget,
     averageRadius: room.averageRadius
   };

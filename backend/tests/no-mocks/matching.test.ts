@@ -161,7 +161,7 @@ describe('POST /api/matching/join - No Mocking', () => {
     const createdRoom = await Room.findById(response.body.Body.roomId);
     expect(createdRoom).not.toBeNull();
     expect(createdRoom?.members).toContain(testUsers[0]._id);
-    expect(createdRoom?.cuisine).toBe('italian');
+    expect(createdRoom?.cuisines).toBe('italian');
 
     // Verify user was updated in database (roomId and status)
     expect(updatedUser?.roomId).toBe(response.body.Body.roomId);
@@ -204,7 +204,7 @@ describe('POST /api/matching/join - No Mocking', () => {
     const emitMemberJoinedSpy = jest.spyOn(socketManager, 'emitMemberJoined');
 
     // Create existing room with user1
-    const { room: existingRoom } = await createTestRoomWithMembers(1, 'italian');
+    const { room: existingRoom } = await createTestRoomWithMembers(1, ['italian']);
 
     // User2 joins with matching preferences
     const token = generateTestToken(
@@ -268,7 +268,7 @@ describe('POST /api/matching/join - No Mocking', () => {
     const emitMemberJoinedSpy = jest.spyOn(socketManager, 'emitMemberJoined');
 
     // Create a room with 9 members (one less than MAX_MEMBERS = 10)
-    const { room: existingRoom, memberIds: existingMemberIds } = await createTestRoomWithMembers(9, 'italian');
+    const { room: existingRoom, memberIds: existingMemberIds } = await createTestRoomWithMembers(9, ['italian']);
 
     // Verify room has 9 members
     const roomBefore = await Room.findById(existingRoom._id);
@@ -483,7 +483,7 @@ describe('POST /api/matching/join - No Mocking', () => {
     
     // Verify room was created with user's preference
     const createdRoom = await Room.findById(response.body.Body.roomId);
-    expect(createdRoom?.cuisine).toBe('chinese'); // First cuisine from user.preference
+    expect(createdRoom?.cuisines).toBe('chinese'); // First cuisine from user.preference
   });
 
   test('should use user.budget fallback when budget not provided (covers matchingService line 105)', async () => {
@@ -662,7 +662,7 @@ describe('POST /api/matching/join - No Mocking', () => {
     
     // Verify room was created with null cuisine (because cuisines[0] is undefined)
     const createdRoom = await Room.findById(response.body.Body.roomId);
-    expect(createdRoom?.cuisine).toBeNull(); // Fallback to null
+    expect(createdRoom?.cuisines).toBeNull(); // Fallback to null
   });
 
   // Note: "should update user preferences when joining" test is consolidated above
