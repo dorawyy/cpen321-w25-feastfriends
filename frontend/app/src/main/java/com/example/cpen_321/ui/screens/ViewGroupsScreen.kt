@@ -72,14 +72,7 @@ import com.example.cpen_321.ui.viewmodels.GroupViewModel
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlin.math.roundToInt
 
-// Purple Color Palette (matching app theme)
-private val PurpleLight = Color(0xFFE6E6FA) // Lavender
-private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
-private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
-private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
-private val PurpleGradientStart = Color(0xFFE8DAFF)
-private val PurpleGradientEnd = Color(0xFFD4C5F9)
-private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
+import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun ViewGroupsScreen(
@@ -113,7 +106,7 @@ fun ViewGroupsScreen(
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
-                    containerColor = PurpleAccent,
+                    containerColor = VividPurple,
                     contentColor = Color.White
                 )
             }
@@ -450,7 +443,7 @@ private fun LoadingOverlay() {
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(48.dp),
-            color = PurpleAccent
+            color = VividPurple
         )
     }
 }
@@ -533,7 +526,7 @@ private fun NoGroupContent(navController: NavController) {
         Text(
             text = "Join a waiting room to get matched with a group!",
             fontSize = 16.sp,
-            color = PurpleDark.copy(alpha = 0.7f),
+            color = TextPrimary.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
         )
 
@@ -545,7 +538,7 @@ private fun NoGroupContent(navController: NavController) {
                 .fillMaxWidth(0.7f)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = PurpleAccent
+                containerColor = VividPurple
             )
         ) {
             Text(
@@ -580,7 +573,7 @@ private fun CredibilityCodeCard(
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
-                    tint = PurpleAccent,
+                    tint = VividPurple,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -588,7 +581,7 @@ private fun CredibilityCodeCard(
                     text = "Your Credibility Code",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = PurpleAccent
+                    color = VividPurple
                 )
             }
 
@@ -604,7 +597,7 @@ private fun CredibilityCodeCard(
                         )
                         .border(
                             width = 2.dp,
-                            color = PurpleAccent,
+                            color = VividPurple,
                             shape = RoundedCornerShape(8.dp)
                         )
                         .padding(16.dp),
@@ -614,7 +607,7 @@ private fun CredibilityCodeCard(
                         text = credibilityState.currentCode,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PurpleAccent,
+                        color = VividPurple,
                         letterSpacing = 4.sp
                     )
                 }
@@ -624,13 +617,13 @@ private fun CredibilityCodeCard(
                 Text(
                     text = "Share this code with other members",
                     fontSize = 12.sp,
-                    color = PurpleDark.copy(alpha = 0.7f),
+                    color = TextPrimary.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
                 )
             } else {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
-                    color = PurpleAccent
+                    color = VividPurple
                 )
             }
         }
@@ -659,7 +652,7 @@ private fun GroupHeaderCard(
                 text = "Welcome to your Group!",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = PurpleDark,
+                color = TextPrimary,
                 textAlign = TextAlign.Center
             )
 
@@ -668,7 +661,7 @@ private fun GroupHeaderCard(
             Text(
                 text = "${currentGroup.numMembers} members",
                 fontSize = 16.sp,
-                color = PurpleDark.copy(alpha = 0.7f)
+                color = TextPrimary.copy(alpha = 0.7f)
             )
 
             RestaurantSelectionStatus(
@@ -709,7 +702,7 @@ private fun RestaurantSelectionStatus(
         Text(
             text = "Voting in progress...",
             fontSize = 14.sp,
-            color = PurpleAccent,
+            color = VividPurple,
             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
         )
     }
@@ -733,7 +726,7 @@ private fun GroupActionButtons(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = PurpleAccent
+                containerColor = VividPurple
             )
         ) {
             Icon(
@@ -797,7 +790,7 @@ private fun ViewOrVoteButton(
             .fillMaxWidth()
             .height(56.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = PurpleAccent
+            containerColor = VividPurple
         )
     ) {
         Text(
@@ -857,7 +850,7 @@ private fun MemberInfo(member: GroupMember) {
                 text = member.name,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PurpleDark
+                color = TextPrimary
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -865,7 +858,7 @@ private fun MemberInfo(member: GroupMember) {
             Text(
                 text = "Credibility: ${String.format("%.1f", member.credibilityScore)}",
                 fontSize = 14.sp,
-                color = PurpleDark.copy(alpha = 0.7f)
+                color = TextPrimary.copy(alpha = 0.7f)
             )
         }
     }

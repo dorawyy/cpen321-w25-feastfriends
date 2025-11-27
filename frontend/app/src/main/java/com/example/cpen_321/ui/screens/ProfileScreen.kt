@@ -64,14 +64,7 @@ import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.testTag
 
-// Purple Color Palette (matching app theme)
-private val PurpleLight = Color(0xFFE6E6FA) // Lavender
-private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
-private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
-private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
-private val PurpleGradientStart = Color(0xFFE8DAFF)
-private val PurpleGradientEnd = Color(0xFFD4C5F9)
-private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
+import com.example.cpen_321.ui.theme.*
 
 private const val TAG = "ProfileScreen"
 
@@ -326,14 +319,14 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .border(4.dp, PurpleAccent, CircleShape),
+                                .border(4.dp, VividPurple, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             when {
                                 isUploadingImage -> {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(50.dp),
-                                        color = PurpleAccent
+                                        color = VividPurple
                                     )
                                 }
                                 selectedImageBase64.isNotEmpty() -> {
@@ -417,7 +410,7 @@ fun ProfileScreen(
                                 .align(Alignment.BottomEnd)
                                 .size(40.dp)
                                 .background(
-                                    PurpleAccent,
+                                    VividPurple,
                                     CircleShape
                                 )
                                 .border(3.dp, Color.White, CircleShape)
@@ -464,7 +457,7 @@ fun ProfileScreen(
                                 "Name",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = PurpleDark
+                                color = VividPurple
                             ) 
                         },
                         modifier = Modifier
@@ -475,7 +468,7 @@ fun ProfileScreen(
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PurpleDark
+                            color = TextPrimary
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -501,13 +494,13 @@ fun ProfileScreen(
                                 "Bio",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = PurpleDark
+                                color = VividPurple
                             ) 
                         },
                         placeholder = { 
                             Text(
                                 "Tell us about yourself...",
-                                color = PurpleDark.copy(alpha = 0.5f)
+                                color = VividPurple.copy(alpha = 0.5f)
                             ) 
                         },
                         modifier = Modifier
@@ -518,7 +511,7 @@ fun ProfileScreen(
                         enabled = !isLoading,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 18.sp,
-                            color = PurpleDark,
+                            color = TextPrimary,
                             lineHeight = 24.sp
                         ),
                         shape = RoundedCornerShape(12.dp)

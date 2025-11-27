@@ -33,14 +33,7 @@ import com.example.cpen_321.ui.viewmodels.UserViewModel
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlinx.coroutines.launch
 
-// Purple Color Palette (matching app theme)
-private val PurpleLight = Color(0xFFE6E6FA) // Lavender
-private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
-private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
-private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
-private val PurpleGradientStart = Color(0xFFE8DAFF)
-private val PurpleGradientEnd = Color(0xFFD4C5F9)
-private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
+import com.example.cpen_321.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +94,7 @@ fun MemberProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PurpleAccent,
+                    containerColor = VividPurple,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -116,7 +109,7 @@ fun MemberProfileScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = PurpleAccent)
+                    CircularProgressIndicator(color = VividPurple)
                 }
             }
             userProfile == null -> {
@@ -131,13 +124,13 @@ fun MemberProfileScreen(
                             text = "Profile not found",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = PurpleDark
+                            color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = onNavigateBack,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurpleAccent
+                                containerColor = VividPurple
                             )
                         ) {
                             Text("Go Back", color = Color.White)
@@ -183,7 +176,7 @@ private fun MemberProfileContent(
             text = userProfile.name,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = PurpleDark,
+            color = TextPrimary,
             textAlign = TextAlign.Center
         )
 
@@ -194,7 +187,7 @@ private fun MemberProfileContent(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = GlassWhite),
             shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(2.dp, PurpleAccent)
+            border = androidx.compose.foundation.BorderStroke(2.dp, VividPurple)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -217,7 +210,7 @@ private fun MemberProfileContent(
                             text = "Credibility Score: ${score.toInt()}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PurpleDark
+                            color = TextPrimary
                         )
                     }
                 }
@@ -230,13 +223,13 @@ private fun MemberProfileContent(
                                 text = "Bio",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = PurpleDark
+                                color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = bio,
                                 fontSize = 16.sp,
-                                color = PurpleDark.copy(alpha = 0.8f),
+                                color = TextPrimary.copy(alpha = 0.8f),
                                 lineHeight = 24.sp
                             )
                         }
@@ -258,7 +251,7 @@ private fun MemberProfileContent(
                             Text(
                                 text = phone,
                                 fontSize = 16.sp,
-                                color = PurpleDark.copy(alpha = 0.8f)
+                                color = TextPrimary.copy(alpha = 0.8f)
                             )
                         }
                     }
@@ -282,7 +275,7 @@ private fun ProfilePictureSection(profilePicture: String?) {
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .border(4.dp, PurpleAccent, CircleShape)
+                    .border(4.dp, VividPurple, CircleShape)
                     .background(Color.LightGray),
                 contentScale = ContentScale.Crop
             )
@@ -294,7 +287,7 @@ private fun ProfilePictureSection(profilePicture: String?) {
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .border(4.dp, PurpleAccent, CircleShape)
+                    .border(4.dp, VividPurple, CircleShape)
                     .background(Color.LightGray),
                 contentScale = ContentScale.Crop
             )
@@ -313,7 +306,7 @@ private fun ProfilePictureSection(profilePicture: String?) {
                         )
                     )
                 )
-                .border(4.dp, PurpleAccent, CircleShape),
+                .border(4.dp, VividPurple, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(

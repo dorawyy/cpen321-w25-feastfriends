@@ -34,6 +34,7 @@ import androidx.navigation.NavController
 import com.example.cpen_321.ui.components.MainBottomBar
 import com.example.cpen_321.ui.viewmodels.AuthViewModel
 import com.example.cpen_321.ui.viewmodels.AuthState
+import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun ProfileConfigScreen(
@@ -144,17 +145,17 @@ private fun ConfigButton(
                 brush = if (isPrimary) {
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFFE596FF), // Light purple
-                            Color(0xFF9D4EDD), // Medium purple
-                            Color(0xFF7B2CBF)  // Dark purple
+                            SoftViolet,
+                            MediumPurple,
+                            VividPurple
                         )
                     )
                 } else {
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF7B2CBF), // Dark purple
-                            Color(0xFF5A189A), // Darker purple
-                            Color(0xFF290C2F)  // Very dark purple
+                            VividPurple,
+                            MediumPurple,
+                            SoftViolet
                         )
                     )
                 },
@@ -184,7 +185,7 @@ private fun DeleteInGroupAlertDialog(
             Text(
                 "Cannot Delete Account",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF7B2CBF)
+                color = VividPurple
             )
         },
         text = {
@@ -192,9 +193,9 @@ private fun DeleteInGroupAlertDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK", color = Color(0xFF7B2CBF), fontWeight = FontWeight.Bold)
+                Text("OK", color = VividPurple, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color.White
+        containerColor = SoftWhite
     )
 }

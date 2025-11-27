@@ -35,14 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.cpen_321.ui.viewmodels.UserViewModel
 
-// Purple Color Palette (matching app theme)
-private val PurpleLight = Color(0xFFE6E6FA) // Lavender
-private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
-private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
-private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
-private val PurpleGradientStart = Color(0xFFE8DAFF)
-private val PurpleGradientEnd = Color(0xFFD4C5F9)
-private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
+import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun CredibilityScreen(
@@ -93,7 +86,7 @@ private fun CredibilityContent(
             text = "Credibility Score",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = PurpleDark,
+            color = TextPrimary,
             textAlign = TextAlign.Center
         )
         
@@ -127,14 +120,14 @@ private fun LoadingIndicator() {
         modifier = Modifier.padding(32.dp)
     ) {
         CircularProgressIndicator(
-            color = PurpleAccent,
+            color = VividPurple,
             modifier = Modifier.size(64.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Loading your credibility score...",
             fontSize = 16.sp,
-            color = PurpleDark.copy(alpha = 0.7f)
+            color = TextSecondary
         )
     }
 }
@@ -166,7 +159,7 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
         credibilityScore >= 80 -> Color(0xFF4CAF50) // Green for high
         credibilityScore >= 50 -> Color(0xFFFF9800) // Orange for medium
         credibilityScore >= 20 -> Color(0xFFFFC107) // Yellow for low-medium
-        else -> Color(0xFF9D4EDD) // Purple for very low
+        else -> VividPurple // Purple for very low
     }
     
     val message = when {
@@ -227,7 +220,7 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
                     Text(
                         text = "out of 100",
                         fontSize = 14.sp,
-                        color = PurpleDark.copy(alpha = 0.7f),
+                        color = TextSecondary,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -241,7 +234,7 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
             text = message,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = PurpleDark,
+            color = TextPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -268,7 +261,7 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
                     text = "How to improve",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = PurpleDark
+                    color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -279,7 +272,7 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
                         else -> "Start by joining groups and being reliable"
                     },
                     fontSize = 14.sp,
-                    color = PurpleDark.copy(alpha = 0.8f),
+                    color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
@@ -297,9 +290,9 @@ private fun BackButton(onNavigateBack: () -> Unit) {
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF7B2CBF), // Dark purple
-                        Color(0xFF5A189A), // Darker purple
-                        Color(0xFF290C2F)  // Very dark purple
+                        VividPurple,
+                        MediumPurple,
+                        SoftViolet
                     )
                 ),
                 RoundedCornerShape(12.dp)

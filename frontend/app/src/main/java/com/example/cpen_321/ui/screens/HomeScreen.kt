@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +36,7 @@ import com.example.cpen_321.utils.LocationHelper
 import kotlinx.coroutines.launch
 import android.util.Log
 import NavRoutes
+import com.example.cpen_321.ui.theme.*
 
 val PlaywriteFontFamily = FontFamily(
     Font(R.font.playwrite_usmodern_variablefont_wght)
@@ -103,7 +106,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFFFF))
+                .background(SoftWhite)
                 .padding(innerPadding)
         ) {
             IconButton(
@@ -135,7 +138,7 @@ fun HomeScreen(
                     text = "Welcome${userSettings?.name?.let { ", $it" } ?: ""}!",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = TextPrimary,
                     fontFamily = PlaywriteFontFamily,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -147,7 +150,7 @@ fun HomeScreen(
                     Text(
                         text = "Credibility Score: ${score.toInt()}",
                         fontSize = 16.sp,
-                        color = Color.Gray,
+                        color = TextSecondary,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -162,25 +165,25 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
+                        .height(100.dp)
                         .background(
                             brush = Brush.linearGradient(
                                 colors = if (isInRoom) {
                                     // Different gradient for "Resume" state
                                     listOf(
-                                        Color(0xFFFFB347), // Orange
+                                        Color(0xFFFFB347), // Orange (keep for resume state)
                                         Color(0xFFFF8C42),
                                         Color(0xFFFF6B35)
                                     )
                                 } else {
                                     listOf(
-                                        Color(0xFFE596FF),
-                                        Color(0xFF9D4EDD),
-                                        Color(0xFF7B2CBF)
+                                        SoftViolet,
+                                        MediumPurple,
+                                        VividPurple
                                     )
                                 }
                             ),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.large
                         )
                         .clickable(enabled = !isJoiningMatch) {
                             if (isJoiningMatch) return@clickable
@@ -256,39 +259,52 @@ fun HomeScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     } else {
-                        Text(
-                            text = if (isInRoom) "RESUME WAITING ROOM" else "START MATCHMAKING",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Favorite,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = if (isInRoom) "Resume Waiting Room" else "Smart Match",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Current Groups Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
+                        .height(100.dp)
                         .background(
                             brush = Brush.linearGradient(
                                 colors = if (currentGroup != null) {
                                     listOf(
-                                        Color(0xFF7B2CBF),
-                                        Color(0xFF5A189A),
-                                        Color(0xFF290C2F)
+                                        VividPurple,
+                                        MediumPurple,
+                                        SoftViolet
                                     )
                                 } else {
                                     listOf(
-                                        Color(0xFFE596FF),
-                                        Color(0xFF9D4EDD),
-                                        Color(0xFF7B2CBF)
+                                        SoftViolet,
+                                        MediumPurple,
+                                        VividPurple
                                     )
                                 }
                             ),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.large
                         )
                         .clickable {
                             val group = currentGroup
@@ -311,17 +327,30 @@ fun HomeScreen(
                 ) {
                     val group = currentGroup
                     val buttonText = when {
-                        group?.restaurantSelected == false -> "CONTINUE VOTING"
-                        group != null -> "VIEW ACTIVE GROUP"
-                        else -> "CURRENT GROUPS"
+                        group?.restaurantSelected == false -> "Continue Voting"
+                        group != null -> "View Active Group"
+                        else -> "Current Group"
                     }
 
-                    Text(
-                        text = buttonText,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Group,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = buttonText,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
