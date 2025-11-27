@@ -240,24 +240,12 @@ private fun GroupContentWithCollapsibleButtons(
 
             // Members Section Header
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Group Members",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    val votedCount = groupMembers.count { it.hasVoted }
-                    Text(
-                        text = "$votedCount/${groupMembers.size} voted",
-                        fontSize = 14.sp,
-                        color = if (votedCount == groupMembers.size) Color(0xFF4CAF50) else Color.Gray
-                    )
-                }
+                Text(
+                    text = "Group Members",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // Member Cards
