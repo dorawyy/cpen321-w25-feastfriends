@@ -156,7 +156,7 @@ fun WaitingRoomScreen(
         onConfirm = {
             showLeaveDialog = false
             Log.d("WaitingRoom", "Leave confirmed, calling leaveRoom()")
-            
+
             // ✅ FIX: Call leaveRoom() - navigation will happen automatically via leaveRoomSuccess
             viewModel.leaveRoom()
         }
@@ -168,7 +168,7 @@ fun WaitingRoomScreen(
         onConfirm = {
             showFailureDialog = false
             Log.d("WaitingRoom", "Try Again clicked - leaving room and navigating home")
-            
+
             // ✅ FIX: Call leaveRoom() to clean up backend state before navigating
             // Navigation will happen automatically via leaveRoomSuccess flag
             viewModel.leaveRoom()
@@ -201,7 +201,7 @@ private fun WaitingRoomEffects(
 
     // ✅ FIX: Track if we've already shown the failure dialog to prevent duplicates
     var hasShownFailureDialog by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(currentRoom) {
         (currentRoom as? com.example.cpen_321.data.model.Room)?.let { room ->
             Log.d("WaitingRoom", "Loading room status for: ${room.roomId}")

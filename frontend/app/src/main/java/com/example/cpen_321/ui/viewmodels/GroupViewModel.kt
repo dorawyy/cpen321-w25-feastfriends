@@ -62,6 +62,10 @@ constructor(
     private val _credibilityState = MutableStateFlow(CredibilityState())
     val credibilityState: StateFlow<CredibilityState> = _credibilityState.asStateFlow()
 
+    // ✅ NEW: Track if user has successfully verified a code in this group
+    private val _hasVerifiedCode = MutableStateFlow(false)
+    val hasVerifiedCode: StateFlow<Boolean> = _hasVerifiedCode.asStateFlow()
+
     // Loading state
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -94,6 +98,9 @@ constructor(
                 is ApiResult.Success -> {
                     val group = result.data
                     _currentGroup.value = group
+
+                    // ✅ NEW: Reset verification state when loading a new group
+                    _hasVerifiedCode.value = false
 
                     // Subscribe to group updates via socket
                     group.groupId?.let { groupId -> socketManager.subscribeToGroup(groupId) }
@@ -155,18 +162,14 @@ constructor(
         }
     }
 
-
     /**
-     * Verify credibility code
-     */
-    /**
-     * Verify credibility code
+     * Verify credibility code - WITH BETTER ERROR HANDLING
      */
     fun verifyCredibilityCode(code: String) {
         viewModelScope.launch {
             // Check if user is trying to enter their own code
             if (code.uppercase() == _credibilityState.value.currentCode) {
-                _errorMessage.value = "You cannot verify your own code"
+                _errorMessage.value = "You cannot verify your own code."
                 return@launch
             }
 
@@ -178,11 +181,33 @@ constructor(
                     _successMessage.value = response.message
                     Log.d("CredibilityDebug", "Code verified successfully")
 
-                    // ✅ Refresh user settings to update credibility score
+                    // ✅ NEW: Mark that user has successfully verified a code
+                    _hasVerifiedCode.value = true
+
+                    // Refresh user settings to update credibility score
                     userRepository.getUserSettings()
                 }
                 is ApiResult.Error -> {
-                    _errorMessage.value = result.message
+                    // ✅ IMPROVED: Show user-friendly error message
+                    val friendlyMessage = when {
+                        result.message.contains("not valid", ignoreCase = true) ||
+                                result.message.contains("Invalid", ignoreCase = true) ->
+                            "This code is not valid. Please check and try again."
+
+                        result.message.contains("expired", ignoreCase = true) ->
+                            "This code has expired. Please ask for a new code."
+
+                        result.message.contains("already verified", ignoreCase = true) ->
+                            "You have already verified this code."
+
+                        result.message.contains("own code", ignoreCase = true) ->
+                            "You cannot verify your own code."
+
+                        else -> result.message
+                    }
+
+                    _errorMessage.value = friendlyMessage
+                    Log.e("CredibilityDebug", "Verification failed: ${result.message}")
                 }
                 is ApiResult.Loading -> {}
             }
@@ -217,7 +242,7 @@ constructor(
                             _successMessage.value = response.message
                         }
 
-                        // ✅ Refresh user settings to update credibility score
+                        // Refresh user settings to update credibility score
                         userRepository.getUserSettings()
                     }
                     is ApiResult.Error -> {
@@ -245,7 +270,6 @@ constructor(
             _isLoading.value = false
         }
     }
-
 
     /** Vote for a restaurant */
     fun voteForRestaurant(restaurantId: String, restaurant: Restaurant) {
@@ -418,6 +442,8 @@ constructor(
         _userVote.value = null
         _timeRemaining.value = 0L
         _credibilityState.value = CredibilityState()
+        // ✅ NEW: Reset verification state when clearing group
+        _hasVerifiedCode.value = false
     }
 
     /** Clear error message */

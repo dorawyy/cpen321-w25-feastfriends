@@ -516,7 +516,7 @@ private fun GroupHeaderCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Group - Room ${currentGroup.roomId}",
+                text = "Welcome to your Group!",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
