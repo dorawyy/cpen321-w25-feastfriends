@@ -1,5 +1,6 @@
 """
 Goal, test to see if 95% of the time user requests can be done in under 2s
+'95% of user interactions must respond within 2 seconds'
 """
 
 """
