@@ -36,10 +36,8 @@ module.exports = {
     '/tests/',            // ignore your test folder
     '/dist/',             // ignore compiled files
     'src/utils/logger.ts', // ignore specific file
-    'src/config/',         // ignore config folder
-    'src/mocks/',           // ignore mocks
-    'src/services/credibilityService.ts', // not implemented
-    'src/models/CredibilityLog.ts' // not implemented
+    'src/config/',        // ignore config folder
+    'src/mocks/'          // ignore mocks folder
   ],
   // Where to output coverage reports
   coverageDirectory: 'coverage',

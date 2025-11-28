@@ -1,6 +1,5 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
-// Base interface
 export interface ICredibilityCode {
   code: string;
   userId: string;
@@ -10,27 +9,21 @@ export interface ICredibilityCode {
   createdAt: Date;
 }
 
-// Instance methods
 export interface ICredibilityCodeMethods {
-  isExpired(): boolean;
   verify(verifierId: string): Promise<ICredibilityCodeDocument>;
+  isExpired(): boolean;
 }
 
-// Document interface - codeId is optional since it's a virtual
 export interface ICredibilityCodeDocument extends Document, ICredibilityCode, ICredibilityCodeMethods {
   _id: mongoose.Types.ObjectId;
-  codeId?: string; // ✅ Made optional since it's a virtual property
 }
 
-// Static methods
 export interface ICredibilityCodeModel extends Model<ICredibilityCode, {}, ICredibilityCodeMethods> {
   generateCode(userId: string, groupId: string, expiryHours?: number): Promise<ICredibilityCodeDocument>;
   findByCode(code: string): Promise<ICredibilityCodeDocument | null>;
   findActiveCode(userId: string, groupId: string): Promise<ICredibilityCodeDocument | null>;
-  cleanupExpiredCodes(): Promise<number>;
 }
 
-// Schema
 const CredibilityCodeSchema = new Schema<ICredibilityCode, ICredibilityCodeModel, ICredibilityCodeMethods>(
   {
     code: {
@@ -69,31 +62,8 @@ const CredibilityCodeSchema = new Schema<ICredibilityCode, ICredibilityCodeModel
   }
 );
 
-// Indexes
 CredibilityCodeSchema.index({ userId: 1, groupId: 1 });
 CredibilityCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
-// Virtual
-CredibilityCodeSchema.virtual('codeId').get(function() {
-  return this._id.toString();
-});
-
-// JSON serialization
-CredibilityCodeSchema.set('toJSON', {
-  virtuals: true,
-  transform: function(_doc, ret) {
-    const codeId = ret._id.toString();
-    const { _id, __v, ...rest } = ret;
-    return { codeId, ...rest };
-  }
-});
-
-CredibilityCodeSchema.set('toObject', { virtuals: true });
-
-// Instance methods
-CredibilityCodeSchema.methods.isExpired = function(): boolean {
-  return new Date() > this.expiresAt;
-};
 
 CredibilityCodeSchema.methods.verify = async function(verifierId: string): Promise<ICredibilityCodeDocument> {
   if (!this.verifiedBy.includes(verifierId)) {
@@ -103,7 +73,10 @@ CredibilityCodeSchema.methods.verify = async function(verifierId: string): Promi
   return this;
 };
 
-// Static methods
+CredibilityCodeSchema.methods.isExpired = function(): boolean {
+  return new Date() > this.expiresAt;
+};
+
 CredibilityCodeSchema.statics.generateCode = async function(
   userId: string,
   groupId: string,
@@ -150,7 +123,10 @@ CredibilityCodeSchema.statics.generateCode = async function(
 CredibilityCodeSchema.statics.findByCode = async function(
   code: string
 ): Promise<ICredibilityCodeDocument | null> {
-  return this.findOne({ code: code.toUpperCase() }).exec();
+  return this.findOne({ 
+    code: code.toUpperCase(),
+    expiresAt: { $gt: new Date() }
+  }).exec();
 };
 
 CredibilityCodeSchema.statics.findActiveCode = async function(
@@ -164,10 +140,6 @@ CredibilityCodeSchema.statics.findActiveCode = async function(
   }).exec();
 };
 
-CredibilityCodeSchema.statics.cleanupExpiredCodes = async function(): Promise<number> {
-  const result = await this.deleteMany({ expiresAt: { $lt: new Date() } });
-  return result.deletedCount || 0;
-};
 
 const CredibilityCode = mongoose.model<ICredibilityCode, ICredibilityCodeModel>(
   'CredibilityCode',

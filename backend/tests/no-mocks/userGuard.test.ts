@@ -15,6 +15,7 @@ import { AuthRequest } from '../../src/types';
 import { userController } from '../../src/controllers/user.controller';
 import { groupController } from '../../src/controllers/group.controller';
 import { matchingController } from '../../src/controllers/matching.controller';
+import { credibilityController } from '../../src/controllers/credibility.controller';
 
 describe('User Controller Type Guards', () => {
   let req: Partial<AuthRequest>;
@@ -248,6 +249,78 @@ describe('Matching Controller Type Guards', () => {
     req.params = { roomId: 'room-123' };
 
     await matchingController.leaveRoom(
+      req as AuthRequest,
+      res as Response,
+      next
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      Status: 401,
+      Message: { error: 'Unauthorized - User not authenticated' },
+      Body: null
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('Credibility Controller Type Guards', () => {
+  let req: Partial<AuthRequest>;
+  let res: Partial<Response>;
+  let next: NextFunction;
+
+  beforeEach(() => {
+    req = {
+      headers: {},
+      body: {},
+      params: {},
+      user: undefined // Simulate missing user
+    };
+    
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    
+    next = jest.fn();
+  });
+
+  test('generateCode should return 401 when req.user is undefined', async () => {
+    await credibilityController.generateCode(
+      req as AuthRequest,
+      res as Response,
+      next
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      Status: 401,
+      Message: { error: 'Unauthorized - User not authenticated' },
+      Body: null
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('verifyCode should return 401 when req.user is undefined', async () => {
+    req.body = { code: 'ABC123' };
+
+    await credibilityController.verifyCode(
+      req as AuthRequest,
+      res as Response,
+      next
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      Status: 401,
+      Message: { error: 'Unauthorized - User not authenticated' },
+      Body: null
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('deductScore should return 401 when req.user is undefined', async () => {
+    await credibilityController.deductScore(
       req as AuthRequest,
       res as Response,
       next

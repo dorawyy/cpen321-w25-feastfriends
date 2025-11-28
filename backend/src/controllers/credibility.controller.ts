@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest, CredibilityCodeResponse, VerifyCodeRequest, VerifyCodeResponse, DeductScoreResponse } from '../types';
 import CredibilityCode from '../models/CredibilityCode';
 import credibilityService from '../services/credibilityService';
-import { CredibilityAction } from '../models/CredibilityLog';
+import { CredibilityAction } from '../types/credibility';
 import User from '../models/User';
 import { ensureAuthenticated } from '../utils/authGuard';
 
@@ -17,7 +17,6 @@ export class CredibilityController {
       
       const userId = req.user.userId;
 
-      // Get user's current group
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({
@@ -38,7 +37,6 @@ export class CredibilityController {
         return;
       }
 
-      // Check if user already has an active code for this group
       let existingCode = await CredibilityCode.findActiveCode(userId, groupId);
 
       if (existingCode) {
@@ -56,10 +54,7 @@ export class CredibilityController {
         return;
       }
 
-      // Generate new code
       const code = await CredibilityCode.generateCode(userId, groupId);
-
-      console.log(`✅ Generated credibility code ${code.code} for user ${userId}`);
 
       const response: CredibilityCodeResponse = {
         code: code.code,
@@ -97,10 +92,8 @@ export class CredibilityController {
         return;
       }
 
-      // Find the code
       const codeDoc = await CredibilityCode.findByCode(code.toUpperCase());
 
-      // ✅ IMPROVED: User-friendly error message for invalid code
       if (!codeDoc) {
         res.status(400).json({
           Status: 400,
@@ -110,18 +103,6 @@ export class CredibilityController {
         return;
       }
 
-      // ✅ IMPROVED: User-friendly error message for expired code
-      if (codeDoc.isExpired()) {
-        await codeDoc.deleteOne();
-        res.status(400).json({
-          Status: 400,
-          Message: { error: 'This code has expired. Please ask for a new code.' },
-          Body: null
-        });
-        return;
-      }
-
-      // ✅ IMPROVED: User-friendly error message for self-verification
       if (codeDoc.userId === verifierId) {
         res.status(400).json({
           Status: 400,
@@ -131,7 +112,6 @@ export class CredibilityController {
         return;
       }
 
-      // ✅ IMPROVED: User-friendly error message for already verified
       if (codeDoc.verifiedBy.includes(verifierId)) {
         res.status(400).json({
           Status: 400,
@@ -141,20 +121,12 @@ export class CredibilityController {
         return;
       }
 
-      // Verify the code
       await codeDoc.verify(verifierId);
 
-      // Give +5% credibility to the VERIFIER (person entering the code)
       const result = await credibilityService.updateCredibilityScore(
         verifierId,
-        CredibilityAction.CHECK_IN,
-        codeDoc.groupId,
-        undefined,
-        'Verified another user\'s code - checked in at restaurant'
+        CredibilityAction.CHECK_IN
       );
-
-      console.log(`✅ Code ${code} verified by user ${verifierId} for user ${codeDoc.userId}`);
-      console.log(`✅ Verifier gained credibility: ${result.previousScore} → ${result.newScore} (+${result.scoreChange})`);
 
       const response: VerifyCodeResponse = {
         success: true,
@@ -182,7 +154,6 @@ export class CredibilityController {
       
       const userId = req.user.userId;
 
-      // Get user's current group
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({
@@ -194,27 +165,25 @@ export class CredibilityController {
       }
 
       const groupId = user.groupId;
-
-      // CHECK 1: Did someone verify MY code?
-      let myCode = null;
-      if (groupId) {
-        myCode = await CredibilityCode.findActiveCode(userId, groupId);
+      if (!groupId) {
+        res.status(400).json({
+          Status: 400,
+          Message: { error: 'User not in a group' },
+          Body: null
+        });
+        return;
       }
+
+      const myCode = await CredibilityCode.findActiveCode(userId, groupId);
       const myCodeWasVerified = myCode && myCode.verifiedBy.length > 0;
 
-      // CHECK 2: Did I verify someone else's code?
-      let verifiedSomeoneElse = false;
-      if (groupId) {
-        const someoneElsesCode = await CredibilityCode.findOne({
-          groupId: groupId,
-          verifiedBy: userId
-        });
-        verifiedSomeoneElse = someoneElsesCode !== null;
-      }
+      const someoneElsesCode = await CredibilityCode.findOne({
+        groupId: groupId,
+        verifiedBy: userId
+      });
+      const verifiedSomeoneElse = someoneElsesCode !== null;
 
-      // No penalty if EITHER condition is true
       if (myCodeWasVerified || verifiedSomeoneElse) {
-        // Clean up my code if it exists
         if (myCode) {
           await myCode.deleteOne();
         }
@@ -234,21 +203,14 @@ export class CredibilityController {
         return;
       }
 
-      // Neither condition met - deduct score
       const result = await credibilityService.updateCredibilityScore(
         userId,
-        CredibilityAction.LEFT_WITHOUT_CHECKIN,
-        groupId || undefined,
-        undefined,
-        'Left group without verifying any code'
+        CredibilityAction.LEFT_WITHOUT_CHECKIN
       );
 
-      // Clean up my code
       if (myCode) {
         await myCode.deleteOne();
       }
-
-      console.log(`⚠️ Deducted credibility for user ${userId}: ${result.previousScore} → ${result.newScore}`);
 
       const response: DeductScoreResponse = {
         success: true,

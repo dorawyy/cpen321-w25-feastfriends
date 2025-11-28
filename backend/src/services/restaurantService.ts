@@ -34,15 +34,9 @@ export class RestaurantService {
     limit: number = 20
   ): Promise<RestaurantType[]> {
     try {
-      // If no API key, return mock data
       if (!this.GOOGLE_PLACES_API_KEY) {
-        console.warn('⚠️  No Google Places API key - returning mock data');
         return this.getMockRestaurants();
       }
-
-      console.log('✅ Using Google Places API with key');
-      console.log('🔍 Cuisine filters:', cuisineTypes);
-      console.log('🎯 Target limit:', limit);
 
       let allResults: GooglePlace[] = [];
 
@@ -50,10 +44,7 @@ export class RestaurantService {
         // ✅ Store results per cuisine separately
         let cuisineResults = new Map<string, GooglePlace[]>();
 
-        // Make separate API call for each cuisine
         for (const cuisine of cuisineTypes) {
-          console.log(`📡 Searching for: ${cuisine}`);
-          
           const response = await axios.get(
             'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
             {
@@ -67,22 +58,15 @@ export class RestaurantService {
             }
           );
 
-          console.log(`📡 Google API Response for "${cuisine}":`, response.data.status);
-
           if (response.data.status === 'OK') {
             const results = response.data.results || [];
-            console.log(`  Found ${results.length} restaurants for ${cuisine}`);
             cuisineResults.set(cuisine, results);
           } 
         }
 
-        // ✅ Interleave results to ensure variety from each cuisine
-        allResults = this.interleaveResults(cuisineResults, limit * 2); // Get more to account for filtering
+        allResults = this.interleaveResults(cuisineResults, limit * 2);
         
       } else {
-        // No cuisine filter - search all restaurants
-        console.log('📡 Searching all restaurants (no cuisine filter)');
-        
         const response = await axios.get(
           'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
           {
@@ -95,8 +79,6 @@ export class RestaurantService {
           }
         );
 
-        console.log('📡 Google API Response Status:', response.data.status);
-
         if (response.data.status === 'OK') {
           allResults = response.data.results || [];
         } else if (response.data.status !== 'ZERO_RESULTS') {
@@ -104,7 +86,6 @@ export class RestaurantService {
         }
       }
 
-      // ✅ Remove duplicates based on place_id
       const uniquePlaces = new Map<string, GooglePlace>();
       allResults.forEach(place => {
         if (!uniquePlaces.has(place.place_id)) {
@@ -113,33 +94,22 @@ export class RestaurantService {
       });
       
       allResults = Array.from(uniquePlaces.values());
-      console.log(`🍽️ After deduplication: ${allResults.length} unique restaurants`);
 
-      // ✅ Apply price level filter (if specified) - FLEXIBLE FILTERING
       if (priceLevel) {
-        const beforeFilter = allResults.length;
         allResults = allResults.filter((place: GooglePlace) => {
-          // If restaurant has no price level, keep it (many restaurants don't have this data)
           if (place.price_level === undefined || place.price_level === null) {
             return true;
           }
-          // Allow restaurants within ±1 price level for more variety
           return Math.abs(place.price_level - priceLevel) <= 1;
         });
-        console.log(`💰 Price filter (±1 level): ${beforeFilter} → ${allResults.length} restaurants`);
       }
 
-      // ✅ Apply final limit
       allResults = allResults.slice(0, limit);
 
-      console.log(`✅ Final result: ${allResults.length} restaurants (limited to ${limit})`);
       return allResults.map((place: GooglePlace) => this.formatPlaceData(place));
       
     } catch (error: unknown) {
       if (error instanceof AppError) throw error;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Failed to search restaurants:', errorMessage);
-      // Return mock data on error
       return this.getMockRestaurants();
     }
   }
@@ -158,9 +128,6 @@ export class RestaurantService {
 
     const maxPerCuisine = Math.ceil(maxTotal / cuisines.length);
     
-    console.log(`🔄 Interleaving results from ${cuisines.length} cuisines (max ${maxPerCuisine} per cuisine)`);
-    
-    // Take turns picking from each cuisine
     let round = 0;
     
     while (result.length < maxTotal && round < maxPerCuisine) {
@@ -174,18 +141,6 @@ export class RestaurantService {
       round++;
     }
     
-    // Log the distribution
-    const distribution: Record<string, number> = {};
-    cuisines.forEach(cuisine => {
-      const count = result.filter(place => {
-        return cuisineResults.get(cuisine)?.some(r => r.place_id === place.place_id) || false;
-      }).length;
-      distribution[cuisine] = count;
-    });
-    
-    console.log(`🍽️ Interleaved distribution:`, distribution);
-    console.log(`📊 Total restaurants after interleaving: ${result.length}`);
-    
     return result;
   }
 
@@ -195,11 +150,8 @@ export class RestaurantService {
   async getRestaurantDetails(placeId: string): Promise<RestaurantType> {
   try {
     if (!this.GOOGLE_PLACES_API_KEY) {
-      console.log('⚠️ No API key, returning mock');
       return this.getMockRestaurant(placeId);
     }
-
-    console.log(`🔍 Fetching details for place_id: ${placeId}`);
 
     const response = await axios.get(
       'https://maps.googleapis.com/maps/api/place/details/json',
@@ -212,8 +164,6 @@ export class RestaurantService {
       }
     );
 
-    console.log(`📡 Details API status: ${response.data.status}`);
-
     if (response.data.status !== 'OK') {
       throw new AppError(`Restaurant not found: ${response.data.status}`, 404);
     }
@@ -221,16 +171,11 @@ export class RestaurantService {
     const place = response.data.result as GooglePlace;
     const formatted = this.formatPlaceData(place);
     
-    // ✅ CRITICAL FIX: Always use the placeId parameter, not the response
     formatted.restaurantId = placeId;
-    
-    console.log(`✅ Formatted restaurant: ${formatted.name}, ID: ${formatted.restaurantId}, photos: ${formatted.photos?.length || 0}`);
     
     return formatted;
   } catch (error: unknown) {
     if (error instanceof AppError) throw error;
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`❌ Failed to get restaurant details:`, errorMessage);
     return this.getMockRestaurant(placeId);
   }
 }
@@ -253,14 +198,6 @@ export class RestaurantService {
       url: place.url,
     };
     
-    // Debug logging
-    console.log(`📦 Formatted restaurant: ${formatted.name}`);
-    console.log(`   - restaurantId: ${formatted.restaurantId}`);
-    console.log(`   - rating: ${formatted.rating}`);
-    console.log(`   - priceLevel: ${formatted.priceLevel}`);
-    console.log(`   - photos: ${formatted.photos?.length || 0}`);
-    console.log(`   - address: ${formatted.address}`);
-    
     return formatted;
 }
 
@@ -273,7 +210,6 @@ export class RestaurantService {
 
   /**
    * Get recommended restaurants for a group
-   * ✅ Uses Details API for each restaurant to ensure photos (like old Android implementation)
    */
   async getRecommendationsForGroup(
     _groupId: string,
@@ -305,41 +241,31 @@ export class RestaurantService {
       avgRadius * 1000, // Convert km to meters
       allCuisines,
       Math.min(4, priceLevel),
-      20 // Get 20 restaurants
+      20
     );
-
-    // ✅ Fetch full details (including photos) for each restaurant using Details API
-    console.log(`📸 Fetching full details with photos for ${basicRestaurants.length} restaurants...`);
     
     const detailedRestaurants = await Promise.all(
       basicRestaurants.map(async (restaurant) => {
           if (restaurant.restaurantId) {
-            console.log(`📸 Fetching details for: ${restaurant.name} (ID: ${restaurant.restaurantId})`);
             const details = await this.getRestaurantDetails(restaurant.restaurantId);
-            
-            console.log(`✅ Got details: ${details.name}, ID: ${details.restaurantId}, photos: ${details.photos?.length || 0}`);
             return details;
           }
-          console.warn(`⚠️ Restaurant missing ID: ${restaurant.name}`);
           return restaurant;
       })
     );
 
-    // ✅ Filter out any restaurants without restaurantId
     const validRestaurants = detailedRestaurants.filter(r => {
       if (!r.restaurantId) {
-        console.error(`❌ Filtering out restaurant without ID: ${r.name}`);
         return false;
       }
       return true;
     });
 
-    console.log(`✅ Fetched full details for ${validRestaurants.length} valid restaurants`);
     return validRestaurants;
   }
 
   /**
-   * NEW: Get next restaurant for sequential voting
+   * Get next restaurant for sequential voting
    * Returns the next unvoted restaurant from the pool
    */
   async getNextRestaurant(
