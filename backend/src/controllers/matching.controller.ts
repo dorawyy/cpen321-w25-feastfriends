@@ -27,7 +27,8 @@ export class MatchingController {
       res.status(200).json({
         Status: 200,
         Message: { text: 'Successfully joined matching' },
-        Body: result
+        Body: result,
+        serverTime: Date.now() 
       });
     } catch (error) {
       next(error);
