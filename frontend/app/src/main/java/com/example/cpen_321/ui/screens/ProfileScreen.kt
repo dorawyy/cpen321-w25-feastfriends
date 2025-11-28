@@ -312,7 +312,7 @@ fun ProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
-                        modifier = Modifier.size(140.dp)
+                        modifier = Modifier.size(180.dp)
                     ) {
                         // Profile picture circle
                         Box(
@@ -395,7 +395,7 @@ fun ProfileScreen(
                                     ) {
                                         Text(
                                             text = name.take(1).uppercase().ifEmpty { "?" },
-                                            fontSize = 56.sp,
+                                            fontSize = 72.sp,
                                             color = Color.White,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -408,7 +408,7 @@ fun ProfileScreen(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(40.dp)
+                                .size(50.dp)
                                 .background(
                                     VividPurple,
                                     CircleShape
@@ -422,7 +422,7 @@ fun ProfileScreen(
                             if (isUploadingImage) {
                                 CircularProgressIndicator(
                                     color = Color.White,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                     strokeWidth = 2.dp
                                 )
                             } else {
@@ -430,7 +430,7 @@ fun ProfileScreen(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Edit Profile Picture",
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -542,7 +542,12 @@ fun ProfileScreen(
                         contactNumber = finalValue
                         contactNumberError = validatePhoneNumber(contactNumber)
                     },
-                    label = { Text("Phone Number:") },
+                    label = { 
+                        Text(
+                            "Phone Number:",
+                            color = VividPurple
+                        ) 
+                    },
                     placeholder = { Text("e.g., +1234567890 or (123) 456-7890") },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -550,11 +555,16 @@ fun ProfileScreen(
                         .testTag("phone"),
                     enabled = !isLoading,
                     singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = VividPurple,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
                     isError = contactNumberError.isNotEmpty(),
                     supportingText = if (contactNumberError.isNotEmpty()) {
                         { Text(contactNumberError, color = Color.Red) }
                     } else if (contactNumber.isNotEmpty()) {
-                        { Text("Format: International (+123...) or Local (10-11 digits)", color = Color.Gray, fontSize = 12.sp) }
+                        { Text("Format: International (+123...) or Local (10-11 digits)", color = TextSecondary, fontSize = 12.sp) }
                     } else null
                 )
 

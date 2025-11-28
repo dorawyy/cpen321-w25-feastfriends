@@ -601,12 +601,12 @@ private fun ProfilePictureOnRing(
     radius: androidx.compose.ui.unit.Dp
 ) {
     Column(
-        modifier = Modifier.width(90.dp),
+        modifier = Modifier.width(110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Profile picture
         Box(
-            modifier = Modifier.size(70.dp)
+            modifier = Modifier.size(90.dp)
         ) {
             if (user.profilePicture?.isNotEmpty() == true) {
                 if (user.profilePicture.startsWith("data:image/")) {
@@ -650,21 +650,11 @@ private fun ProfilePictureOnRing(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Profile",
-                        modifier = Modifier.size(35.dp),
+                        modifier = Modifier.size(45.dp),
                         tint = Color.White
                     )
                 }
             }
-            
-            // Green status dot (bottom of avatar)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = 28.dp) // Position at bottom edge (half of 70dp - half of 14dp = 28dp)
-                    .size(14.dp)
-                    .background(GreenDot, CircleShape)
-                    .border(2.dp, Color.White, CircleShape)
-            )
         }
         
         Spacer(modifier = Modifier.height(6.dp))
