@@ -1,12 +1,12 @@
 name: Nonfunctional tests
 
 on:
-  # will only run when we have finished the deploy to ec2 workflow; before I had a wait till 
-  # server is live code (still there; waits 150 s) this just means we can wait longer 
+  # will only run when we have finished the deploy to ec2 workflow; before I had a wait till
+  # server is live code (still there; waits 150 s) this just means we can wait longer
   workflow_run:
     workflows: ["Deploy to EC2"]
     types:
-      - completed 
+      - completed
     branches:
       - main
 
@@ -22,11 +22,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
-      
-      # given we also deploy the server 
+          python-version: "3.x"
+
+      # given we also deploy the server
       - name: Wait for server to be live
-        run: | 
+        run: |
           chmod +x .github/workflows/serverlive.sh
           ./.github/workflows/serverlive.sh
 
@@ -36,7 +36,7 @@ jobs:
           python -m pip install requests
 
       - name: Run restaurant match script
-        run: python testing/nonfunctional/resturantmatch.py
+        run: python nonfunctional-tests/resturantmatch.py
 
       - name: Run user requirements script
-        run: python testing/nonfunctional/userreq.py
+        run: python nonfunctional/userreq.py
