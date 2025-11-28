@@ -296,19 +296,18 @@ private fun CollapsibleBottomSheet(
     onLeaveClick: () -> Unit,
     onVerifyCodeClick: () -> Unit
 ) {
-    // Animate the offset
+    // ✅ FIXED: Animate offset so handle always remains visible
     val offsetY by animateDpAsState(
-        targetValue = if (isExpanded) 0.dp else 200.dp,
+        targetValue = if (isExpanded) 0.dp else 160.dp, // Show just the handle when collapsed
         label = "bottomSheetOffset"
     )
 
     var dragOffset by remember { mutableStateOf(0f) }
 
-    // ✅ FIXED: Use Column at parent level, then Box for positioning
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Spacer(modifier = Modifier.weight(1f)) // Push content to bottom
+        Spacer(modifier = Modifier.weight(1f))
 
         Box(
             modifier = Modifier
@@ -323,10 +322,8 @@ private fun CollapsibleBottomSheet(
                     detectVerticalDragGestures(
                         onDragEnd = {
                             if (dragOffset > 50) {
-                                // Dragged down - collapse
                                 if (isExpanded) onToggle()
                             } else if (dragOffset < -50) {
-                                // Dragged up - expand
                                 if (!isExpanded) onToggle()
                             }
                             dragOffset = 0f
@@ -342,7 +339,7 @@ private fun CollapsibleBottomSheet(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // ✅ Handle with icon
+                // ✅ Handle - ALWAYS visible
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -352,7 +349,6 @@ private fun CollapsibleBottomSheet(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Drag handle line
                         Box(
                             modifier = Modifier
                                 .width(40.dp)
@@ -362,7 +358,6 @@ private fun CollapsibleBottomSheet(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Arrow icon
                         Icon(
                             imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                             contentDescription = if (isExpanded) "Collapse" else "Expand",
@@ -378,10 +373,10 @@ private fun CollapsibleBottomSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // ✅ Action Buttons (only show when expanded)
+                // ✅ Only show buttons when expanded
                 if (isExpanded) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     GroupActionButtons(
                         currentGroup = currentGroup,
                         navController = navController,

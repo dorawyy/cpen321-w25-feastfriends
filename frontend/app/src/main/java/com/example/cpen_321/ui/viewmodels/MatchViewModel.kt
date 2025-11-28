@@ -544,6 +544,17 @@ class MatchViewModel @Inject constructor(
         }
     }
 
+
+    fun clearLocalRoomState() {
+        Log.d("MatchViewModel", "Clearing local room state")
+        _currentRoom.value = null
+        _roomMembers.value = emptyList()
+        _timeRemaining.value = 0L
+        _groupReady.value = false
+        _groupId.value = null
+        _roomExpired.value = false
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }
