@@ -197,6 +197,31 @@ async cleanupUserState(req: AuthRequest, res: Response, next: NextFunction): Pro
     next(error);
   }
 }
+
+/**
+ * POST /api/matching/room/:roomId/check-completion
+ * Check if room should be finalized (called when client timer expires)
+ */
+async checkRoomCompletion(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!ensureAuthenticated(req, res)) return;
+    const userId = req.user.userId;
+    
+    const roomId = requireParam(req, 'roomId');
+
+    console.log(`📱 User ${userId} requesting room completion check for ${roomId}`);
+
+    const result = await matchingService.checkRoomCompletion(roomId);
+
+    res.status(200).json({
+      Status: 200,
+      Message: { text: `Room status: ${result.status}` },
+      Body: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 }
 
 export const matchingController = new MatchingController();

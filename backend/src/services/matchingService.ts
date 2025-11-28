@@ -168,7 +168,7 @@ private async findBestMatchingRoom(userPreferences: {
       latitude?: number;
       longitude?: number;
     }
-  ): Promise<{ roomId: string; room: IRoomDocument }> {
+  ): Promise<{ roomId: string; room: IRoomDocument; serverTime: number }> {
     console.log(`🎯 joinMatching START: User ${userId} joining with preferences:`, preferences);
 
     // Get user
@@ -345,6 +345,7 @@ private async findBestMatchingRoom(userPreferences: {
     return {
       roomId: room._id.toString(),
       room: room.toJSON() as IRoomDocument,
+      serverTime: Date.now(),
     };
   }
 
@@ -547,6 +548,7 @@ private async findBestMatchingRoom(userPreferences: {
     }
   }
 
+  
   /**
    * Get room status
    */
@@ -642,6 +644,111 @@ private async findBestMatchingRoom(userPreferences: {
       console.log('   ✅ No expired rooms found');
     }
   }
+
+  /**
+ * Check if a room should be finalized (create group or expire)
+ * Called by clients when their timer expires for instant response
+ */
+async checkRoomCompletion(roomId: string): Promise<{
+  status: 'waiting' | 'group_created' | 'expired' | 'not_found';
+  groupId?: string;
+  serverTime: number;
+}> {
+  console.log(`🔍 checkRoomCompletion called for room: ${roomId}`);
+  
+  const room = await Room.findById(roomId) as unknown as IRoomDocument | null;
+  const serverTime = Date.now();
+  
+  if (!room) {
+    console.log(`❌ Room ${roomId} not found`);
+    return { status: 'not_found', serverTime };
+  }
+
+  // Already matched - find and return the group
+  if (room.status === RoomStatus.MATCHED) {
+    const group = await Group.findOne({ roomId: room._id.toString() });
+    console.log(`✅ Room ${roomId} already matched, group: ${group?._id}`);
+    return { 
+      status: 'group_created', 
+      groupId: group?._id.toString(),
+      serverTime 
+    };
+  }
+
+  // Already expired
+  if (room.status === RoomStatus.EXPIRED) {
+    console.log(`⏰ Room ${roomId} already expired`);
+    return { status: 'expired', serverTime };
+  }
+
+  // Check if room's completion time has passed
+  const now = new Date();
+  const timeUntilCompletion = room.completionTime.getTime() - now.getTime();
+  
+  console.log(`⏱️ Room ${roomId} completion check:`);
+  console.log(`   - Completion time: ${room.completionTime.toISOString()}`);
+  console.log(`   - Current time: ${now.toISOString()}`);
+  console.log(`   - Time until completion: ${timeUntilCompletion}ms`);
+  console.log(`   - Members: ${room.members.length}/${this.MIN_MEMBERS} required`);
+
+  if (timeUntilCompletion > 0) {
+    // Room hasn't expired yet
+    console.log(`⏳ Room ${roomId} still waiting (${timeUntilCompletion}ms remaining)`);
+    return { status: 'waiting', serverTime };
+  }
+
+  // Room time has passed - decide whether to create group or expire
+  if (room.members.length >= this.MIN_MEMBERS) {
+    console.log(`✅ Creating group from room ${roomId} with ${room.members.length} members`);
+    
+    // Create the group
+    await this.createGroupFromRoom(room._id.toString());
+    
+    // Find the newly created group
+    const group = await Group.findOne({ roomId: room._id.toString() });
+    
+    if (group) {
+      console.log(`🎉 Group ${group._id} created successfully`);
+      return { 
+        status: 'group_created', 
+        groupId: group._id.toString(),
+        serverTime 
+      };
+    } else {
+      console.error(`❌ Failed to find group after creation for room ${roomId}`);
+      return { status: 'expired', serverTime };
+    }
+  } else {
+    // Not enough members - expire the room
+    console.log(`❌ Room ${roomId} expired - only ${room.members.length}/${this.MIN_MEMBERS} members`);
+    
+    room.status = RoomStatus.EXPIRED;
+    await room.save();
+
+    // Update all users in the room
+    await User.updateMany(
+      { _id: { $in: room.members } },
+      { 
+        status: UserStatus.ONLINE, 
+        roomId: undefined 
+      }
+    );
+
+    // Notify via socket
+    socketManager.emitRoomExpired(room._id.toString(), 'Not enough members joined');
+
+    // Send push notifications
+    for (const memberId of room.members) {
+      try {
+        await notifyRoomExpired(memberId, room._id.toString());
+      } catch (error) {
+        console.error(`Failed to notify user ${memberId}:`, error);
+      }
+    }
+
+    return { status: 'expired', serverTime };
+  }
+}
 }
 
 export default new MatchingService();
