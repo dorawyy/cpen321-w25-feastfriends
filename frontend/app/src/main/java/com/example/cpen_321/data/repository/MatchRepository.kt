@@ -2,6 +2,7 @@ package com.example.cpen_321.data.repository
 
 import com.example.cpen_321.data.model.Room
 import com.example.cpen_321.data.model.RoomStatusResponse
+import com.example.cpen_321.data.model.RoomCompletionResponse
 import com.example.cpen_321.data.network.dto.ApiResult
 
 /**
@@ -12,13 +13,15 @@ interface MatchRepository {
     /**
      * Join the matching pool
      */
+    // Change joinMatching return type
     suspend fun joinMatching(
         cuisine: List<String>? = null,
         budget: Double? = null,
         radiusKm: Double? = null,
         latitude: Double? = null,
         longitude: Double? = null
-    ): ApiResult<Pair<String, Room>> // Returns (roomId, room)
+    ): ApiResult<Triple<String, Room, Long?>>
+
 
     /**
      * Leave a waiting room
@@ -51,6 +54,9 @@ interface MatchRepository {
      * Clean up stale user state before joining matching
      */
     suspend fun cleanupUserState(): ApiResult<CleanupStateData>
+
+    // Add to MatchRepository interface
+    suspend fun checkRoomCompletion(roomId: String): ApiResult<RoomCompletionResponse>
 }
 
 // ✅ ADD THIS DATA CLASS at the bottom of the file (outside the interface)

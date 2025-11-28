@@ -32,7 +32,10 @@ data class JoinMatchingResponse(
     val roomId: String,
 
     @SerializedName("room")
-    val room: Room
+    val room: Room,
+
+    @SerializedName("serverTime")
+    val serverTime: Long? = null  // ADD THIS
 )
 
 /**

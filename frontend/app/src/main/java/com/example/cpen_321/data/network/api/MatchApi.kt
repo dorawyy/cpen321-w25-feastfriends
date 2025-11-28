@@ -2,6 +2,7 @@ package com.example.cpen_321.data.network.api
 
 import com.example.cpen_321.data.model.RoomStatusResponse
 import com.example.cpen_321.data.model.RoomUsersResponse
+import com.example.cpen_321.data.model.RoomCompletionResponse
 import com.example.cpen_321.data.network.dto.ApiResponse
 import com.example.cpen_321.data.network.dto.JoinMatchingRequest
 import com.example.cpen_321.data.network.dto.JoinMatchingResponse
@@ -71,4 +72,13 @@ interface MatchAPI {
      */
     @POST("api/matching/cleanup")
     suspend fun cleanupUserState(): Response<ApiResponse<CleanupResponse>>
+
+    /**
+     * POST /api/matching/room/:roomId/check-completion
+     * Check if room should be finalized (called when client timer expires)
+     */
+    @POST("api/matching/room/{roomId}/check-completion")
+    suspend fun checkRoomCompletion(
+        @Path("roomId") roomId: String
+    ): Response<ApiResponse<RoomCompletionResponse>>
 }
