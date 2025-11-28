@@ -39,4 +39,4 @@ jobs:
         run: python nonfunctional-tests/resturantmatch.py
 
       - name: Run user requirements script
-        run: python nonfunctional/userreq.py
+        run: python nonfunctional-tests/userreq.py
