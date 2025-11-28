@@ -157,3 +157,18 @@ data class RoomUsersResponse(
     @SerializedName("Users")
     val users: List<String>
 )
+
+/**
+ * Room completion check response
+ * POST /api/matching/room/:roomId/check-completion
+ */
+data class RoomCompletionResponse(
+    @SerializedName("status")
+    val status: String,  // "waiting", "group_created", "expired", "not_found"
+
+    @SerializedName("groupId")
+    val groupId: String?,
+
+    @SerializedName("serverTime")
+    val serverTime: Long
+)

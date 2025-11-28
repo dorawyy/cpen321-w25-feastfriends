@@ -54,6 +54,20 @@ fun CredibilityScreen(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Back button at the top left
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextPrimary
+                        )
+                    }
+                }
+
                 // Title
                 Text(
                     text = "Credibility Score",

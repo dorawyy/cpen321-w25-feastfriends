@@ -12,7 +12,7 @@ for i in {1..30}; do
     sleep 5
 done
 
-# if server does not boot we quit out
+# if server does not boot we quit out with exit code 1
 if [ "$success" -ne 1 ]; then
     printf "\nERROR: Server did not start within %d attempts (%d seconds).\n" 30 $((30 * 5))
     exit 1

@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +60,9 @@ private fun isTestEnvironment(): Boolean {
 fun HomeScreen(
     navController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    matchViewModel: MatchViewModel = hiltViewModel(),
+    matchViewModel: MatchViewModel = hiltViewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    ),
     groupViewModel: GroupViewModel = hiltViewModel(),
     userViewModel: UserViewModel = hiltViewModel()
 ) {
@@ -173,7 +175,7 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(40.dp))
-                
+
                 Text(
                     text = "Welcome${userSettings?.name?.let { ", $it" } ?: ""}!",
                     fontSize = 28.sp,
@@ -186,7 +188,7 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // ✅ FIXED: Check if user is in a room and show appropriate button
+                // ✅ Check if user is in a room or group
                 val isInRoom = !userSettings?.roomID.isNullOrEmpty()
                 val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
 
@@ -194,15 +196,16 @@ fun HomeScreen(
                 Button(
                     onClick = {
                         if (!isJoiningMatch) {
-                            // ✅ NEW: If already in a room, navigate directly to waiting room
-                            if (isInRoom) {
+                            // ✅ Check if user is in a group first
+                            if (isInGroup) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("You are already in a group. Please leave group first, before joining new room")
+                                }
+                            }
+                            // ✅ If already in a room, navigate directly to waiting room
+                            else if (isInRoom) {
                                 Log.d("HomeScreen", "User already in room, navigating to waiting_room")
                                 navController.navigate("waiting_room")
-                            } else if (isInGroup) {
-                                // Check if user is in a group
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
-                                }
                             } else {
                                 val cuisines = userSettings?.preference ?: emptyList()
                                 val budget = userSettings?.budget ?: 50.0
@@ -262,7 +265,7 @@ fun HomeScreen(
                             shape = RoundedCornerShape(30.dp),
                             spotColor = VividPurple.copy(alpha = 0.3f)
                         ),
-                    enabled = !isJoiningMatch,
+                    enabled = !isJoiningMatch,  // ✅ Only disable during joining process
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent
                     ),
@@ -274,7 +277,7 @@ fun HomeScreen(
                             .fillMaxSize()
                             .background(
                                 brush = Brush.horizontalGradient(
-                                    colors = if (isInRoom) {
+                                    colors = if (isInRoom && !isInGroup) {
                                         listOf(
                                             Color(0xFFFFB347),
                                             Color(0xFFFF8C42)

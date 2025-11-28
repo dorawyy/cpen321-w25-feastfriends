@@ -581,7 +581,7 @@ private fun VoteButtons(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "YES", // Reversed text
+                        text = "NO", // Reversed text
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (userVote == false) Color.White else TextSecondary
@@ -629,7 +629,7 @@ private fun VoteButtons(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "NO", // Reversed text
+                        text = "YES", // Reversed text
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (userVote == true) Color.White else TextSecondary

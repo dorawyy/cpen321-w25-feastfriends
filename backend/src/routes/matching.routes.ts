@@ -59,4 +59,12 @@ router.post('/cleanup', authMiddleware, asyncHandler(async (req, res, next) => {
   await matchingController.cleanupUserState(req, res, next);
 }));
 
+/**
+ * @route   POST /api/matching/room/:roomId/check-completion
+ * @desc    Check if room should be finalized (client timer expired)
+ * @access  Private
+ */
+router.post('/room/:roomId/check-completion', authMiddleware, asyncHandler(async (req, res, next) => {
+  await matchingController.checkRoomCompletion(req, res, next);
+}));
 export default router;

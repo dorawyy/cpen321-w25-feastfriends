@@ -1,7 +1,6 @@
 """
 Goal of this file:
 	Test if system can return a resturant match in 5 seconds or less for 90% of requests 
-
 """
 
 import requests 

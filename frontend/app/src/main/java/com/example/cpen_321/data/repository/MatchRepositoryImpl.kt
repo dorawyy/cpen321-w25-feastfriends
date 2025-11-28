@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.cpen_321.data.local.PreferencesManager
 import com.example.cpen_321.data.model.Room
 import com.example.cpen_321.data.model.RoomStatusResponse
+import com.example.cpen_321.data.model.RoomCompletionResponse
 import com.example.cpen_321.data.model.UserSettings
 import com.example.cpen_321.data.network.RetrofitClient
 import com.example.cpen_321.data.network.dto.ApiResult
@@ -70,7 +71,7 @@ class MatchRepositoryImpl(
         radiusKm: Double?,
         latitude: Double?,          // ← ADD
         longitude: Double?          // ← ADD
-    ): ApiResult<Pair<String, Room>> {
+    ): ApiResult<Triple<String, Room, Long?>> {
 
 
         // Check if user is already in a room and clean up if needed
@@ -109,7 +110,7 @@ class MatchRepositoryImpl(
                     Log.d(TAG, "Successfully joined matching, roomId: ${apiResult.data.roomId}")
                 }
             }
-            .map {joinResponse -> Pair(joinResponse.roomId, joinResponse.room) } /* exports the success to be that */
+            .map {joinResponse -> Triple(joinResponse.roomId, joinResponse.room, joinResponse.serverTime)}  /* exports the success to be that */
 
         if (apiResult is ApiResult.Success){
             // Save preferences locally
@@ -188,4 +189,10 @@ class MatchRepositoryImpl(
         }
     }
 
+    override suspend fun checkRoomCompletion(roomId: String): ApiResult<RoomCompletionResponse> {
+        return safeApiCall(
+            apiCall = { matchAPI.checkRoomCompletion(roomId) },
+            customErrorCode = "Failed to check room completion"
+        )
+    }
 }

@@ -3,11 +3,11 @@
   <component name="deploymentTargetSelector">
     <selectionStates>
       <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-11-28T07:27:35.531599Z">
+        <option name="selectionMode" value="DIALOG" />
+        <DropdownSelection timestamp="2025-11-28T19:43:11.944525600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/hashim/.android/avd/Pixel_7_3.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=RFCR40FD0TZ" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -15,12 +15,17 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\dli9g\.android\avd\Pixel_7_API_33.avd" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=RFCR40FD0TZ" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\dli9g\.android\avd\Test_apk.avd" />
+                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\sandh\.android\avd\Pixel_7.avd" />
+              </handle>
+            </Target>
+            <Target type="DEFAULT_BOOT">
+              <handle>
+                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\sandh\.android\avd\Pixel_7_2.avd" />
               </handle>
             </Target>
           </targets>
