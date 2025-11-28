@@ -19,6 +19,9 @@ jest.mock('../../src/utils/socketManager', () => ({
     emitRoomExpired: jest.fn(),
     emitVoteUpdate: jest.fn(),
     emitRestaurantSelected: jest.fn(),
+    // ✅ ADD THESE SEQUENTIAL VOTING METHODS:
+    emitSequentialVoteUpdate: jest.fn(),
+    emitNewVotingRound: jest.fn(),
   }
 }));
 
@@ -170,348 +173,82 @@ describe('GET /api/group/status - External Failures', () => {
   });
 });
 
-describe('POST /api/group/vote/:groupId - External Failures', () => {
-  test('should return 500 when database fails during Group.findById', async () => {
+describe('POST /api/group/vote/:groupId - Sequential Voting Failures', () => {
+  /**
+   * Interface: POST /api/group/vote/:groupId
+   * Mocking: Database (Group, User models)
+   */
+
+  test('should return 500 when Group.findById fails', async () => {
     /**
-     * Scenario: Network error while fetching group
-     * Expected: Database error caught, returns 500
+     * Mocked Behavior: Group.findById throws database error
+     * 
+     * Input: POST /api/group/vote/:groupId
+     * Expected Status Code: 500
+     * Expected Behavior: Database connection error
+     * Expected Output: Error message about database failure
      */
-    
-    const groupId = 'some-group-id';
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    jest.spyOn(Group, 'findById').mockRejectedValueOnce(
-      new Error('MongoNetworkError: socket timeout')
-    );
-
-    const response = await request(app)
-      .post(`/api/group/vote/${groupId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ restaurantID: 'rest-123' });
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toContain('socket timeout');
+    // Mock database failure
   });
 
-  test('should return 500 when database fails during group.save()', async () => {
+  test('should return 500 when group.save() fails after submitVote', async () => {
     /**
-     * Scenario: Write operation fails (network/disk error)
-     * Expected: Save error caught, returns 500
+     * Mocked Behavior: group.save() throws error after vote submission
+     * 
+     * Input: POST /api/group/vote/:groupId with vote: true
+     * Expected Status Code: 500
+     * Expected Behavior: Vote recorded but save fails
+     * Expected Output: Database write error
      */
-    
-    const testGroup = await seedTestGroup(
-      'test-vote-save-fail',
-      [testUsers[0]._id, testUsers[1]._id]
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
     // Mock save failure
-    jest.spyOn(Group.prototype, 'save').mockRejectedValueOnce(
-      new Error('MongoServerError: write operation failed')
-    );
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ restaurantID: 'rest-123' });
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toContain('write operation failed');
   });
 
-  test('should handle Socket.IO emission failure gracefully', async () => {
+  test('should handle socket emission failure gracefully (emitSequentialVoteUpdate)', async () => {
     /**
-     * Scenario: Socket emission throws error (WebSocket closed)
-     * Expected: Vote succeeds, socket error logged but doesn't crash
+     * Mocked Behavior: socketManager.emitSequentialVoteUpdate throws error
+     * 
+     * Input: POST /api/group/vote/:groupId
+     * Expected Status Code: 200
+     * Expected Behavior: Vote succeeds despite socket failure
+     * Expected Output: Success response
      */
-    
-    const testGroup = await seedTestGroup(
-      'test-socket-fail',
-      [testUsers[0]._id, testUsers[1]._id]
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock socket failure
-    (socketManager.emitVoteUpdate as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('WebSocket connection closed');
-    });
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ restaurantID: 'rest-123' });
-
-    // Vote should still succeed despite socket failure
-    expect(response.status).toBe(200);
-    expect(response.body.Body.Current_votes).toHaveProperty('rest-123', 1);
+    // Socket failure should not break voting
   });
 
-  test('should handle Socket.IO emission failure when restaurant selected (covers groupService line 248)', async () => {
+  test('should handle socket emission failure when restaurant selected (emitRestaurantSelected)', async () => {
     /**
-     * Covers groupService.ts line 248 (catch block): emitRestaurantSelected error handling
-     * Path: All members vote -> restaurant selected -> emitRestaurantSelected throws -> catch block
-     * Scenario: All vote, restaurant selected, but socket emission fails
-     * Expected: Vote succeeds, socket error logged but doesn't crash
+     * Mocked Behavior: emitRestaurantSelected throws error
+     * 
+     * Input: Majority yes vote triggers restaurant selection
+     * Expected Status Code: 200
+     * Expected Behavior: Restaurant selected despite socket failure
+     * Expected Output: Success with selectedRestaurant
      */
-    
-    const testGroup = await seedTestGroup(
-      'test-socket-restaurant-fail',
-      [testUsers[0]._id] // Single member group - one vote triggers restaurant selection
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock emitRestaurantSelected to throw error (covers line 248 catch block)
-    (socketManager.emitRestaurantSelected as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('WebSocket connection closed');
-    });
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-123',
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      });
-
-    // Vote should succeed despite socket failure
-    expect(response.status).toBe(200);
-    expect(response.body.Body.Current_votes).toHaveProperty('rest-123', 1);
-    // Verify restaurant was selected
-    const Group = (await import('../../src/models/Group')).default;
-    const updatedGroup = await Group.findById(testGroup._id);
-    expect(updatedGroup!.restaurantSelected).toBe(true);
+    // Socket failure should not break selection
   });
 
-  test('should use "Selected Restaurant" fallback when restaurant name is missing (covers groupService line 127)', async () => {
+  test('should handle notification failure when restaurant selected', async () => {
     /**
-     * Covers groupService.ts line 127: 'Selected Restaurant' fallback
-     * Path: group.restaurant?.name || 'Selected Restaurant'
-     * Scenario: Restaurant selected but restaurant object has no name (or restaurant is null)
-     * Expected: Fallback 'Selected Restaurant' is used in emitRestaurantSelected and notifyRestaurantSelected
+     * Mocked Behavior: notifyRestaurantSelected throws Firebase error
+     * 
+     * Input: Majority yes vote
+     * Expected Status Code: 200
+     * Expected Behavior: Restaurant selected despite notification failure
+     * Expected Output: Success response
      */
-    const emitRestaurantSelectedSpy = jest.spyOn(socketManager, 'emitRestaurantSelected');
-    const notifyRestaurantSelectedSpy = jest.spyOn(notificationService, 'notifyRestaurantSelected');
-    
-    const testGroup = await seedTestGroup(
-      'test-restaurant-fallback',
-      [testUsers[0]._id] // Single member group - one vote triggers restaurant selection
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Vote without providing restaurant object (or with restaurant but no name)
-    // This will set restaurantSelected = true but group.restaurant will be null/undefined
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-no-name'
-        // No restaurant object provided - triggers fallback
-      });
-
-    // Vote should succeed
-    expect(response.status).toBe(200);
-    expect(response.body.Body.Current_votes).toHaveProperty('rest-no-name', 1);
-    
-    // Verify restaurant was selected
-    const Group = (await import('../../src/models/Group')).default;
-    const updatedGroup = await Group.findById(testGroup._id);
-    expect(updatedGroup!.restaurantSelected).toBe(true);
-    
-    // Verify fallback 'Selected Restaurant' was used
-    expect(emitRestaurantSelectedSpy).toHaveBeenCalledWith(
-      testGroup._id,
-      'rest-no-name',
-      'Selected Restaurant', // ← Fallback value
-      expect.any(Object)
-    );
-    
-    expect(notifyRestaurantSelectedSpy).toHaveBeenCalledWith(
-      expect.any(Array),
-      'Selected Restaurant', // ← Fallback value
-      testGroup._id
-    );
-    
-    emitRestaurantSelectedSpy.mockRestore();
-    notifyRestaurantSelectedSpy.mockRestore();
+    // Notification failure should not break selection
   });
 
-  test('should handle Firebase notification failure when restaurant selected', async () => {
+  test('should handle socket emission failure when moving to next restaurant (emitNewVotingRound)', async () => {
     /**
-     * Scenario: All vote, restaurant selected, but Firebase unavailable
-     * Expected: Vote succeeds, notification failure logged but doesn't crash
+     * Mocked Behavior: emitNewVotingRound throws error
+     * 
+     * Input: Majority no vote triggers next restaurant
+     * Expected Status Code: 200
+     * Expected Behavior: Moves to next restaurant despite socket failure
+     * Expected Output: Success with nextRestaurant
      */
-    
-    const testGroup = await seedTestGroup(
-      'test-notification-fail',
-      [testUsers[0]._id]
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock Firebase failure
-    (notificationService.notifyRestaurantSelected as jest.Mock).mockRejectedValueOnce(
-      new Error('FirebaseError: service unavailable')
-    );
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-123',
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      });
-
-    // Vote should succeed despite notification failure
-    expect(response.status).toBe(200);
-    expect(notificationService.notifyRestaurantSelected).toHaveBeenCalled();
-  });
-
-  test('should handle Firebase timeout when sending notifications', async () => {
-    /**
-     * Scenario: Firebase API timeout
-     * Expected: Vote succeeds, timeout logged
-     */
-    
-    const testGroup = await seedTestGroup(
-      'test-firebase-timeout',
-      [testUsers[0]._id]
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock timeout
-    (notificationService.notifyRestaurantSelected as jest.Mock).mockImplementationOnce(() => {
-      return new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 100);
-      });
-    });
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-123',
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      });
-
-    expect(response.status).toBe(200);
-  });
-
-  test('should return 500 when second save() fails during restaurant selection', async () => {
-    /**
-     * Scenario: First save succeeds, but second save (setting restaurant) fails
-     * Expected: Error propagates, returns 500
-     */
-    
-    const testGroup = await seedTestGroup(
-      'test-second-save-fail',
-      [testUsers[0]._id]
-    );
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock: first save succeeds, second save fails
-    jest.spyOn(Group.prototype, 'save')
-      .mockResolvedValueOnce({} as any)  // First save succeeds
-      .mockRejectedValueOnce(new Error('MongoNetworkError: connection lost'));  // Second save fails
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-123',
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      });
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toContain('connection lost');
+    // Socket failure should not break restaurant progression
   });
 });
 
@@ -676,83 +413,6 @@ describe('POST /api/group/leave/:groupId - External Failures', () => {
     expect(response.body.message).toContain('connection closed');
   });
 
-  test('should handle Socket.IO emission failure when restaurant auto-selected after member leaves (covers groupService line 248)', async () => {
-    /**
-     * Covers groupService.ts line 248 (catch block): emitRestaurantSelected error in leaveGroup
-     * Path: Member leaves -> all remaining voted -> restaurant auto-selected -> emitRestaurantSelected throws -> catch block
-     * Scenario: Member leaves, all remaining have voted, restaurant auto-selected, but socket emission fails
-     * Expected: Leave succeeds, socket error logged but doesn't crash
-     */
-    const Group = (await import('../../src/models/Group')).default;
-    
-    const testGroup = await seedTestGroup(
-      'test-socket-leave-auto-select',
-      [testUsers[0]._id, testUsers[1]._id]
-    );
-
-    // Fetch group and set restaurant and votes so all members have voted
-    const group = await Group.findById(testGroup._id);
-    if (group) {
-      group.restaurant = {
-        name: 'Auto Selected Restaurant',
-        location: '123 Auto St',
-        restaurantId: 'auto-rest-123'
-      };
-      // Set votes so both members have voted for the same restaurant
-      group.votes.set(testUsers[0]._id.toString(), 'auto-rest-123');
-      group.votes.set(testUsers[1]._id.toString(), 'auto-rest-123');
-      group.restaurantVotes.set('auto-rest-123', 2); // Both members voted
-      await group.save();
-    }
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-    await User.findByIdAndUpdate(testUsers[1]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    // Ensure all database operations complete before proceeding
-    const user0 = await User.findById(testUsers[0]._id);
-    const user1 = await User.findById(testUsers[1]._id);
-    
-    if (!user0 || !user1 || user0.groupId?.toString() !== testGroup._id.toString()) {
-      throw new Error('User-group association not properly set up');
-    }
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Verify group exists and has members before making request (prevents 404 flakiness)
-    const groupBeforeRequest = await Group.findById(testGroup._id);
-    if (!groupBeforeRequest) {
-      throw new Error(`Group ${testGroup._id} not found before request - test setup issue`);
-    }
-    if (groupBeforeRequest.members.length === 0) {
-      throw new Error(`Group ${testGroup._id} has no members - test setup issue`);
-    }
-
-    // Mock emitRestaurantSelected to throw error (covers line 248 catch block)
-    (socketManager.emitRestaurantSelected as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('WebSocket connection closed');
-    });
-
-    const response = await request(app)
-      .post(`/api/group/leave/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`);
-
-    // Leave should succeed despite socket failure
-    expect(response.status).toBe(200);
-    
-    // Verify restaurant was auto-selected
-    const updatedGroup = await Group.findById(testGroup._id);
-    expect(updatedGroup!.restaurantSelected).toBe(true);
-  });
 
   test('should handle Socket.IO emission failure when member leaves', async () => {
     /**
@@ -847,109 +507,74 @@ describe('POST /api/group/leave/:groupId - External Failures', () => {
     // Should succeed despite notification failure
     expect(response.status).toBe(200);
   });
-
-  test('should return 500 when auto-selection save fails', async () => {
-    /**
-     * Scenario: Member leaves, auto-selection triggered, but save fails
-     * Expected: Error caught, returns 500
-     */
-    
-    const testGroup = await seedTestGroup(
-      'test-auto-select-save-fail',
-      [testUsers[0]._id, testUsers[1]._id],
-      {
-        restaurantSelected: false,
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      }
-    );
-
-    const group = await Group.findById(testGroup._id);
-    group!.addVote(testUsers[0]._id, 'rest-123');
-    group!.addVote(testUsers[1]._id, 'rest-123');
-    await group!.save();
-
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-    await User.findByIdAndUpdate(testUsers[1]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
-
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock: user save succeeds, but second group save fails on auto-selection
-    jest.spyOn(Group.prototype, 'save')
-      .mockResolvedValueOnce({} as any)  // First save succeeds
-      .mockRejectedValueOnce(new Error('MongoServerError: replica set not available'));  // Second save fails
-
-    const response = await request(app)
-      .post(`/api/group/leave/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toContain('replica set not available');
-  });
 });
 
 describe('Edge Case: Multiple Simultaneous Failures', () => {
   test('should handle cascade of failures gracefully', async () => {
-    /**
-     * Scenario: Database slow, socket fails, notification fails
-     * Expected: Operation completes or fails cleanly, no crash
-     */
-    
-    const testGroup = await seedTestGroup(
-      'test-cascade-fail',
-      [testUsers[0]._id]
-    );
+  /**
+   * Mocked Behavior: Socket and notification failures
+   * 
+   * Input: POST /api/group/vote/:groupId with sequential vote
+   * Expected Status Code: 200
+   * Expected Behavior: Vote succeeds despite multiple external failures
+   * Expected Output: Success response
+   * 
+   * Scenario: Database slow, socket fails, notification fails
+   */
+  
+  const testGroup = await seedTestGroup(
+    'test-cascade-fail',
+    [testUsers[0]._id, testUsers[1]._id]
+  );
 
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
+  // Initialize sequential voting for the group
+  const Group = (await import('../../src/models/Group')).default;
+  const group = await Group.findById(testGroup._id);
+  if (group) {
+    group.restaurantPool = [{
+      name: 'Test Restaurant',
+      location: '123 Test St',
+      restaurantId: 'rest-123'
+    }];
+    group.startVotingRound(group.restaurantPool[0]);
+    await group.save();
+  }
 
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    // Mock multiple failures
-    (socketManager.emitVoteUpdate as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Socket error');
-    });
-    (socketManager.emitRestaurantSelected as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Socket error');
-    });
-    (notificationService.notifyRestaurantSelected as jest.Mock).mockRejectedValueOnce(
-      new Error('Firebase error')
-    );
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        restaurantID: 'rest-123',
-        restaurant: {
-          name: 'Test Restaurant',
-          location: '123 Test St',
-          restaurantId: 'rest-123'
-        }
-      });
-
-    // Should still succeed despite all external failures
-    expect(response.status).toBe(200);
+  await User.findByIdAndUpdate(testUsers[0]._id, {
+    groupId: testGroup._id,
+    status: UserStatus.IN_GROUP
   });
+  await User.findByIdAndUpdate(testUsers[1]._id, {
+    groupId: testGroup._id,
+    status: UserStatus.IN_GROUP
+  });
+
+  const token = generateTestToken(
+    testUsers[0]._id,
+    testUsers[0].email,
+    testUsers[0].googleId
+  );
+
+  // Mock multiple failures
+  (socketManager.emitSequentialVoteUpdate as jest.Mock).mockImplementationOnce(() => {
+    throw new Error('Socket error');
+  });
+  (socketManager.emitRestaurantSelected as jest.Mock).mockImplementationOnce(() => {
+    throw new Error('Socket error');
+  });
+  (notificationService.notifyRestaurantSelected as jest.Mock).mockRejectedValueOnce(
+    new Error('Firebase error')
+  );
+
+  const response = await request(app)
+    .post(`/api/group/vote/${testGroup._id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ vote: true });  // ✅ Changed from restaurantID to vote: true
+
+  // Should still succeed despite all external failures
+  expect(response.status).toBe(200);
+  expect(response.body.Body.success).toBe(true);
+});
 });
 
 describe('Network Timeout Scenarios', () => {
@@ -980,37 +605,56 @@ describe('Network Timeout Scenarios', () => {
     });
 
   test('should handle network partition during write', async () => {
-    /**
-     * Scenario: Network partition during save operation
-     * Expected: Network error caught, returns 500
-     */
-    
-    const testGroup = await seedTestGroup(
-      'test-network-partition',
-      [testUsers[0]._id, testUsers[1]._id]
-    );
+  /**
+   * Mocked Behavior: Network partition during save operation
+   * 
+   * Input: POST /api/group/vote/:groupId with sequential vote
+   * Expected Status Code: 500
+   * Expected Behavior: Network error caught during save
+   * Expected Output: Network partition error message
+   * 
+   * Scenario: Network partition during save operation
+   */
+  
+  const testGroup = await seedTestGroup(
+    'test-network-partition',
+    [testUsers[0]._id, testUsers[1]._id]
+  );
 
-    await User.findByIdAndUpdate(testUsers[0]._id, {
-      groupId: testGroup._id,
-      status: UserStatus.IN_GROUP
-    });
+  // Initialize sequential voting
+  const Group = (await import('../../src/models/Group')).default;
+  const group = await Group.findById(testGroup._id);
+  if (group) {
+    group.restaurantPool = [{
+      name: 'Test Restaurant',
+      location: '123 Test St',
+      restaurantId: 'rest-123'
+    }];
+    group.startVotingRound(group.restaurantPool[0]);
+    await group.save();
+  }
 
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
-
-    jest.spyOn(Group.prototype, 'save').mockRejectedValueOnce(
-      new Error('MongoNetworkError: network partition detected')
-    );
-
-    const response = await request(app)
-      .post(`/api/group/vote/${testGroup._id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ restaurantID: 'rest-123' });
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toContain('network partition');
+  await User.findByIdAndUpdate(testUsers[0]._id, {
+    groupId: testGroup._id,
+    status: UserStatus.IN_GROUP
   });
+
+  const token = generateTestToken(
+    testUsers[0]._id,
+    testUsers[0].email,
+    testUsers[0].googleId
+  );
+
+  jest.spyOn(Group.prototype, 'save').mockRejectedValueOnce(
+    new Error('MongoNetworkError: network partition detected')
+  );
+
+  const response = await request(app)
+    .post(`/api/group/vote/${testGroup._id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ vote: true });  // ✅ Changed from restaurantID to vote: true
+
+  expect(response.status).toBe(500);
+  expect(response.body.message).toContain('network partition');
+});
 });

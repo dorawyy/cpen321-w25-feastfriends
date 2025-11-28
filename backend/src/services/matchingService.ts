@@ -3,6 +3,7 @@ import User, { UserStatus } from '../models/User';
 import Group from '../models/Group';
 import socketManager from '../utils/socketManager';
 import { notifyRoomMatched, notifyRoomExpired } from './notificationService';
+import groupService from './groupService';
 
 export class MatchingService {
   private readonly ROOM_DURATION_MS = 0.25 * 60 * 1000; // 15 seconds
@@ -516,6 +517,8 @@ private async findBestMatchingRoom(userPreferences: {
     console.log(`   🍽️ Group cuisines: [${group.cuisines.join(', ')}]`);
     console.log(`   💰 Group budget: ${group.averageBudget}`);
     console.log(`   📍 Group radius: ${group.averageRadius} km`);
+
+    await groupService.initializeSequentialVoting(group._id.toString());
 
     // Update all users
     await User.updateMany(

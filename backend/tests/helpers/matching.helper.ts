@@ -34,7 +34,7 @@ export async function createTestRoom(data: Partial<TestRoom>): Promise<TestRoom>
     maxMembers: data.maxMembers || 10,
     members: data.members || [],
     status: data.status || RoomStatus.WAITING,
-    cuisine: data.cuisines || 'italian',
+    cuisines: data.cuisines || ['italian'],  // ✅ FIX: Changed from cuisine (string) to cuisines (array)
     averageBudget: data.averageBudget || 50,
     averageRadius: data.averageRadius || 5
   };
@@ -58,7 +58,7 @@ export async function createTestRoom(data: Partial<TestRoom>): Promise<TestRoom>
  */
 export async function createTestRoomWithMembers(
   memberCount: number,
-  cuisines: string[] = ['italian']
+  cuisines: string[] = ['italian']  // ✅ Already correct: accepts string[]
 ): Promise<{ room: TestRoom; memberIds: string[] }> {
   const memberIds: string[] = [];
   
@@ -79,7 +79,7 @@ export async function createTestRoomWithMembers(
 
   const room = await createTestRoom({
     members: memberIds,
-    cuisines,
+    cuisines,  // ✅ Already correct: passes array
     status: RoomStatus.WAITING
   });
 
