@@ -73,9 +73,7 @@ export class RestaurantService {
             const results = response.data.results || [];
             console.log(`  Found ${results.length} restaurants for ${cuisine}`);
             cuisineResults.set(cuisine, results);
-          } else if (response.data.status !== 'ZERO_RESULTS') {
-            console.warn(`  Warning for ${cuisine}:`, response.data.status);
-          }
+          } 
         }
 
         // ✅ Interleave results to ensure variety from each cuisine
@@ -315,26 +313,15 @@ export class RestaurantService {
     
     const detailedRestaurants = await Promise.all(
       basicRestaurants.map(async (restaurant) => {
-        try {
           if (restaurant.restaurantId) {
             console.log(`📸 Fetching details for: ${restaurant.name} (ID: ${restaurant.restaurantId})`);
             const details = await this.getRestaurantDetails(restaurant.restaurantId);
-            
-            // ✅ CRITICAL: Ensure restaurantId is preserved
-            if (!details.restaurantId) {
-              console.warn(`⚠️ Details missing restaurantId for ${restaurant.name}, using original`);
-              details.restaurantId = restaurant.restaurantId;
-            }
             
             console.log(`✅ Got details: ${details.name}, ID: ${details.restaurantId}, photos: ${details.photos?.length || 0}`);
             return details;
           }
           console.warn(`⚠️ Restaurant missing ID: ${restaurant.name}`);
           return restaurant;
-        } catch (error) {
-          console.error(`❌ Failed to get details for ${restaurant.name}:`, error);
-          return restaurant; // Return original if details fetch fails
-        }
       })
     );
 

@@ -106,6 +106,60 @@ describe('GET /api/restaurant/search - External Failures', () => {
     );
   });
 
+  test('should interleave results from multiple cuisines for balanced variety', async () => {
+  /**
+   * Mocked Behavior: axios.get returns different results for each cuisine
+   * 
+   * Input: GET /api/restaurant/search with cuisineTypes=italian,japanese
+   * Expected Status Code: 200
+   * Expected Behavior: Service makes separate API calls per cuisine and interleaves results
+   * Expected Output: Array of restaurants with balanced representation from both cuisines
+   * 
+   * Scenario: User searches for multiple cuisines, system should return variety from each
+   */
+  const token = generateTestToken(testUsers[0]._id, testUsers[0].email, testUsers[0].googleId);
+
+  // Mock multiple API calls (one per cuisine)
+  mockedAxios.get
+    .mockResolvedValueOnce({
+      // First call for 'italian'
+      data: {
+        status: 'OK',
+        results: [
+          { place_id: 'italian_1', name: 'Italian 1', vicinity: 'Italian St 1', rating: 4.5 },
+          { place_id: 'italian_2', name: 'Italian 2', vicinity: 'Italian St 2', rating: 4.3 }
+        ]
+      }
+    })
+    .mockResolvedValueOnce({
+      // Second call for 'japanese'
+      data: {
+        status: 'OK',
+        results: [
+          { place_id: 'japanese_1', name: 'Japanese 1', vicinity: 'Japanese St 1', rating: 4.6 },
+          { place_id: 'japanese_2', name: 'Japanese 2', vicinity: 'Japanese St 2', rating: 4.4 }
+        ]
+      }
+    });
+
+  const response = await request(app)
+    .get('/api/restaurant/search')
+    .query({ 
+      latitude: 49.2827, 
+      longitude: -123.1207,
+      cuisineTypes: 'italian,japanese'  // Multiple cuisines trigger interleaving
+    })
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(response.status).toBe(200);
+  expect(response.body.Body.length).toBeGreaterThan(0);
+  
+  // Verify both cuisines are represented (interleaved)
+  const restaurantIds = response.body.Body.map((r: any) => r.restaurantId);
+  expect(restaurantIds).toContain('italian_1');
+  expect(restaurantIds).toContain('japanese_1');
+});
+
   test('should return mock data when network timeout occurs', async () => {
     const token = generateTestToken(
       testUsers[0]._id,
@@ -390,6 +444,7 @@ describe('GET /api/restaurant/search - External Failures', () => {
     expect(response.body.Body[0].name).toBe('Cheap Eats');
     expect(response.body.Body[0].priceLevel).toBe(1);
   });
+  
 
 });
 
@@ -490,6 +545,44 @@ describe('GET /api/restaurant/:restaurantId - External Failures', () => {
     expect(response.body.Body.restaurantId).toBe('valid_place_123');
     expect(response.body.Body.rating).toBe(4.7);
   });
+
+  test('should keep restaurants without price level when filtering by price', async () => {
+  /**
+   * Covers: restaurantService.ts price filtering - keeps places with undefined/null price_level
+   */
+  const token = generateTestToken(testUsers[0]._id, testUsers[0].email, testUsers[0].googleId);
+
+  mockedAxios.get.mockResolvedValueOnce({
+    data: {
+      status: 'OK',
+      results: [
+        {
+          place_id: 'no_price_data',
+          name: 'Restaurant Without Price',
+          vicinity: '123 Unknown Price St',
+          price_level: undefined,  // ← No price data
+          rating: 4.0
+        },
+        {
+          place_id: 'cheap_place',
+          name: 'Cheap Eats',
+          vicinity: '456 Budget St',
+          price_level: 1,
+          rating: 4.0
+        }
+      ]
+    }
+  });
+
+  const response = await request(app)
+    .get('/api/restaurant/search')
+    .query({ latitude: 49.2827, longitude: -123.1207, priceLevel: 3 })
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(response.status).toBe(200);
+  // Should include restaurant without price data (fallback behavior)
+  expect(response.body.Body.some((r: any) => r.restaurantId === 'no_price_data')).toBe(true);
+});
 
   test('should include photos when restaurant has photos (covers getPhotoUrl)', async () => {
     /**
@@ -704,6 +797,115 @@ describe('GET /api/restaurant/:restaurantId - External Failures', () => {
 });
 
 describe('POST /api/restaurant/recommendations/:groupId - External Failures', () => {
+  test('should handle Details API failure gracefully in getRecommendationsForGroup', async () => {
+  /**
+   * Mocked Behavior: Nearbysearch API succeeds, but Details API fails for specific restaurant
+   * 
+   * Input: POST /api/restaurant/recommendations/:groupId with valid preferences
+   * Expected Status Code: 200
+   * Expected Behavior: Service handles Details API failure by returning original restaurant data
+   * Expected Output: Array of restaurants with original data when details fetch fails
+   * 
+   * Scenario: Getting recommendations, nearby search works but details API is unavailable
+   * System should gracefully degrade by using basic restaurant info
+   */
+  const token = generateTestToken(testUsers[0]._id, testUsers[0].email, testUsers[0].googleId);
+
+  // First call: searchRestaurants (nearbysearch) succeeds
+  mockedAxios.get.mockResolvedValueOnce({
+    data: {
+      status: 'OK',
+      results: [
+        { 
+          place_id: 'restaurant_123', 
+          name: 'Test Restaurant', 
+          vicinity: '123 Test St',
+          rating: 4.5,
+          price_level: 2
+        }
+      ]
+    }
+  });
+
+  // Second call: getRestaurantDetails (details API) fails
+  mockedAxios.get.mockRejectedValueOnce(new Error('Details API unavailable'));
+
+  const response = await request(app)
+    .post('/api/restaurant/recommendations/test-group')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      userPreferences: [
+        {
+          cuisineTypes: ['italian'],
+          budget: 50,
+          location: { coordinates: [-123.1207, 49.2827] },
+          radiusKm: 5
+        }
+      ]
+    });
+
+  expect(response.status).toBe(200);
+  expect(response.body.Body.length).toBeGreaterThan(0);
+  // Should return original restaurant despite details fetch failure
+  expect(response.body.Body[0].restaurantId).toBe('restaurant_123');
+});
+
+test('should filter out restaurants without restaurantId in getRecommendationsForGroup', async () => {
+  /**
+   * Mocked Behavior: Google API returns restaurants, some without place_id
+   * 
+   * Input: POST /api/restaurant/recommendations/:groupId
+   * Expected Status Code: 200
+   * Expected Behavior: Service filters out restaurants that lack valid restaurantId
+   * Expected Output: Array containing only restaurants with valid IDs
+   * 
+   * Scenario: Google API returns malformed data with missing place_id
+   * System should filter these out to prevent invalid data reaching frontend
+   */
+  const token = generateTestToken(testUsers[0]._id, testUsers[0].email, testUsers[0].googleId);
+
+  // Mock search returning restaurant without place_id
+  mockedAxios.get.mockResolvedValueOnce({
+    data: {
+      status: 'OK',
+      results: [
+        { 
+          // Missing place_id!
+          name: 'Invalid Restaurant', 
+          vicinity: '999 Invalid St',
+          rating: 4.0
+        },
+        { 
+          place_id: 'valid_123', 
+          name: 'Valid Restaurant', 
+          vicinity: '123 Valid St',
+          rating: 4.5
+        }
+      ]
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/restaurant/recommendations/test-group')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      userPreferences: [
+        {
+          cuisineTypes: ['italian'],
+          budget: 50,
+          location: { coordinates: [-123.1207, 49.2827] },
+          radiusKm: 5
+        }
+      ]
+    });
+
+  expect(response.status).toBe(200);
+  // Should only include the valid restaurant
+  expect(response.body.Body.every((r: any) => r.restaurantId)).toBe(true);
+  // Should not include the invalid restaurant without ID
+  expect(response.body.Body.some((r: any) => r.name === 'Invalid Restaurant')).toBe(false);
+});
+
   test('should return mock data when Google Places API fails', async () => {
     const token = generateTestToken(
       testUsers[0]._id,
@@ -775,7 +977,7 @@ describe('POST /api/restaurant/recommendations/:groupId - External Failures', ()
         results: [
           {
             place_id: 'aggregated_result',
-            name: 'Perfect Match Restaurant',
+            name: 'Sample Restaurant',
             vicinity: '123 Middle Ground St',
             rating: 4.6,
             price_level: 2
@@ -807,7 +1009,7 @@ describe('POST /api/restaurant/recommendations/:groupId - External Failures', ()
     expect(response.status).toBe(200);
     expect(response.body.Body).toBeInstanceOf(Array);
     expect(response.body.Body.length).toBeGreaterThan(0);
-    expect(response.body.Body[0].name).toBe('Perfect Match Restaurant');
+    expect(response.body.Body[0].name).toBe('Sample Restaurant');
   });
 });
 

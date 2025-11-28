@@ -38,6 +38,9 @@ jobs:
             PROD_JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
             PROD_GOOGLE_CLIENT_ID=${{ secrets.PROD_GOOGLE_CLIENT_ID }}
             PROD_GOOGLE_PLACES_API_KEY=${{ secrets.PROD_GOOGLE_PLACES_API_KEY }}
+            FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+            FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+            FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}
             EOF
 
             chmod 600 .env
