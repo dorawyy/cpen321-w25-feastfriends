@@ -77,105 +77,6 @@ export class GroupService {
     return 'voting';
   }
 
-  // ============================================
-  // LEGACY VOTING (for backward compatibility)
-  // ============================================
-
-  /**
-   * Vote for a restaurant (legacy list-based voting)
-   */
-  async voteForRestaurant(
-    userId: string,
-    groupId: string,
-    restaurantId: string,
-    restaurant?: RestaurantType
-  ): Promise<{ message: string; Current_votes: Record<string, number> }> {
-    const group = await Group.findById(groupId) as IGroupDocument | null;
-
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    // Check if user is in the group
-    if (!group.members.includes(userId)) {
-      throw new Error('User is not a member of this group');
-    }
-
-    // Check if restaurant is already selected
-    if (group.restaurantSelected) {
-      throw new Error('Restaurant has already been selected for this group');
-    }
-
-    // Add/update vote
-    group.addVote(userId, restaurantId);
-    
-    // Mark Map fields as modified for Mongoose to persist changes
-    group.markModified('votes');
-    group.markModified('restaurantVotes');
-    
-    await group.save();
-
-    // Convert Map to object for response
-    const currentVotes: Record<string, number> = Object.fromEntries(
-      Array.from(group.restaurantVotes.entries()).map(([id, count]) => {
-        const safeId = String(id);
-        return [safeId, count];
-      })
-    );
-
-    try {
-      socketManager.emitVoteUpdate(
-        groupId,
-        restaurantId,
-        currentVotes,
-        group.votes.size,
-        group.members.length
-      );
-    } catch (error) {
-      console.error('Failed to emit vote update:', error);
-    }
-
-    // Check if all members have voted
-    if (group.hasAllVoted()) {
-      const winningRestaurantId = group.getWinningRestaurant();
-      
-      if (winningRestaurantId) {
-        if (restaurant) {
-          group.restaurant = restaurant;
-        }
-        group.restaurantSelected = true;
-        await group.save();
-
-        try {
-          socketManager.emitRestaurantSelected(
-            groupId,
-            winningRestaurantId,
-            group.restaurant?.name || 'Selected Restaurant',
-            currentVotes
-          );
-        } catch (error) {
-          console.error('Failed to emit restaurant selected:', error);
-        }
-
-        try {
-          await notifyRestaurantSelected(
-            group.members,
-            group.restaurant?.name || 'Selected Restaurant',
-            groupId
-          );
-        } catch (error) {
-          console.error('Failed to send notification:', error);
-        }
-
-        console.log(`✅ Restaurant selected for group ${groupId}`);
-      }
-    }
-
-    return {
-      message: 'Voting successful',
-      Current_votes: currentVotes,
-    };
-  }
 
   // ============================================
   // NEW: SEQUENTIAL VOTING METHODS
@@ -205,16 +106,6 @@ export class GroupService {
 
           if (group.restaurantSelected) {
             throw new Error('Restaurant already selected for this group');
-          }
-
-          // Check if already initialized (idempotency)
-          if (group.restaurantPool && group.restaurantPool.length > 0) {
-            console.log(`⚠️ Sequential voting already initialized for group ${groupId}`);
-            return {
-              success: true,
-              currentRestaurant: group.currentRound?.restaurant,
-              message: 'Sequential voting already initialized',
-            };
           }
 
           // Get user data from all members

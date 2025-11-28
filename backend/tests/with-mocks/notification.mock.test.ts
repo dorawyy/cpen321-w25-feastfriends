@@ -27,11 +27,9 @@ import service from '../../src/services/notificationService';
 /**
  * Notification Tests - With Mocking (Uncontrollable Failures)
  * * This test suite covers UNCONTROLLABLE failures:
- * - External API failures (Firebase, token manager) (500)
  * - Database connection errors (500)
+ * - External API failures (Firebase, token manager) (500)
  * - Specific external error codes (e.g., invalid FCM token cleanup)
- * * Tests how application endpoints and service layer handle failures that
- * cannot be reliably triggered in no-mocks tests.
  */
 
 describe('Notification Service Logic - Failure Scenarios', () => {
@@ -46,16 +44,7 @@ describe('Notification Service Logic - Failure Scenarios', () => {
   // --- sendNotificationToUser Error Handling ---
   describe('sendNotificationToUser Error Cleanup', () => {
 
-    test('should handle "messaging/invalid-registration-token" error and call removeInvalidToken', async () => {
-      /**
-       * Input: User found, sendPushNotification rejects with 'messaging/invalid-registration-token'.
-       * Expected Status Code: N/A (Service Function)
-       * Expected Output: Function re-throws the error.
-       * Expected Behavior:
-       * - Catches Firebase error code.
-       * - Calls removeInvalidToken utility to clear the token from the database.
-       * - Re-throws the original error.
-       */
+    it('should handle "messaging/invalid-registration-token" error and call removeInvalidToken', async () => {
       mockUserFindById.mockResolvedValueOnce({ fcmToken });
       const firebaseInvalidTokenError = { code: 'messaging/invalid-registration-token', message: 'The token is invalid' };
       mockSendPushNotification.mockRejectedValueOnce(firebaseInvalidTokenError);
@@ -67,16 +56,7 @@ describe('Notification Service Logic - Failure Scenarios', () => {
       expect(mockRemoveInvalidToken).toHaveBeenCalledWith(fcmToken);
     });
 
-    test('should handle "messaging/registration-token-not-registered" error (errorInfo code) and call removeInvalidToken', async () => {
-      /**
-       * Input: User found, sendPushNotification rejects with 'messaging/registration-token-not-registered' nested in errorInfo.
-       * Expected Status Code: N/A (Service Function)
-       * Expected Output: Function re-throws the error.
-       * Expected Behavior:
-       * - Catches Firebase error code via errorInfo property.
-       * - Calls removeInvalidToken utility.
-       * - Re-throws the original error.
-       */
+    it('should handle "messaging/registration-token-not-registered" error (errorInfo code) and call removeInvalidToken', async () => {
       mockUserFindById.mockResolvedValueOnce({ fcmToken });
       const firebaseUnregisteredTokenError = { errorInfo: { code: 'messaging/registration-token-not-registered' }, message: 'Not registered' };
       mockSendPushNotification.mockRejectedValueOnce(firebaseUnregisteredTokenError);
@@ -88,16 +68,7 @@ describe('Notification Service Logic - Failure Scenarios', () => {
       expect(mockRemoveInvalidToken).toHaveBeenCalledWith(fcmToken);
     });
 
-    test('should handle a general FCM push failure (non-token error) and re-throw without cleaning token', async () => {
-      /**
-       * Input: User found, sendPushNotification rejects with a generic error (e.g., network failure).
-       * Expected Status Code: N/A (Service Function)
-       * Expected Output: Function re-throws the error.
-       * Expected Behavior:
-       * - Error code does not match invalid token list.
-       * - Does NOT call removeInvalidToken utility.
-       * - Re-throws the original error.
-       */
+    it('should handle a general FCM push failure (non-token error) and re-throw without cleaning token', async () => {
       mockUserFindById.mockResolvedValueOnce({ fcmToken });
       const fcmError = new Error('FCM Timeout');
       mockSendPushNotification.mockRejectedValueOnce(fcmError);
@@ -111,15 +82,7 @@ describe('Notification Service Logic - Failure Scenarios', () => {
 
   // --- sendNotificationToUsers Failure Tests ---
   describe('sendNotificationToUsers Error Handling', () => {
-    test('should throw and re-throw an error if the DB query for multiple users fails', async () => {
-      /**
-       * Input: DB query (User.find) fails.
-       * Expected Status Code: N/A (Service Function)
-       * Expected Output: Throws DB error.
-       * Expected Behavior:
-       * - User.find is called and rejects.
-       * - Error is caught and re-thrown.
-       */
+    it('should throw and re-throw an error if the DB query for multiple users fails', async () => {
       const dbError = new Error('Mongoose DB Find Failed');
       mockUserFind.mockRejectedValueOnce(dbError);
 
@@ -151,15 +114,7 @@ describe('Notification API Endpoints - With Mocking (500 Failures)', () => {
   describe('POST /register-token Failure', () => {
     const validBody = { userId: testUserId, token: 'fcm-token-123' };
 
-    test('should return 500 if tokenManager.updateUserToken fails', async () => {
-      /**
-       * Input: POST /api/notifications/register-token. tokenManager.updateUserToken rejects.
-       * Expected Status Code: 500
-       * Expected Output: { success: false, message: 'Failed to register FCM token' }
-       * Expected Behavior:
-       * - Catches exception from tokenManager.
-       * - Returns 500 status code.
-       */
+    it('should return 500 if tokenManager.updateUserToken fails', async () => {
       mockUpdateUserToken.mockRejectedValueOnce(internalError);
 
       const response = await request(app)
@@ -178,15 +133,7 @@ describe('Notification API Endpoints - With Mocking (500 Failures)', () => {
   describe('POST /unregister-token Failure', () => {
     const validBody = { userId: testUserId };
 
-    test('should return 500 if tokenManager.clearUserToken fails', async () => {
-      /**
-       * Input: POST /api/notifications/unregister-token. tokenManager.clearUserToken rejects.
-       * Expected Status Code: 500
-       * Expected Output: { success: false, message: 'Failed to clear FCM token' }
-       * Expected Behavior:
-       * - Catches exception from tokenManager.
-       * - Returns 500 status code.
-       */
+    it('should return 500 if tokenManager.clearUserToken fails', async () => {
       mockClearUserToken.mockRejectedValueOnce(internalError);
 
       const response = await request(app)
@@ -205,15 +152,7 @@ describe('Notification API Endpoints - With Mocking (500 Failures)', () => {
   describe('POST /test Failure', () => {
     const validBody = { userId: testUserId, title: 'Test Title', body: 'Test Body' };
     
-    test('should return 500 if notificationService.sendNotificationToUser fails', async () => {
-      /**
-       * Input: POST /api/notifications/test. notificationService.sendNotificationToUser rejects.
-       * Expected Status Code: 500
-       * Expected Output: { success: false, message: 'Failed to send test notification' }
-       * Expected Behavior:
-       * - Catches exception from the service layer.
-       * - Returns 500 status code.
-       */
+    it('should return 500 if notificationService.sendNotificationToUser fails', async () => {
       // Use the spy set up in beforeEach/afterEach
       sendNotificationToUserSpy.mockRejectedValueOnce(internalError);
 
