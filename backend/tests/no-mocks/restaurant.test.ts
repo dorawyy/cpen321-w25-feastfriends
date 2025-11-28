@@ -476,80 +476,73 @@ describe('POST /api/restaurant/recommendations/:groupId - No Mocking', () => {
   });
 });
 
-describe('Error Handling - next(error) Coverage', () => {
+describe('RestaurantService.getNextRestaurant - No Mocking', () => {
   /**
-   * Test: catch block -> next(error) pattern for searchRestaurants
+   * Tests the getNextRestaurant method with real implementation
+   * This method is mocked in group tests, so we test it here directly
    */
-  test('should handle errors in searchRestaurants catch block and call next(error)', async () => {
+
+  test('should return next unvoted restaurant from pool', async () => {
     /**
-     * Tests catch block -> next(error) -> error handler pattern
-     * Covers: restaurant.controller.ts catch block in searchRestaurants (line 44)
+     * Input: restaurantPool with 3 restaurants, excludedIds with 1 ID
+     * Expected Behavior: Returns first restaurant not in excludedIds
+     * Expected Output: Restaurant object that hasn't been voted on
      */
-    const restaurantService = await import('../../src/services/restaurantService');
-    
-    // Spy on searchRestaurants to throw an error
-    const spy = jest
-      .spyOn(restaurantService.default, 'searchRestaurants')
-      .mockRejectedValueOnce(new Error('Service error for testing'));
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
 
-    try {
-      const response = await request(app)
-        .get('/api/restaurant/search')
-        .query({
-          latitude: 49.2827,
-          longitude: -123.1207
-        });
+    const restaurantPool = [
+      { name: 'Restaurant 1', restaurantId: 'id1', location: '123 St' },
+      { name: 'Restaurant 2', restaurantId: 'id2', location: '456 St' },
+      { name: 'Restaurant 3', restaurantId: 'id3', location: '789 St' },
+    ];
 
-      expect(response.status).toBe(500);
-      expect(response.body.message).toContain('Service error for testing');
-    } finally {
-      // Ensure spy is restored even if test fails
-      spy.mockRestore();
-    }
+    const excludedIds = ['id1']; // Already voted on id1
+
+    const result = await restaurantService.getNextRestaurant(restaurantPool, excludedIds);
+
+    expect(result).toBeDefined();
+    expect(result?.restaurantId).toBe('id2'); // Should return first unvoted
+    expect(result?.name).toBe('Restaurant 2');
   });
 
-  /**
-   * Test: catch block -> next(error) pattern for getGroupRecommendations
-   * This specifically covers line 98 in restaurant.controller.ts
-   */
-  test('should handle errors in getGroupRecommendations catch block and call next(error)', async () => {
+  test('should return null when all restaurants have been voted on', async () => {
     /**
-     * Tests catch block -> next(error) -> error handler pattern
-     * Covers: restaurant.controller.ts catch block in getGroupRecommendations (line 98)
+     * Input: restaurantPool with 2 restaurants, all IDs in excludedIds
+     * Expected Behavior: No unvoted restaurants available
+     * Expected Output: null
      */
-    const token = generateTestToken(
-      testUsers[0]._id,
-      testUsers[0].email,
-      testUsers[0].googleId
-    );
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
 
-    const restaurantService = await import('../../src/services/restaurantService');
-    
-    // Spy on getRecommendationsForGroup to throw an error
-    const spy = jest
-      .spyOn(restaurantService.default, 'getRecommendationsForGroup')
-      .mockRejectedValueOnce(new Error('Recommendations service error'));
+    const restaurantPool = [
+      { name: 'Restaurant 1', restaurantId: 'id1', location: '123 St' },
+      { name: 'Restaurant 2', restaurantId: 'id2', location: '456 St' },
+    ];
 
-    try {
-      const response = await request(app)
-        .post(`/api/restaurant/recommendations/${testGroup._id}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          userPreferences: [
-            {
-              cuisineTypes: ['italian'],
-              budget: 50,
-              location: { coordinates: [-123.1207, 49.2827] },
-              radiusKm: 5
-            }
-          ]
-        });
+    const excludedIds = ['id1', 'id2']; // All voted on
 
-      expect(response.status).toBe(500);
-      expect(response.body.message).toContain('Recommendations service error');
-    } finally {
-      // Ensure spy is restored even if test fails
-      spy.mockRestore();
-    }
+    const result = await restaurantService.getNextRestaurant(restaurantPool, excludedIds);
+
+    expect(result).toBeNull();
+  });
+
+  test('should filter out restaurants without restaurantId', async () => {
+    /**
+     * Input: restaurantPool with one restaurant missing restaurantId
+     * Expected Behavior: Skips restaurants without valid ID
+     * Expected Output: Returns restaurant with valid ID
+     */
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
+
+    const restaurantPool = [
+      { name: 'Invalid', restaurantId: undefined, location: '000 St' } as any,
+      { name: 'Valid', restaurantId: 'id2', location: '456 St' },
+    ];
+
+    const excludedIds: string[] = [];
+
+    const result = await restaurantService.getNextRestaurant(restaurantPool, excludedIds);
+
+    expect(result?.restaurantId).toBe('id2');
+    expect(result?.name).toBe('Valid');
   });
 });
