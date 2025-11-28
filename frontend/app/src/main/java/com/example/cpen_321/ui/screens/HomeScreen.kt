@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +60,9 @@ private fun isTestEnvironment(): Boolean {
 fun HomeScreen(
     navController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    matchViewModel: MatchViewModel = hiltViewModel(),
+    matchViewModel: MatchViewModel = hiltViewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    ),
     groupViewModel: GroupViewModel = hiltViewModel(),
     userViewModel: UserViewModel = hiltViewModel()
 ) {

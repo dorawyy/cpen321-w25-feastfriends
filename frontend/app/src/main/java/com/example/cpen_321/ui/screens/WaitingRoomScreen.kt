@@ -5,7 +5,7 @@ package com.example.cpen_321.ui.screens
 // NEW CODE - FIXED VERSION WITH GLASSMORPHISM
 // BoxWithConstraints error has been FIXED
 // ===============================================
-
+import androidx.compose.ui.platform.LocalContext
 import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -69,6 +69,7 @@ import kotlin.random.Random
 import androidx.activity.compose.BackHandler
 import com.example.cpen_321.ui.theme.*
 import com.example.cpen_321.ui.theme.Typography
+import androidx.activity.ComponentActivity
 
 // Circular Timer Ring Gradient (specific to timer)
 private val PinkViolet = Color(0xFFE178C5) // Pink-Violet
@@ -78,7 +79,9 @@ private val LightLavender = Color(0xFFD9B3FF) // Light Lavender
 @Composable
 fun WaitingRoomScreen(
     navController: NavController,
-    viewModel: MatchViewModel = hiltViewModel()
+    viewModel: MatchViewModel = hiltViewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    )
 ) {
     // ✅ ADD THIS at the very top
     val viewModelHashCode = viewModel.hashCode()
@@ -272,6 +275,11 @@ private fun WaitingRoomContent(
     minNumberOfPeople: Int,
     onLeaveClick: () -> Unit
 ) {
+    // Log timeRemaining for debugging
+    LaunchedEffect(timeRemaining) {
+        Log.d("WaitingRoom", "📺 UI received timeRemaining: ${timeRemaining}ms (${timeRemaining / 1000}s)")
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -349,46 +357,46 @@ private fun WaitingRoomContent(
                 val centerX = constraints.maxWidth / 2f
                 val centerY = constraints.maxHeight / 2f
 
-                // Remember the initial time remaining based on the room to calculate total time
-                // Use roomId as key so it resets when joining a new room
                 val roomId = (currentRoom as? com.example.cpen_321.data.model.Room)?.roomId ?: ""
-                val totalTime = remember(roomId) {
-                    // Capture the first timeRemaining value when room changes
-                    // Backend sets ROOM_DURATION_MS = 15 seconds (15000ms)
-                    if (timeRemaining > 0) {
-                        timeRemaining
-                    } else {
-                        15000L // Fallback to 15 seconds matching backend ROOM_DURATION_MS
+
+                // Track the max timeRemaining we've seen for this room
+                var capturedTotalTime by remember(roomId) { mutableStateOf(0L) }
+
+                // Update totalTime when we get a larger value
+                LaunchedEffect(roomId, timeRemaining) {
+                    if (timeRemaining > capturedTotalTime) {
+                        capturedTotalTime = timeRemaining
+                        Log.d("WaitingRoom", "📺 Captured totalTime: ${capturedTotalTime}ms (${capturedTotalTime / 1000}s)")
                     }
                 }
 
-                // Circular progress ring (incomplete circle)
+                // Use captured total time, or fallback if not yet captured
+                val totalTime = if (capturedTotalTime > 0) capturedTotalTime else 20000L
+
+                // Circular progress ring
                 CircularTimerRing(
                     timeRemaining = timeRemaining,
                     totalTime = totalTime,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Profile pictures positioned on triangular orbit with floating animation (matching Figma)
+                // Profile pictures positioned on triangular orbit with floating animation
                 roomMembers.forEachIndexed { index, user ->
-                    // Triangular orbit: 3 positions - one at top, two at bottom forming equilateral triangle
-                    val triangleAngles = listOf(-90f, 30f, 150f) // Top, bottom-right, bottom-left
+                    val triangleAngles = listOf(-90f, 30f, 150f)
                     val angle = if (index < 3) {
                         triangleAngles[index]
                     } else {
-                        // For more than 3 members, distribute evenly around circle
                         (index * 360f / maxOf(roomMembers.size, 1)) - 90f
                     }
-                    val radius = 120.dp // Positioned on the circle edge
+                    val radius = 120.dp
                     val density = LocalDensity.current
                     val radiusPx = with(density) { radius.toPx() }
-                    val profileWidthPx = with(density) { 90.dp.toPx() } // Width for avatar + name
-                    val profileHeightPx = with(density) { 100.dp.toPx() } // Height for avatar + name
+                    val profileWidthPx = with(density) { 90.dp.toPx() }
+                    val profileHeightPx = with(density) { 100.dp.toPx() }
                     val angleRad = (angle * PI / 180).toFloat()
                     val xPx = centerX + (cos(angleRad) * radiusPx) - (profileWidthPx / 2)
                     val yPx = centerY + (sin(angleRad) * radiusPx) - (profileHeightPx / 2)
 
-                    // Faster floating animation with more movement
                     val infiniteTransition = rememberInfiniteTransition(label = "float_$index")
                     val floatOffset by infiniteTransition.animateFloat(
                         initialValue = -6f,
@@ -435,9 +443,12 @@ private fun WaitingRoomContent(
                         fontFamily = InterFontFamily
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    val timeRemainingSeconds = (timeRemaining / 1000).toInt()
-                    val minutes = timeRemainingSeconds / 60
-                    val seconds = timeRemainingSeconds % 60
+
+                    // Display timer - convert milliseconds to minutes:seconds
+                    val displaySeconds = (timeRemaining / 1000).toInt().coerceAtLeast(0)
+                    val minutes = displaySeconds / 60
+                    val seconds = displaySeconds % 60
+
                     Text(
                         text = String.format("%d:%02d", minutes, seconds),
                         fontSize = 48.sp,
@@ -450,7 +461,6 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-
             Text(
                 text = "Your group will be ready soon...",
                 fontSize = 16.sp,
@@ -462,7 +472,7 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Leave Room button - light background with purple outline (bigger like Figma)
+            // Leave Room button
             OutlinedButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
