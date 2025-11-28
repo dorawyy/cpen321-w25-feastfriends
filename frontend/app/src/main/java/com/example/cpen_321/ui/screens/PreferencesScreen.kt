@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.cpen_321.ui.viewmodels.UserViewModel
+import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun PreferencesScreen(
@@ -255,15 +256,15 @@ private fun RowScope.CuisineButton(
                 brush = Brush.linearGradient(
                     colors = if (isSelected)
                         listOf(
-                            Color(0xFF7B2CBF), // Dark purple
-                            Color(0xFF5A189A), // Darker purple
-                            Color(0xFF290C2F)  // Very dark purple
+                            VividPurple,
+                            MediumPurple,
+                            SoftViolet
                         )
                     else
                         listOf(
-                            Color(0xFFE596FF), // Light purple
-                            Color(0xFF9D4EDD), // Medium purple
-                            Color(0xFF7B2CBF)  // Dark purple
+                            SoftViolet,
+                            MediumPurple,
+                            VividPurple
                         )
                 ),
                 shape = MaterialTheme.shapes.medium

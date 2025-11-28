@@ -16,7 +16,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -26,16 +28,28 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.Canvas
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -53,16 +67,13 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import androidx.activity.compose.BackHandler
+import com.example.cpen_321.ui.theme.*
+import com.example.cpen_321.ui.theme.Typography
 
-// Purple Color Palette
-private val PurpleLight = Color(0xFFE6E6FA) // Lavender
-private val PurpleMedium = Color(0xFFC8B6FF) // Light purple
-private val PurpleDark = Color(0xFF9D8AC7) // Medium purple
-private val PurpleAccent = Color(0xFFB39DDB) // Purple accent
-private val PurpleGradientStart = Color(0xFFE8DAFF)
-private val PurpleGradientEnd = Color(0xFFD4C5F9)
-private val GlassWhite = Color(0xCCFFFFFF) // Semi-transparent white for glass effect
-private val GlassBorder = Color(0x33FFFFFF) // Subtle white border
+// Circular Timer Ring Gradient (specific to timer)
+private val PinkViolet = Color(0xFFE178C5) // Pink-Violet
+private val PurplePink = Color(0xFFB56CFF) // Purple-Pink
+private val LightLavender = Color(0xFFD9B3FF) // Light Lavender
 
 @Composable
 fun WaitingRoomScreen(
@@ -264,136 +275,416 @@ private fun WaitingRoomContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        PurpleGradientStart,
-                        PurpleGradientEnd
-                    )
-                )
-            )
+            .background(Color.White)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.Top
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // "X friends joined" badge at the top
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = OffWhiteTint,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = LightBorder,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                // Glass effect timer card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = GlassWhite),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Timer",
-                                modifier = Modifier.size(28.dp),
-                                tint = PurpleDark
-                            )
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = "Friends",
+                        modifier = Modifier.size(18.dp),
+                        tint = VividPurple
+                    )
+                    Text(
+                        text = "${roomMembers.size} friends joined",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary,
+                        fontFamily = InterFontFamily
+                    )
+                }
+            }
 
-                            val timeRemainingSeconds = (timeRemaining / 1000).toInt()
-                            val minutes = timeRemainingSeconds / 60
-                            val seconds = timeRemainingSeconds % 60
+            Spacer(modifier = Modifier.height(24.dp))
 
-                            Text(
-                                text = String.format("%d:%02d", minutes, seconds),
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (timeRemaining < 60000) Color(0xFFD88BB7) else PurpleDark
-                            )
-                        }
+            // FeastFriends title
+            Text(
+                text = "FeastFriends",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+                letterSpacing = 0.5.sp,
+                fontFamily = InterFontFamily
+            )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
-                        Text(
-                            text = "Waiting Room",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PurpleDark
-                        )
+            // Large circular timer ring with profile pictures around it
+            BoxWithConstraints(
+                modifier = Modifier.size(320.dp)
+            ) {
+                val centerX = constraints.maxWidth / 2f
+                val centerY = constraints.maxHeight / 2f
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Members",
-                                modifier = Modifier.size(20.dp),
-                                tint = PurpleAccent
-                            )
-                            Text(
-                                text = "${roomMembers.size} member${if (roomMembers.size != 1) "s" else ""} joined",
-                                fontSize = 16.sp,
-                                color = PurpleDark.copy(alpha = 0.7f)
-                            )
-                        }
-
-                        if (roomMembers.size < minNumberOfPeople) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Waiting for ${minNumberOfPeople - roomMembers.size} more...",
-                                fontSize = 14.sp,
-                                color = PurpleAccent,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                // Remember the initial time remaining based on the room to calculate total time
+                // Use roomId as key so it resets when joining a new room
+                val roomId = (currentRoom as? com.example.cpen_321.data.model.Room)?.roomId ?: ""
+                val totalTime = remember(roomId) {
+                    // Capture the first timeRemaining value when room changes
+                    // Backend sets ROOM_DURATION_MS = 15 seconds (15000ms)
+                    if (timeRemaining > 0) {
+                        timeRemaining
+                    } else {
+                        15000L // Fallback to 15 seconds matching backend ROOM_DURATION_MS
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                // Circular progress ring (incomplete circle)
+                CircularTimerRing(
+                    timeRemaining = timeRemaining,
+                    totalTime = totalTime,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Profile pictures positioned on triangular orbit with floating animation (matching Figma)
+                roomMembers.forEachIndexed { index, user ->
+                    // Triangular orbit: 3 positions - one at top, two at bottom forming equilateral triangle
+                    val triangleAngles = listOf(-90f, 30f, 150f) // Top, bottom-right, bottom-left
+                    val angle = if (index < 3) {
+                        triangleAngles[index]
+                    } else {
+                        // For more than 3 members, distribute evenly around circle
+                        (index * 360f / maxOf(roomMembers.size, 1)) - 90f
+                    }
+                    val radius = 120.dp // Positioned on the circle edge
+                    val density = LocalDensity.current
+                    val radiusPx = with(density) { radius.toPx() }
+                    val profileWidthPx = with(density) { 90.dp.toPx() } // Width for avatar + name
+                    val profileHeightPx = with(density) { 100.dp.toPx() } // Height for avatar + name
+                    val angleRad = (angle * PI / 180).toFloat()
+                    val xPx = centerX + (cos(angleRad) * radiusPx) - (profileWidthPx / 2)
+                    val yPx = centerY + (sin(angleRad) * radiusPx) - (profileHeightPx / 2)
+
+                    // Faster floating animation with more movement
+                    val infiniteTransition = rememberInfiniteTransition(label = "float_$index")
+                    val floatOffset by infiniteTransition.animateFloat(
+                        initialValue = -6f,
+                        targetValue = 6f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(
+                                durationMillis = 1500 + (index * 150),
+                                easing = FastOutSlowInEasing
+                            ),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "float_offset"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                IntOffset(
+                                    xPx.toInt(),
+                                    (yPx + floatOffset).toInt()
+                                )
+                            }
+                            .width(90.dp)
+                    ) {
+                        ProfilePictureOnRing(
+                            user = user,
+                            angle = angle,
+                            radius = radius
+                        )
+                    }
+                }
+
+                // "Waiting Room" text and timer in center
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Waiting Room",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = VividPurple,
+                        letterSpacing = 0.5.sp,
+                        fontFamily = InterFontFamily
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val timeRemainingSeconds = (timeRemaining / 1000).toInt()
+                    val minutes = timeRemainingSeconds / 60
+                    val seconds = timeRemainingSeconds % 60
+                    Text(
+                        text = String.format("%d:%02d", minutes, seconds),
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        fontFamily = InterFontFamily
+                    )
+                }
             }
 
-            // ANIMATED MEMBERS SECTION
-            AnimatedUserBubbles(users = roomMembers)
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Button(
+            // "Your table will be ready soon..." message
+            Text(
+                text = "Your table will be ready soon...",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = VividPurple,
+                letterSpacing = 0.2.sp,
+                fontFamily = InterFontFamily
+            )
+
+            Spacer(modifier = Modifier.height(80.dp))
+
+            // Leave Room button - light background with purple outline (bigger like Figma)
+            OutlinedButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PurpleAccent
+                    .fillMaxWidth(0.9f)
+                    .height(110.dp)
+                    .padding(bottom = 50.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = OffWhiteTint,
+                    contentColor = TextPrimary
                 ),
-                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 2.dp,
+                    color = LightBorder
+                ),
+                shape = RoundedCornerShape(36.dp),
                 elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 8.dp,
-                    pressedElevation = 12.dp
+                    defaultElevation = 0.dp,
+                    pressedElevation = 2.dp
                 )
             ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Leave",
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Leave Room",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = TextPrimary,
+                    fontFamily = InterFontFamily,
+                    letterSpacing = 0.5.sp
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CircularTimerRing(
+    timeRemaining: Long,
+    totalTime: Long,
+    modifier: Modifier = Modifier
+) {
+    // Total time comes from backend (15 seconds = 15000ms) or initial time remaining
+    // Progress shows remaining time - starts at 1.0 (full) and decreases to 0.0
+    val progress = if (totalTime > 0) {
+        (timeRemaining.toFloat() / totalTime.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    // Draw circular progress ring with gradient
+    Canvas(
+        modifier = modifier
+    ) {
+        val strokeWidth = 16.dp.toPx()
+        val radius = (size.minDimension - strokeWidth) / 2
+        val center = Offset(size.width / 2, size.height / 2)
+
+        // Background ring (full circle, very light)
+        drawCircle(
+            color = LightLavender.copy(alpha = 0.15f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        )
+
+        // Progress ring - starts FULL and decreases as time runs out
+        // When progress = 1.0 (full time), sweepAngle = 360f (full circle)
+        // As time decreases, progress decreases, sweepAngle decreases
+        val sweepAngle = progress * 360f
+
+        // Always draw the progress ring (even if 0, but we check > 0)
+        if (sweepAngle > 0) {
+            // Create gradient effect using the three colors from Figma
+            // Gradient: PinkViolet (#E178C5) → PurplePink (#B56CFF) → LightLavender (#D9B3FF)
+            val startAngle = -90f // Start from top
+
+            // For a full circle (360 degrees), we need to ensure it draws completely
+            // Use enough segments for smooth gradient
+            val numSegments = if (sweepAngle >= 359.9f) {
+                120 // More segments for full circle to ensure smoothness
+            } else {
+                90
+            }
+            val anglePerSegment = sweepAngle / numSegments
+
+            for (i in 0 until numSegments) {
+                val segmentStart = startAngle + (i * anglePerSegment)
+                val segmentSweep = anglePerSegment
+
+                // Calculate color based on position in the gradient (0.0 to 1.0)
+                // Position is based on the FULL circle, not just the current sweep
+                val gradientPosition = (i * anglePerSegment) / 360f
+                val color = when {
+                    gradientPosition < 0.4f -> {
+                        // First 40%: PinkViolet to PurplePink
+                        val t = gradientPosition / 0.4f
+                        Color(
+                            red = PinkViolet.red + (PurplePink.red - PinkViolet.red) * t,
+                            green = PinkViolet.green + (PurplePink.green - PinkViolet.green) * t,
+                            blue = PinkViolet.blue + (PurplePink.blue - PinkViolet.blue) * t,
+                            alpha = 1f
+                        )
+                    }
+                    else -> {
+                        // Last 60%: PurplePink to LightLavender
+                        val t = ((gradientPosition - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                        Color(
+                            red = PurplePink.red + (LightLavender.red - PurplePink.red) * t,
+                            green = PurplePink.green + (LightLavender.green - PurplePink.green) * t,
+                            blue = PurplePink.blue + (LightLavender.blue - PurplePink.blue) * t,
+                            alpha = 1f
+                        )
+                    }
+                }
+
+                drawArc(
+                    color = color,
+                    startAngle = segmentStart,
+                    sweepAngle = segmentSweep,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfilePictureOnRing(
+    user: UserProfile,
+    angle: Float,
+    radius: androidx.compose.ui.unit.Dp
+) {
+    Column(
+        modifier = Modifier.width(110.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Profile picture
+        Box(
+            modifier = Modifier.size(90.dp)
+        ) {
+            if (user.profilePicture?.isNotEmpty() == true) {
+                if (user.profilePicture.startsWith("data:image/")) {
+                    val painter = rememberBase64ImagePainter(user.profilePicture)
+                    Image(
+                        painter = painter,
+                        contentDescription = user.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .border(3.dp, Color.White, CircleShape)
+                    )
+                } else {
+                    AsyncImage(
+                        model = user.profilePicture,
+                        contentDescription = user.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .border(3.dp, Color.White, CircleShape)
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    VividPurple,
+                                    MediumPurple
+                                )
+                            ),
+                            CircleShape
+                        )
+                        .border(3.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        modifier = Modifier.size(45.dp),
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Name below avatar with glassmorphism effect
+        Box(
+            modifier = Modifier
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    spotColor = Color.Black.copy(alpha = 0.1f)
+                )
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            GlassWhite.copy(alpha = 0.9f),
+                            GlassWhite.copy(alpha = 0.7f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.5f),
+                            Color.White.copy(alpha = 0.3f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+        ) {
+            Text(
+                text = user.name.split(" ").firstOrNull() ?: user.name.take(10),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary,
+                fontFamily = InterFontFamily,
+                maxLines = 1,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -546,7 +837,7 @@ private fun UserBubbleAnimated(user: UserProfile) {
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                PurpleAccent.copy(alpha = 0.4f),
+                                VividPurple.copy(alpha = 0.4f),
                                 Color.Transparent
                             )
                         )
@@ -565,7 +856,7 @@ private fun UserBubbleAnimated(user: UserProfile) {
                             .size(70.dp)
                             .align(Alignment.Center)
                             .clip(CircleShape)
-                            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+                            .border(3.dp, VividPurple.copy(alpha = 0.8f), CircleShape)
                             .border(1.dp, GlassWhite, CircleShape)
                     )
                 } else {
@@ -577,7 +868,7 @@ private fun UserBubbleAnimated(user: UserProfile) {
                             .size(70.dp)
                             .align(Alignment.Center)
                             .clip(CircleShape)
-                            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+                            .border(3.dp, VividPurple.copy(alpha = 0.8f), CircleShape)
                             .border(1.dp, GlassWhite, CircleShape)
                     )
                 }
@@ -601,7 +892,7 @@ private fun UserBubbleAnimated(user: UserProfile) {
                 maxLines = 2,
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Medium,
-                color = PurpleDark
+                color = TextPrimary
             )
         }
     }
@@ -615,8 +906,9 @@ private fun GroupReadyContent() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        PurpleGradientStart,
-                        PurpleGradientEnd
+                        GradientTop,
+                        GradientMiddle,
+                        GradientBottom
                     )
                 )
             ),
@@ -629,7 +921,7 @@ private fun GroupReadyContent() {
             Card(
                 modifier = Modifier.size(120.dp),
                 shape = CircleShape,
-                colors = CardDefaults.cardColors(containerColor = PurpleAccent),
+                colors = CardDefaults.cardColors(containerColor = VividPurple),
                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
             ) {
                 Box(
@@ -651,14 +943,14 @@ private fun GroupReadyContent() {
                 "Group Ready!",
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp,
-                color = PurpleDark
+                color = TextPrimary
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             CircularProgressIndicator(
                 modifier = Modifier.size(40.dp),
-                color = PurpleAccent,
+                color = VividPurple,
                 strokeWidth = 4.dp
             )
 
@@ -667,7 +959,7 @@ private fun GroupReadyContent() {
             Text(
                 "Preparing your group...",
                 fontSize = 16.sp,
-                color = PurpleDark.copy(alpha = 0.7f)
+                color = TextPrimary.copy(alpha = 0.7f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -675,7 +967,7 @@ private fun GroupReadyContent() {
             Text(
                 "You'll be redirected shortly",
                 fontSize = 14.sp,
-                color = PurpleDark.copy(alpha = 0.5f)
+                color = TextPrimary.copy(alpha = 0.5f)
             )
         }
     }
@@ -712,13 +1004,13 @@ private fun EmptyMembersPlaceholder() {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(40.dp),
-                    color = PurpleAccent
+                    color = VividPurple
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     "Loading members...",
                     fontSize = 14.sp,
-                    color = PurpleDark.copy(alpha = 0.7f)
+                    color = TextPrimary.copy(alpha = 0.7f)
                 )
             }
         }
@@ -805,12 +1097,12 @@ private fun DefaultUserAvatar() {
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        PurpleAccent,
-                        PurpleDark
+                        VividPurple,
+                        TextPrimary
                     )
                 )
             )
-            .border(3.dp, PurpleAccent.copy(alpha = 0.8f), CircleShape)
+            .border(3.dp, VividPurple.copy(alpha = 0.8f), CircleShape)
             .border(1.dp, GlassWhite, CircleShape),
         contentAlignment = Alignment.Center
     ) {
@@ -836,13 +1128,13 @@ private fun LeaveRoomDialog(
                 Text(
                     "Leave Waiting Room?",
                     fontWeight = FontWeight.Bold,
-                    color = PurpleDark
+                    color = TextPrimary
                 )
             },
             text = {
                 Text(
                     "Are you sure you want to leave? You'll lose your spot in this room.",
-                    color = PurpleDark.copy(alpha = 0.8f)
+                    color = TextPrimary.copy(alpha = 0.8f)
                 )
             },
             confirmButton = {
@@ -854,7 +1146,7 @@ private fun LeaveRoomDialog(
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Stay", color = PurpleDark)
+                    Text("Stay", color = TextPrimary)
                 }
             },
             containerColor = GlassWhite,
@@ -883,19 +1175,19 @@ private fun FailureDialog(
                 Column {
                     Text(
                         "The waiting room timer expired, but not enough people joined.",
-                        color = PurpleDark.copy(alpha = 0.8f)
+                        color = TextPrimary.copy(alpha = 0.8f)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Minimum $minNumberOfPeople members required to form a group.",
                         fontWeight = FontWeight.SemiBold,
-                        color = PurpleDark
+                        color = TextPrimary
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = onConfirm) {
-                    Text("Try Again", color = PurpleDark, fontWeight = FontWeight.Bold)
+                    Text("Try Again", color = TextPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = PurpleLight,

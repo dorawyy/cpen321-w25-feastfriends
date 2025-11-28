@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +30,8 @@ import com.example.cpen_321.data.model.GroupMember
 import com.example.cpen_321.ui.viewmodels.GroupViewModel
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import androidx.compose.foundation.Image
+
+import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun GroupScreen(
@@ -54,7 +57,15 @@ fun GroupScreen(
     )
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { 
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = VividPurple,
+                    contentColor = Color.White
+                )
+            }
+        }
     ) { innerPadding ->
         GroupScreenContent(
             modifier = Modifier.padding(innerPadding),
@@ -128,7 +139,7 @@ private fun LoadingState(modifier: Modifier) {
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(color = VividPurple)
     }
 }
 
@@ -147,7 +158,7 @@ private fun NoGroupState(modifier: Modifier, navController: NavController) {
             Text(
                 "You are not currently in any group.",
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = TextPrimary.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(
@@ -219,15 +230,23 @@ private fun GroupHeader() {
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
-            .background(Color(0xFFFFF9C4))
-            .border(2.dp, Color.Black),
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFE596FF), // Light purple
+                        Color(0xFF9D4EDD), // Medium purple
+                        Color(0xFF7B2CBF)  // Dark purple
+                    )
+                ),
+                RoundedCornerShape(16.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "Group",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = Color.White,
             textAlign = TextAlign.Center
         )
     }
@@ -257,9 +276,9 @@ private fun RestaurantCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4)),
-        shape = RoundedCornerShape(0.dp),
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color.Black)
+        colors = CardDefaults.cardColors(containerColor = GlassWhite),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(2.dp, VividPurple)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             RestaurantPhoto(restaurant = restaurant)
@@ -292,7 +311,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
         text = restaurant.name,
         fontSize = 22.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.Black
+        color = TextPrimary
     )
 
     Spacer(modifier = Modifier.height(12.dp))
@@ -300,7 +319,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
     Text(
         text = "📍 ${restaurant.location}",
         fontSize = 16.sp,
-        color = Color.Black
+        color = TextPrimary.copy(alpha = 0.8f)
     )
 
     restaurant.rating?.let { rating ->
@@ -309,7 +328,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = "Rating",
-                tint = Color(0xFFFFC107),
+                tint = Color(0xFF9D4EDD),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -317,7 +336,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
                 text = restaurant.getRatingString(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.Black
+                color = TextPrimary
             )
         }
     }
@@ -327,7 +346,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
         Text(
             text = "Price: ${restaurant.getPriceLevelString()}",
             fontSize = 16.sp,
-            color = Color.Black
+            color = TextPrimary.copy(alpha = 0.8f)
         )
     }
 
@@ -336,7 +355,7 @@ private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restau
         Text(
             text = "📞 $phone",
             fontSize = 16.sp,
-            color = Color.Black
+            color = TextPrimary.copy(alpha = 0.8f)
         )
     }
 }
@@ -354,7 +373,7 @@ private fun RestaurantVoteCount(
                 text = "🏆 Won with $voteCount vote${if (voteCount != 1) "s" else ""}",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF4CAF50)
+                color = Color(0xFF9D4EDD)
             )
         }
     }
@@ -365,14 +384,14 @@ private fun NoRestaurantSelected() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFF9C4))
-            .border(2.dp, Color.Black)
+            .background(GlassWhite, RoundedCornerShape(16.dp))
+            .border(2.dp, VividPurple, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
             text = "Restaurant: Not selected yet\nWaiting for voting to complete...",
             fontSize = 16.sp,
-            color = Color.Gray,
+            color = TextPrimary.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -389,7 +408,7 @@ private fun MembersSection(
         text = "Group Members (${currentGroup.getAllMembers()?.size ?: 0})",
         fontSize = 20.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.Black
+        color = TextPrimary
     )
 
     Spacer(modifier = Modifier.height(16.dp))
@@ -445,8 +464,8 @@ private fun MemberCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFF9C4))
-            .border(2.dp, Color.Black)
+            .background(GlassWhite, RoundedCornerShape(12.dp))
+            .border(2.dp, VividPurple, RoundedCornerShape(12.dp))
             .clickable {
                 navController.navigate("member_profile/$userId")
             }
@@ -497,7 +516,14 @@ private fun MemberDetailsContent(member: GroupMember) {
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFFD54F)),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF9D4EDD),
+                                Color(0xFF7B2CBF)
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -517,20 +543,20 @@ private fun MemberDetailsContent(member: GroupMember) {
                 text = member.name,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = TextPrimary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Credibility Score: ${member.credibilityScore.toInt()}",
                 fontSize = 14.sp,
-                color = Color.Black
+                color = TextPrimary.copy(alpha = 0.8f)
             )
             member.phoneNumber?.let { phone ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Phone: $phone",
                     fontSize = 14.sp,
-                    color = Color.Black
+                    color = TextPrimary.copy(alpha = 0.8f)
                 )
             }
             if (member.hasVoted) {
@@ -538,7 +564,7 @@ private fun MemberDetailsContent(member: GroupMember) {
                 Text(
                     text = "✓ Voted",
                     fontSize = 14.sp,
-                    color = Color(0xFF4CAF50),
+                    color = Color(0xFF9D4EDD),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -553,13 +579,13 @@ private fun MemberPlaceholderContent(userId: String) {
             text = "User: $userId",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = TextPrimary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Loading details...",
             fontSize = 14.sp,
-            color = Color.Gray
+            color = TextPrimary.copy(alpha = 0.7f)
         )
     }
 }
@@ -580,11 +606,13 @@ private fun ActionButtons(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD54F))
+        colors = ButtonDefaults.buttonColors(
+            containerColor = VividPurple
+        )
     ) {
         Text(
             text = "Back to View Groups",
-            color = Color.Black,
+            color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -615,13 +643,13 @@ private fun LeaveGroupButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD88BB7)),
         enabled = !isLoading
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color.Red,
+                color = Color(0xFFD88BB7),
                 strokeWidth = 2.dp
             )
         } else {
