@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,6 +32,8 @@ import com.example.cpen_321.data.model.UserProfile
 import com.example.cpen_321.ui.viewmodels.UserViewModel
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlinx.coroutines.launch
+
+import com.example.cpen_321.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,7 +94,9 @@ fun MemberProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFD54F)
+                    containerColor = VividPurple,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
                 )
             )
         }
@@ -104,7 +109,7 @@ fun MemberProfileScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = VividPurple)
                 }
             }
             userProfile == null -> {
@@ -118,11 +123,17 @@ fun MemberProfileScreen(
                         Text(
                             text = "Profile not found",
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = onNavigateBack) {
-                            Text("Go Back")
+                        Button(
+                            onClick = onNavigateBack,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VividPurple
+                            )
+                        ) {
+                            Text("Go Back", color = Color.White)
                         }
                     }
                 }
@@ -165,7 +176,7 @@ private fun MemberProfileContent(
             text = userProfile.name,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = TextPrimary,
             textAlign = TextAlign.Center
         )
 
@@ -174,9 +185,9 @@ private fun MemberProfileContent(
         // Profile Details Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4)),
-            shape = RoundedCornerShape(0.dp),
-            border = androidx.compose.foundation.BorderStroke(2.dp, Color.Black)
+            colors = CardDefaults.cardColors(containerColor = GlassWhite),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, VividPurple)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -191,7 +202,7 @@ private fun MemberProfileContent(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Credibility Score",
-                            tint = Color(0xFFFFC107),
+                            tint = Color(0xFF9D4EDD),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -199,7 +210,7 @@ private fun MemberProfileContent(
                             text = "Credibility Score: ${score.toInt()}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.Black
+                            color = TextPrimary
                         )
                     }
                 }
@@ -212,13 +223,13 @@ private fun MemberProfileContent(
                                 text = "Bio",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black
+                                color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = bio,
                                 fontSize = 16.sp,
-                                color = Color.Black,
+                                color = TextPrimary.copy(alpha = 0.8f),
                                 lineHeight = 24.sp
                             )
                         }
@@ -240,7 +251,7 @@ private fun MemberProfileContent(
                             Text(
                                 text = phone,
                                 fontSize = 16.sp,
-                                color = Color.Black
+                                color = TextPrimary.copy(alpha = 0.8f)
                             )
                         }
                     }
@@ -264,7 +275,7 @@ private fun ProfilePictureSection(profilePicture: String?) {
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .border(4.dp, Color.Black, CircleShape)
+                    .border(4.dp, VividPurple, CircleShape)
                     .background(Color.LightGray),
                 contentScale = ContentScale.Crop
             )
@@ -276,7 +287,7 @@ private fun ProfilePictureSection(profilePicture: String?) {
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .border(4.dp, Color.Black, CircleShape)
+                    .border(4.dp, VividPurple, CircleShape)
                     .background(Color.LightGray),
                 contentScale = ContentScale.Crop
             )
@@ -287,8 +298,15 @@ private fun ProfilePictureSection(profilePicture: String?) {
             modifier = Modifier
                 .size(120.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFD54F))
-                .border(4.dp, Color.Black, CircleShape),
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF9D4EDD),
+                            Color(0xFF7B2CBF)
+                        )
+                    )
+                )
+                .border(4.dp, VividPurple, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(

@@ -17,9 +17,23 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF331E37),
-    secondary = Color(0xFFF1F1F1),
-    tertiary = Color(0xFF706993)
+    primary = Color(0xFF8B3DFF), // Vivid Purple - main brand color
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFA566FF), // Medium Purple
+    onPrimaryContainer = Color(0xFF1E1E2C), // TextPrimary
+    secondary = Color(0xFFF9F7FC), // OffWhiteTint
+    onSecondary = Color(0xFF1E1E2C), // TextPrimary
+    tertiary = Color(0xFFC79BFF), // SoftViolet
+    onTertiary = Color(0xFF1E1E2C), // TextPrimary
+    background = Color.White, // SoftWhite
+    onBackground = Color(0xFF1E1E2C), // TextPrimary
+    surface = Color(0xFFF9F7FC), // OffWhiteTint
+    onSurface = Color(0xFF1E1E2C), // TextPrimary
+    surfaceVariant = Color(0xFFECE6F6), // LightBorder
+    onSurfaceVariant = Color(0xFF4A4256), // TextSecondary
+    outline = Color(0xFFECE6F6), // LightBorder
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
 )
 
 data class Spacing(

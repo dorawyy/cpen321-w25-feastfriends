@@ -28,6 +28,7 @@ import com.example.cpen_321.BuildConfig
 import com.example.cpen_321.R
 import com.example.cpen_321.ui.viewmodels.AuthViewModel
 import com.example.cpen_321.ui.viewmodels.AuthState
+import com.example.cpen_321.ui.theme.*
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
@@ -177,9 +178,9 @@ private fun AuthButtons(
         GradientButton(
             text = "SIGN IN",
             colors = listOf(
-                Color(0xFFE596FF),
-                Color(0xFF9D4EDD),
-                Color(0xFF7B2CBF)
+                SoftViolet,
+                MediumPurple,
+                VividPurple
             ),
             enabled = !isLoading,
             onClick = onSignInClick
@@ -188,9 +189,9 @@ private fun AuthButtons(
         GradientButton(
             text = "SIGN UP",
             colors = listOf(
-                Color(0xFF7B2CBF),
-                Color(0xFF5A189A),
-                Color(0xFF290C2F)
+                VividPurple,
+                MediumPurple,
+                SoftViolet
             ),
             enabled = !isLoading,
             onClick = onSignUpClick

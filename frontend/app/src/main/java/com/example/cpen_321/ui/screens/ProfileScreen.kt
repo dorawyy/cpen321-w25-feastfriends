@@ -19,15 +19,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,6 +63,8 @@ import com.example.cpen_321.utils.Base64ImageHelper
 import com.example.cpen_321.utils.rememberBase64ImagePainter
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.testTag
+
+import com.example.cpen_321.ui.theme.*
 
 private const val TAG = "ProfileScreen"
 
@@ -296,152 +306,217 @@ fun ProfileScreen(
                     Text("Loading profile...")
                 }
             } else {
-                // Profile picture and change button row
-                Row(
+                // Centered Profile Picture with Edit Icon
+                Box(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Profile picture circle
                     Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, Color.Black, CircleShape),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.size(180.dp)
                     ) {
-                        when {
-                            isUploadingImage -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(40.dp)
-                                )
-                            }
-                            selectedImageBase64.isNotEmpty() -> {
-                                // Show selected image (temporary)
-                                Log.d(TAG, "Using selected image (temporary)")
-                                val painter = rememberBase64ImagePainter(selectedImageBase64)
-                                Image(
-                                    painter = painter,
-                                    contentDescription = "Selected Profile Picture",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            profilePictureUrl.isNotEmpty() -> {
-                                // Check if it's a Base64 data URI or regular URL
-                                val painter = if (profilePictureUrl.startsWith("data:image/")) {
-                                    Log.d(TAG, "Using Base64 painter for profile picture")
-                                    rememberBase64ImagePainter(profilePictureUrl)
-                                } else {
-                                    Log.d(TAG, "Using AsyncImagePainter for profile picture URL: $profilePictureUrl")
-                                    // Add error handling and logging for AsyncImagePainter
-                                    rememberAsyncImagePainter(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(profilePictureUrl)
-                                            .crossfade(true)
-                                            .placeholder(android.R.drawable.ic_menu_gallery) // Add placeholder
-                                            .error(android.R.drawable.ic_menu_gallery) // Add error fallback
-                                            .listener(
-                                                onError = { _, result ->
-                                                    Log.e(TAG, "AsyncImagePainter error: ${result.throwable?.message}")
-                                                    Log.e(TAG, "Failed to load image from: $profilePictureUrl")
-                                                },
-                                                onSuccess = { _, _ ->
-                                                    Log.d(TAG, "AsyncImagePainter success: Image loaded from $profilePictureUrl")
-                                                }
-                                            )
-                                            .build()
+                        // Profile picture circle
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .border(4.dp, VividPurple, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                isUploadingImage -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(50.dp),
+                                        color = VividPurple
                                     )
                                 }
-                                
-                                Log.d(TAG, "Attempting to display profile picture")
-                                Image(
-                                    painter = painter,
-                                    contentDescription = "Profile Picture",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            else -> {
-                                Text(
-                                    text = name.take(1).uppercase().ifEmpty { "?" },
-                                    fontSize = 40.sp,
-                                    color = Color.Gray
-                                )
+                                selectedImageBase64.isNotEmpty() -> {
+                                    // Show selected image (temporary)
+                                    Log.d(TAG, "Using selected image (temporary)")
+                                    val painter = rememberBase64ImagePainter(selectedImageBase64)
+                                    Image(
+                                        painter = painter,
+                                        contentDescription = "Selected Profile Picture",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                profilePictureUrl.isNotEmpty() -> {
+                                    // Check if it's a Base64 data URI or regular URL
+                                    val painter = if (profilePictureUrl.startsWith("data:image/")) {
+                                        Log.d(TAG, "Using Base64 painter for profile picture")
+                                        rememberBase64ImagePainter(profilePictureUrl)
+                                    } else {
+                                        Log.d(TAG, "Using AsyncImagePainter for profile picture URL: $profilePictureUrl")
+                                        rememberAsyncImagePainter(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(profilePictureUrl)
+                                                .crossfade(true)
+                                                .placeholder(android.R.drawable.ic_menu_gallery)
+                                                .error(android.R.drawable.ic_menu_gallery)
+                                                .listener(
+                                                    onError = { _, result ->
+                                                        Log.e(TAG, "AsyncImagePainter error: ${result.throwable?.message}")
+                                                        Log.e(TAG, "Failed to load image from: $profilePictureUrl")
+                                                    },
+                                                    onSuccess = { _, _ ->
+                                                        Log.d(TAG, "AsyncImagePainter success: Image loaded from $profilePictureUrl")
+                                                    }
+                                                )
+                                                .build()
+                                        )
+                                    }
+                                    
+                                    Log.d(TAG, "Attempting to display profile picture")
+                                    Image(
+                                        painter = painter,
+                                        contentDescription = "Profile Picture",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                else -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(
+                                                        Color(0xFF9D4EDD),
+                                                        Color(0xFF7B2CBF)
+                                                    )
+                                                ),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = name.take(1).uppercase().ifEmpty { "?" },
+                                            fontSize = 72.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
-
-                    // Change profile picture button
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(60.dp)
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFFE596FF), // Light purple
-                                        Color(0xFF9D4EDD), // Medium purple
-                                        Color(0xFF7B2CBF)  // Dark purple
-                                    )
-                                ),
-                                shape = MaterialTheme.shapes.medium
-                            )
-                            .clickable(enabled = !isLoading && !isUploadingImage) {
-                                imagePickerLauncher.launch("image/*")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isUploadingImage) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Text(
-                                text = "CHANGE PROFILE PICTURE",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
+                        
+                        // Edit icon button (pen icon) in bottom right corner
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(50.dp)
+                                .background(
+                                    VividPurple,
+                                    CircleShape
+                                )
+                                .border(3.dp, Color.White, CircleShape)
+                                .clickable(enabled = !isLoading && !isUploadingImage) {
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isUploadingImage) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Profile Picture",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Name field - Bigger and more aesthetic
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("name"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = GlassWhite
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { 
+                            Text(
+                                "Name",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = VividPurple
+                            ) 
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        enabled = !isLoading,
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Name field
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name:") },
+                // Bio field - Bigger and more aesthetic
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
-                        .testTag("name"),
-                    enabled = !isLoading,
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Bio field
-                OutlinedTextField(
-                    value = bio,
-                    onValueChange = { bio = it },
-                    label = { Text("Bio:") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
                         .testTag("bio"),
-                    maxLines = 5,
-                    enabled = !isLoading
-                )
+                    colors = CardDefaults.cardColors(
+                        containerColor = GlassWhite
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = bio,
+                        onValueChange = { bio = it },
+                        label = { 
+                            Text(
+                                "Bio",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = VividPurple
+                            ) 
+                        },
+                        placeholder = { 
+                            Text(
+                                "Tell us about yourself...",
+                                color = VividPurple.copy(alpha = 0.5f)
+                            ) 
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(4.dp),
+                        maxLines = 8,
+                        enabled = !isLoading,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 18.sp,
+                            color = TextPrimary,
+                            lineHeight = 24.sp
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -467,7 +542,12 @@ fun ProfileScreen(
                         contactNumber = finalValue
                         contactNumberError = validatePhoneNumber(contactNumber)
                     },
-                    label = { Text("Phone Number:") },
+                    label = { 
+                        Text(
+                            "Phone Number:",
+                            color = VividPurple
+                        ) 
+                    },
                     placeholder = { Text("e.g., +1234567890 or (123) 456-7890") },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -475,11 +555,16 @@ fun ProfileScreen(
                         .testTag("phone"),
                     enabled = !isLoading,
                     singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = VividPurple,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
                     isError = contactNumberError.isNotEmpty(),
                     supportingText = if (contactNumberError.isNotEmpty()) {
                         { Text(contactNumberError, color = Color.Red) }
                     } else if (contactNumber.isNotEmpty()) {
-                        { Text("Format: International (+123...) or Local (10-11 digits)", color = Color.Gray, fontSize = 12.sp) }
+                        { Text("Format: International (+123...) or Local (10-11 digits)", color = TextSecondary, fontSize = 12.sp) }
                     } else null
                 )
 
@@ -496,13 +581,13 @@ fun ProfileScreen(
                             .weight(1f)
                             .height(60.dp)
                             .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF7B2CBF), // Dark purple
-                                        Color(0xFF5A189A), // Darker purple
-                                        Color(0xFF290C2F)  // Very dark purple
-                                    )
-                                ),
+                                brush =                                     Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF7B2CBF), // Dark purple
+                                            Color(0xFF5A189A), // Darker purple
+                                            Color(0xFF290C2F)  // Very dark purple
+                                        )
+                                    ),
                                 shape = MaterialTheme.shapes.medium
                             )
                             .clickable(onClick = onNavigateBack),
