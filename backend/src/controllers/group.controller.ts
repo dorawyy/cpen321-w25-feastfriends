@@ -48,46 +48,52 @@ export class GroupController {
   }
 
   /**
-   * POST /api/group/vote/:groupId
-   * Vote for a restaurant
-   */
-  async voteForRestaurant(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-    try {
-      if (!ensureAuthenticated(req, res)) return;
-      const userId = req.user.userId;
-      
-      const groupId = requireParam(req, 'groupId');
-      const { restaurantID, restaurant } = req.body;
+ * POST /api/group/vote/:groupId
+ * Submit sequential vote (yes/no) for current restaurant
+ */
+async voteForRestaurant(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!ensureAuthenticated(req, res)) return;
+    const userId = req.user.userId;
+    
+    const groupId = requireParam(req, 'groupId');
+    const { vote } = req.body;
 
-      if (!restaurantID) {
-        res.status(400).json({
-          Status: 400,
-          Message: { error: 'Restaurant ID is required' },
-          Body: null
-        });
-        return;
-      }
-
-      const result = await groupService.voteForRestaurant(
-        userId,
-        groupId,
-        restaurantID,
-        restaurant
-      );
-
-      res.status(200).json({
-        Status: 200,
-        Message: { text: result.message },
-        Body: {
-          message: result.message,
-          Current_votes: result.Current_votes
-        }
+    // Validate vote is a boolean
+    if (typeof vote !== 'boolean') {
+      res.status(400).json({
+        Status: 400,
+        Message: { error: 'Vote must be true (yes) or false (no)' },
+        Body: null
       });
-    } catch (error) {
-      next(error);
+      return;
     }
-  }
 
+    // Call sequential voting method
+    const result = await groupService.submitSequentialVote(
+      userId,
+      groupId,
+      vote
+    );
+
+    // Return sequential voting response
+    res.status(200).json({
+      Status: 200,
+      Message: { text: result.message },
+      Body: {
+        success: result.success,
+        majorityReached: result.majorityReached,
+        result: result.result,
+        nextRestaurant: result.nextRestaurant,
+        selectedRestaurant: result.selectedRestaurant,
+        votingComplete: result.votingComplete,
+        message: result.message
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
   /**
    * POST /api/group/leave/:groupId
    * Leave a group
