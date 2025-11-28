@@ -103,7 +103,10 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.CREDIBILITY_SCORE) {
-            CredibilityScreen(onNavigateBack = { navController.popBackStack() })
+            CredibilityScreen(
+                onNavigateBack = { navController.popBackStack() },
+                navController = navController
+            )
         }
 
         composable(NavRoutes.VIEW_GROUPS) {

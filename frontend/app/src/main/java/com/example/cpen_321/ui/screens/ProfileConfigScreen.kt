@@ -3,6 +3,7 @@ package com.example.cpen_321.ui.screens
 import NavRoutes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +59,7 @@ fun ProfileConfigScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
+                .background(Color.White)
                 .padding(innerPadding)
         ) {
             ProfileConfigContent(
@@ -105,11 +106,7 @@ private fun ProfileConfigContent(
             onClick = { navController.navigate(NavRoutes.CREDIBILITY_SCORE) },
             isPrimary = true
         )
-        ConfigButton(
-            text = "GO BACK",
-            onClick = { navController.popBackStack() },
-            isPrimary = true
-        )
+
         ConfigButton(
             text = "LOGOUT",
             onClick = { authViewModel.logout() },
@@ -159,7 +156,7 @@ private fun ConfigButton(
                         )
                     )
                 },
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(30.dp)
             )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center

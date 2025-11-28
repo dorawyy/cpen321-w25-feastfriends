@@ -275,7 +275,15 @@ private fun WaitingRoomContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        WaitlistGradientTop,
+                        WaitlistGradientMiddle,
+                        WaitlistGradientBottom
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
@@ -442,9 +450,9 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // "Your table will be ready soon..." message
+
             Text(
-                text = "Your table will be ready soon...",
+                text = "Your group will be ready soon...",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = VividPurple,
@@ -594,7 +602,7 @@ private fun ProfilePictureOnRing(
     ) {
         // Profile picture
         Box(
-            modifier = Modifier.size(90.dp)
+            modifier = Modifier.size(70.dp)
         ) {
             if (user.profilePicture?.isNotEmpty() == true) {
                 if (user.profilePicture.startsWith("data:image/")) {
@@ -906,9 +914,9 @@ private fun GroupReadyContent() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        GradientTop,
-                        GradientMiddle,
-                        GradientBottom
+                        WaitlistGradientTop,
+                        WaitlistGradientMiddle,
+                        WaitlistGradientBottom
                     )
                 )
             ),

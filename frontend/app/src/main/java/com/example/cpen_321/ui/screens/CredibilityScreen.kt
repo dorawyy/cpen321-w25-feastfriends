@@ -2,278 +2,147 @@ package com.example.cpen_321.ui.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.cpen_321.ui.viewmodels.UserViewModel
-
 import com.example.cpen_321.ui.theme.*
 
 @Composable
 fun CredibilityScreen(
     onNavigateBack: () -> Unit,
+    navController: NavController? = null,
     viewModel: UserViewModel = hiltViewModel()
 ) {
     val userSettings by viewModel.userSettings.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
+    val credibilityScore = userSettings?.credibilityScore?.toInt() ?: 0
 
     LaunchedEffect(Unit) {
         viewModel.loadUserSettings()
     }
 
     Scaffold { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.White)
                 .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            CredibilityContent(
-                isLoading = isLoading,
-                errorMessage = errorMessage,
-                credibilityScore = userSettings?.credibilityScore?.toInt() ?: 0
-            )
-            
-            BackButton(onNavigateBack = onNavigateBack)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Title
+                Text(
+                    text = "Credibility Score",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                // Large circular score component
+                CircularScoreDisplay(credibilityScore = credibilityScore)
+
+                // Description text
+                Text(
+                    text = "Your credibility is just getting started. Join groups and show up to grow your score.",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 24.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // How to improve section in a small card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 4.dp
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        HowToImproveSection()
+                    }
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun CredibilityContent(
-    isLoading: Boolean,
-    errorMessage: String?,
-    credibilityScore: Int
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Text(
-            text = "Credibility Score",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        CredibilityScoreDisplay(
-            isLoading = isLoading,
-            errorMessage = errorMessage,
-            credibilityScore = credibilityScore
-        )
-    }
-}
-
-@Composable
-private fun CredibilityScoreDisplay(
-    isLoading: Boolean,
-    errorMessage: String?,
-    credibilityScore: Int
-) {
-    when {
-        isLoading -> LoadingIndicator()
-        errorMessage != null -> ErrorDisplay(errorMessage)
-        else -> CircularScoreDisplay(credibilityScore)
-    }
-}
-
-@Composable
-private fun LoadingIndicator() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
-    ) {
-        CircularProgressIndicator(
-            color = VividPurple,
-            modifier = Modifier.size(64.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Loading your credibility score...",
-            fontSize = 16.sp,
-            color = TextSecondary
-        )
-    }
-}
-
-@Composable
-private fun ErrorDisplay(errorMessage: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp)
-            .background(GlassWhite, RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFFD88BB7), RoundedCornerShape(12.dp))
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = errorMessage,
-            fontSize = 16.sp,
-            color = Color(0xFFD88BB7),
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
 @Composable
 private fun CircularScoreDisplay(credibilityScore: Int) {
-    val scoreColor = when {
-        credibilityScore >= 80 -> Color(0xFF4CAF50) // Green for high
-        credibilityScore >= 50 -> Color(0xFFFF9800) // Orange for medium
-        credibilityScore >= 20 -> Color(0xFFFFC107) // Yellow for low-medium
-        else -> VividPurple // Purple for very low
-    }
-    
-    val message = when {
-        credibilityScore >= 80 -> "You have excellent credibility! Keep it up!"
-        credibilityScore >= 50 -> "You're doing well. There's room for improvement."
-        credibilityScore >= 20 -> "Your credibility needs attention. Focus on building trust."
-        else -> "Your credibility is very low. Start building trust with others."
-    }
-    
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier.size(220.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // Circular Score Display
+        // Outer glow ring - removed for simpler design
+
+        // Main circular ring with faint purple/pink outline
         Box(
-            modifier = Modifier.size(200.dp),
+            modifier = Modifier
+                .size(200.dp)
+                .background(
+                    color = Color.White,
+                    shape = CircleShape
+                )
+                .border(
+                    width = 8.dp,
+                    color = VividPurple.copy(alpha = 0.3f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            // Outer circle (background)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        color = scoreColor.copy(alpha = 0.1f),
-                        shape = CircleShape
-                    )
-            )
-            
-            // Inner circle with score
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                scoreColor.copy(alpha = 0.3f),
-                                scoreColor.copy(alpha = 0.1f)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 4.dp,
-                        color = scoreColor,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "$credibilityScore",
-                        fontSize = 64.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = scoreColor
-                    )
-                    Text(
-                        text = "out of 100",
-                        fontSize = 14.sp,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Message
-        Text(
-            text = message,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
-            color = TextPrimary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Additional info card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-                .background(
-                    PurpleLight.copy(alpha = 0.5f),
-                    RoundedCornerShape(12.dp)
-                )
-                .padding(16.dp)
-        ) {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "How to improve",
-                    fontSize = 16.sp,
+                    text = "$credibilityScore",
+                    fontSize = 72.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = when {
-                        credibilityScore >= 80 -> "Continue being reliable and trustworthy!"
-                        credibilityScore >= 50 -> "Complete more group activities and verify codes"
-                        credibilityScore >= 20 -> "Be active in groups and follow through on commitments"
-                        else -> "Start by joining groups and being reliable"
-                    },
-                    fontSize = 14.sp,
-                    color = TextSecondary,
-                    textAlign = TextAlign.Center
+                    text = "out of 100",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
                 )
             }
         }
@@ -281,30 +150,70 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
 }
 
 @Composable
-private fun BackButton(onNavigateBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .padding(bottom = 16.dp)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        VividPurple,
-                        MediumPurple,
-                        SoftViolet
-                    )
-                ),
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onNavigateBack),
-        contentAlignment = Alignment.Center
+private fun HowToImproveSection() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Go Back",
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
+            text = "How to improve",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+
+        // Bullet point 1: Join group matches (checkmark icon)
+        ImprovementBulletPoint(
+            icon = Icons.Filled.Check,
+            text = "Join group matches"
+        )
+
+        // Bullet point 2: Show up on time (clock icon)
+        ImprovementBulletPoint(
+            icon = Icons.Filled.AccessTime,
+            text = "Show up on time"
+        )
+
+        // Bullet point 3: Don't leave mid-session (two-person icon)
+        ImprovementBulletPoint(
+            icon = Icons.Filled.People,
+            text = "Don't leave mid-session"
+        )
+    }
+}
+
+@Composable
+private fun ImprovementBulletPoint(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(
+                    color = VividPurple.copy(alpha = 0.1f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = VividPurple,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Normal,
+            color = TextPrimary
         )
     }
 }

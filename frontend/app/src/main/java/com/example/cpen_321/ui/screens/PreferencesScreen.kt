@@ -1,7 +1,9 @@
 package com.example.cpen_321.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -13,9 +15,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -66,7 +74,15 @@ fun PreferencesScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            WaitlistGradientTop,
+                            WaitlistGradientMiddle,
+                            WaitlistGradientBottom
+                        )
+                    )
+                )
                 .padding(innerPadding)
         ) {
             PreferencesContent(
@@ -193,12 +209,9 @@ private fun PreferencesForm(
         )
 
         Spacer(modifier = Modifier.weight(1f))
-
-        val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
         
         ActionButtons(
             isLoading = isLoading,
-            hasUnsavedChanges = hasUnsavedChanges,
             onSave = { viewModel.savePreferences() },
             onNavigateBack = onNavigateBack
         )
@@ -251,14 +264,14 @@ private fun RowScope.CuisineButton(
     Box(
         modifier = Modifier
             .weight(1f)
-            .height(70.dp) // Smaller, more compact height
+            .height(70.dp)
             .background(
                 brush = Brush.linearGradient(
                     colors = if (isSelected)
                         listOf(
-                            VividPurple,
-                            MediumPurple,
-                            SoftViolet
+                            Color(0xFF6B2CD9), // Darker purple
+                            Color(0xFF7B3DFF), // Dark vivid purple
+                            Color(0xFF8B3DFF)  // VividPurple
                         )
                     else
                         listOf(
@@ -267,7 +280,7 @@ private fun RowScope.CuisineButton(
                             VividPurple
                         )
                 ),
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(30.dp)
             )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -327,77 +340,64 @@ private fun RadiusSection(
 @Composable
 private fun ActionButtons(
     isLoading: Boolean,
-    hasUnsavedChanges: Boolean,
     onSave: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    // Save Preferences Button
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(
-                brush = if (hasUnsavedChanges) {
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFE596FF), // Light purple
-                            Color(0xFF9D4EDD), // Medium purple
-                            Color(0xFF7B2CBF)  // Dark purple
-                        )
-                    )
-                } else {
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFE0E0E0), // Gray
-                            Color(0xFFBDBDBD)  // Darker gray
-                        )
-                    )
-                },
-                shape = MaterialTheme.shapes.medium
-            )
-            .clickable(enabled = !isLoading && hasUnsavedChanges, onClick = onSave),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                color = Color.White,
-                modifier = Modifier.height(24.dp)
-            )
-        } else {
+        // Save Preferences Button
+        Button(
+            onClick = onSave,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VividPurple
+            ),
+            shape = RoundedCornerShape(30.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text(
+                    text = "Save Preferences",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // Go Back Button
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF7B2CBF), // Dark purple
+                            Color(0xFF5A189A), // Darker purple
+                            Color(0xFF290C2F)  // Very dark purple
+                        )
+                    ),
+                    shape = RoundedCornerShape(30.dp)
+                )
+                .clickable(onClick = onNavigateBack),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = "SAVE PREFERENCES",
-                color = if (hasUnsavedChanges) Color.White else Color.Gray,
+                text = "GO BACK",
+                color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    // Go Back Button
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF7B2CBF), // Dark purple
-                        Color(0xFF5A189A), // Darker purple
-                        Color(0xFF290C2F)  // Very dark purple
-                    )
-                ),
-                shape = MaterialTheme.shapes.medium
-            )
-            .clickable(onClick = onNavigateBack),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "GO BACK",
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 }

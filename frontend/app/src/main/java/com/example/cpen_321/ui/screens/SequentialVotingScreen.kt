@@ -86,7 +86,7 @@ fun SequentialVotingScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = SoftWhite
+        containerColor = Color.Transparent
     ) { padding ->
         if (votingComplete && selectedRestaurant != null) {
             // Show success screen
@@ -135,7 +135,7 @@ private fun VotingContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SoftWhite)
+            .background(Color.White)
     ) {
         Column(
             modifier = Modifier
@@ -542,7 +542,12 @@ private fun VoteButtons(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // NO button
+        // NO button (with ThumbDown icon but YES text)
+        val noButtonColor = if (userVote == false) {
+            VividPurple // Dark when selected
+        } else {
+            LightBorder // Light color when not selected
+        }
         Button(
             onClick = onVoteNo,
             modifier = Modifier
@@ -550,8 +555,8 @@ private fun VoteButtons(
                 .height(70.dp),
             enabled = userVote == null && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MediumPurple,
-                disabledContainerColor = TextSecondary
+                containerColor = noButtonColor,
+                disabledContainerColor = if (userVote == false) VividPurple else LightBorder
             ),
             shape = RoundedCornerShape(35.dp),
             elevation = ButtonDefaults.buttonElevation(
@@ -562,7 +567,7 @@ private fun VoteButtons(
             if (isLoading && userVote == false) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = Color.White
+                    color = if (userVote == false) Color.White else TextSecondary
                 )
             } else {
                 Column(
@@ -572,20 +577,25 @@ private fun VoteButtons(
                         imageVector = Icons.Default.ThumbDown,
                         contentDescription = "Vote No",
                         modifier = Modifier.size(32.dp),
-                        tint = Color.White
+                        tint = if (userVote == false) Color.White else TextSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "NO",
+                        text = "YES", // Reversed text
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = if (userVote == false) Color.White else TextSecondary
                     )
                 }
             }
         }
 
-        // YES button
+        // YES button (with ThumbUp icon but NO text)
+        val yesButtonColor = if (userVote == true) {
+            VividPurple // Dark when selected
+        } else {
+            LightBorder // Light color when not selected
+        }
         Button(
             onClick = onVoteYes,
             modifier = Modifier
@@ -593,8 +603,8 @@ private fun VoteButtons(
                 .height(70.dp),
             enabled = userVote == null && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = SoftViolet,
-                disabledContainerColor = TextSecondary
+                containerColor = yesButtonColor,
+                disabledContainerColor = if (userVote == true) VividPurple else LightBorder
             ),
             shape = RoundedCornerShape(35.dp),
             elevation = ButtonDefaults.buttonElevation(
@@ -605,7 +615,7 @@ private fun VoteButtons(
             if (isLoading && userVote == true) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = Color.White
+                    color = if (userVote == true) Color.White else TextSecondary
                 )
             } else {
                 Column(
@@ -615,14 +625,14 @@ private fun VoteButtons(
                         imageVector = Icons.Default.ThumbUp,
                         contentDescription = "Vote Yes",
                         modifier = Modifier.size(32.dp),
-                        tint = Color.White
+                        tint = if (userVote == true) Color.White else TextSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "YES",
+                        text = "NO", // Reversed text
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = if (userVote == true) Color.White else TextSecondary
                     )
                 }
             }

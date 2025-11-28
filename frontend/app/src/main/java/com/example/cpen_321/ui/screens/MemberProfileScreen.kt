@@ -106,6 +106,7 @@ fun MemberProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(Color.White)
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
@@ -116,6 +117,7 @@ fun MemberProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(Color.White)
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
@@ -131,7 +133,8 @@ fun MemberProfileScreen(
                             onClick = onNavigateBack,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VividPurple
-                            )
+                            ),
+                            shape = RoundedCornerShape(30.dp)
                         ) {
                             Text("Go Back", color = Color.White)
                         }

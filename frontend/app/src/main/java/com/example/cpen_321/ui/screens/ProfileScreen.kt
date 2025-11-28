@@ -284,7 +284,7 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFFFF)) // White background to match AuthScreen
+                .background(Color.White)
                 .padding(innerPadding)
         ) {
             Column(

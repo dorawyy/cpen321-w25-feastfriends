@@ -116,6 +116,7 @@ fun ViewGroupsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.White)
                 .padding(innerPadding)
         ) {
             ViewGroupsContent(
@@ -539,7 +540,8 @@ private fun NoGroupContent(navController: NavController) {
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = VividPurple
-            )
+            ),
+            shape = RoundedCornerShape(30.dp)
         ) {
             Text(
                 text = "Go Back",
@@ -727,7 +729,8 @@ private fun GroupActionButtons(
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = VividPurple
-            )
+            ),
+            shape = RoundedCornerShape(30.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
@@ -759,7 +762,8 @@ private fun GroupActionButtons(
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFFD88BB7)
-            )
+            ),
+            shape = RoundedCornerShape(30.dp)
         ) {
             Text(
                 text = "Leave Group",
@@ -791,7 +795,8 @@ private fun ViewOrVoteButton(
             .height(56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = VividPurple
-        )
+        ),
+        shape = RoundedCornerShape(30.dp)
     ) {
         Text(
             text = if (currentGroup.restaurantSelected) "View Details" else "Vote Now",

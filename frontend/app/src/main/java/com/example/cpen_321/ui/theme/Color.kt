@@ -12,6 +12,11 @@ val GradientTop = Color(0xFFF5E9FF) // Soft Lavender
 val GradientMiddle = Color(0xFFF6DDF2) // Light Lilac Pink
 val GradientBottom = Color(0xFFEFD2F8) // Blushed Purple
 
+// Waitlist Background Gradient Colors
+val WaitlistGradientTop = Color(0xFFFBF7FF) // Top gradient color
+val WaitlistGradientMiddle = Color(0xFFF3EDFF) // Middle gradient color
+val WaitlistGradientBottom = Color(0xFFEEE6FF) // Bottom gradient color
+
 // UI Cards / Buttons
 val SoftWhite = Color(0xFFFFFFFF) // Soft White
 val OffWhiteTint = Color(0xFFF9F7FC) // Off-white Tint

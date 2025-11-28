@@ -269,15 +269,7 @@ private fun VoteScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            GradientTop,
-                            GradientMiddle,
-                            GradientBottom
-                        )
-                    )
-                )
+                .background(Color.White)
         ) {
             Column(
                 modifier = Modifier
@@ -439,7 +431,8 @@ private fun LocationLoadingState(
                                 Manifest.permission.ACCESS_COARSE_LOCATION
                             )
                         )
-                    }
+                    },
+                    shape = RoundedCornerShape(30.dp)
                 ) {
                     Text("Grant Location Permission")
                 }
@@ -473,7 +466,8 @@ private fun EmptyRestaurantsState(
                             radius = 5000
                         )
                     }
-                }
+                },
+                shape = RoundedCornerShape(30.dp)
             ) {
                 Text("Retry")
             }
@@ -551,7 +545,8 @@ private fun VoteButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = VividPurple,
             disabledContainerColor = TextPrimary.copy(alpha = 0.5f)
-        )
+        ),
+        shape = RoundedCornerShape(30.dp)
     ) {
         if (groupViewModel.isLoading.collectAsState().value) {
             CircularProgressIndicator(

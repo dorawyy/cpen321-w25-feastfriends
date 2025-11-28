@@ -57,7 +57,7 @@ fun GroupScreen(
     )
 
     Scaffold(
-        snackbarHost = { 
+        snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
@@ -67,510 +67,517 @@ fun GroupScreen(
             }
         }
     ) { innerPadding ->
-        GroupScreenContent(
-            modifier = Modifier.padding(innerPadding),
-            currentGroup = currentGroup,
-            groupMembers = groupMembers,
-            selectedRestaurant = selectedRestaurant,
-            currentVotes = currentVotes,
-            isLoading = isLoading,
-            viewModel = viewModel,
-            navController = navController
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+        ) {
+            GroupScreenContent(
+                modifier = Modifier.padding(innerPadding),
+                currentGroup = currentGroup,
+                groupMembers = groupMembers,
+                selectedRestaurant = selectedRestaurant,
+                currentVotes = currentVotes,
+                isLoading = isLoading,
+                viewModel = viewModel,
+                navController = navController
+            )
+        }
     }
 }
 
 @Composable
 private fun GroupScreenEffects(
-    viewModel: GroupViewModel,
-    errorMessage: String?,
-    successMessage: String?,
-    snackbarHostState: SnackbarHostState
-) {
-    LaunchedEffect(Unit) {
-        viewModel.loadGroupStatus()
-    }
-
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearError()
-        }
-    }
-
-    LaunchedEffect(successMessage) {
-        successMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearSuccess()
-        }
-    }
-}
-
-@Composable
-private fun GroupScreenContent(
-    modifier: Modifier,
-    currentGroup: com.example.cpen_321.data.model.Group?,
-    groupMembers: List<GroupMember>,
-    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
-    currentVotes: Map<String, Int>,
-    isLoading: Boolean,
-    viewModel: GroupViewModel,
-    navController: NavController
-) {
-    when {
-        isLoading && currentGroup == null -> LoadingState(modifier)
-        currentGroup == null -> NoGroupState(modifier, navController)
-        else -> GroupContent(
-            modifier = modifier,
-            currentGroup = currentGroup,
-            groupMembers = groupMembers,
-            selectedRestaurant = selectedRestaurant,
-            currentVotes = currentVotes,
-            isLoading = isLoading,
-            viewModel = viewModel,
-            navController = navController
-        )
-    }
-}
-
-@Composable
-private fun LoadingState(modifier: Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        viewModel: GroupViewModel,
+        errorMessage: String?,
+        successMessage: String?,
+        snackbarHostState: SnackbarHostState
     ) {
-        CircularProgressIndicator(color = VividPurple)
-    }
-}
+        LaunchedEffect(Unit) {
+            viewModel.loadGroupStatus()
+        }
 
-@Composable
-private fun NoGroupState(modifier: Modifier, navController: NavController) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "No active group found",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "You are not currently in any group.",
-                fontSize = 14.sp,
-                color = TextPrimary.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    navController.navigate("home") {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            ) {
-                Text("Go to Home")
+        LaunchedEffect(errorMessage) {
+            errorMessage?.let { message ->
+                snackbarHostState.showSnackbar(message)
+                viewModel.clearError()
+            }
+        }
+
+        LaunchedEffect(successMessage) {
+            successMessage?.let { message ->
+                snackbarHostState.showSnackbar(message)
+                viewModel.clearSuccess()
             }
         }
     }
-}
 
-@Composable
-private fun GroupContent(
-    modifier: Modifier,
-    currentGroup: com.example.cpen_321.data.model.Group,
-    groupMembers: List<GroupMember>,
-    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
-    currentVotes: Map<String, Int>,
-    isLoading: Boolean,
-    viewModel: GroupViewModel,
-    navController: NavController
-) {
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+    @Composable
+    private fun GroupScreenContent(
+        modifier: Modifier,
+        currentGroup: com.example.cpen_321.data.model.Group?,
+        groupMembers: List<GroupMember>,
+        selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
+        currentVotes: Map<String, Int>,
+        isLoading: Boolean,
+        viewModel: GroupViewModel,
+        navController: NavController
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            GroupHeader()
-            RestaurantSection(
+        when {
+            isLoading && currentGroup == null -> LoadingState(modifier)
+            currentGroup == null -> NoGroupState(modifier, navController)
+            else -> GroupContent(
+                modifier = modifier,
+                currentGroup = currentGroup,
+                groupMembers = groupMembers,
                 selectedRestaurant = selectedRestaurant,
-                currentGroup = currentGroup,
-                currentVotes = currentVotes
+                currentVotes = currentVotes,
+                isLoading = isLoading,
+                viewModel = viewModel,
+                navController = navController
             )
-            MembersSection(
+        }
+    }
+
+    @Composable
+    private fun LoadingState(modifier: Modifier) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = VividPurple)
+        }
+    }
+
+    @Composable
+    private fun NoGroupState(modifier: Modifier, navController: NavController) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "No active group found",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "You are not currently in any group.",
+                    fontSize = 14.sp,
+                    color = TextPrimary.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        navController.navigate("home") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    shape = RoundedCornerShape(30.dp)
+                ) {
+                    Text("Go to Home")
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun GroupContent(
+        modifier: Modifier,
+        currentGroup: com.example.cpen_321.data.model.Group,
+        groupMembers: List<GroupMember>,
+        selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
+        currentVotes: Map<String, Int>,
+        isLoading: Boolean,
+        viewModel: GroupViewModel,
+        navController: NavController
+    ) {
+        val scrollState = rememberScrollState()
+
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GroupHeader()
+                RestaurantSection(
+                    selectedRestaurant = selectedRestaurant,
+                    currentGroup = currentGroup,
+                    currentVotes = currentVotes
+                )
+                MembersSection(
+                    currentGroup = currentGroup,
+                    groupMembers = groupMembers,
+                    navController = navController
+                )
+            }
+
+            ActionButtons(
                 currentGroup = currentGroup,
+                isLoading = isLoading,
+                viewModel = viewModel,
+                navController = navController
+            )
+        }
+    }
+
+    @Composable
+    private fun GroupHeader() {
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFE596FF), // Light purple
+                            Color(0xFF9D4EDD), // Medium purple
+                            Color(0xFF7B2CBF)  // Dark purple
+                        )
+                    ),
+                    RoundedCornerShape(16.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Group",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    @Composable
+    private fun RestaurantSection(
+        selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
+        currentGroup: com.example.cpen_321.data.model.Group,
+        currentVotes: Map<String, Int>
+    ) {
+        val restaurant = selectedRestaurant ?: currentGroup.restaurant
+
+        if (restaurant != null) {
+            RestaurantCard(restaurant = restaurant, currentVotes = currentVotes)
+        } else {
+            NoRestaurantSelected()
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    @Composable
+    private fun RestaurantCard(
+        restaurant: com.example.cpen_321.data.model.Restaurant,
+        currentVotes: Map<String, Int>
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = GlassWhite),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, VividPurple)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                RestaurantPhoto(restaurant = restaurant)
+                RestaurantDetails(restaurant = restaurant)
+                RestaurantVoteCount(restaurant = restaurant, currentVotes = currentVotes)
+            }
+        }
+    }
+
+    @Composable
+    private fun RestaurantPhoto(restaurant: com.example.cpen_321.data.model.Restaurant) {
+        restaurant.getMainPhotoUrl()?.let { photoUrl ->
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = restaurant.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.LightGray)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    @Composable
+    private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restaurant) {
+        Text(
+            text = restaurant.name,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "📍 ${restaurant.location}",
+            fontSize = 16.sp,
+            color = TextPrimary.copy(alpha = 0.8f)
+        )
+
+        restaurant.rating?.let { rating ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Rating",
+                    tint = Color(0xFF9D4EDD),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = restaurant.getRatingString(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+            }
+        }
+
+        restaurant.priceLevel?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Price: ${restaurant.getPriceLevelString()}",
+                fontSize = 16.sp,
+                color = TextPrimary.copy(alpha = 0.8f)
+            )
+        }
+
+        restaurant.phoneNumber?.let { phone ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "📞 $phone",
+                fontSize = 16.sp,
+                color = TextPrimary.copy(alpha = 0.8f)
+            )
+        }
+    }
+
+    @Composable
+    private fun RestaurantVoteCount(
+        restaurant: com.example.cpen_321.data.model.Restaurant,
+        currentVotes: Map<String, Int>
+    ) {
+        restaurant.restaurantId?.let { restId ->
+            val voteCount = currentVotes[restId] ?: 0
+            if (voteCount > 0) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "🏆 Won with $voteCount vote${if (voteCount != 1) "s" else ""}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF9D4EDD)
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun NoRestaurantSelected() {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(GlassWhite, RoundedCornerShape(16.dp))
+                .border(2.dp, VividPurple, RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Restaurant: Not selected yet\nWaiting for voting to complete...",
+                fontSize = 16.sp,
+                color = TextPrimary.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    @Composable
+    private fun MembersSection(
+        currentGroup: com.example.cpen_321.data.model.Group,
+        groupMembers: List<GroupMember>,
+        navController: NavController
+    ) {
+        Text(
+            text = "Group Members (${currentGroup.getAllMembers()?.size ?: 0})",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val allMembers = currentGroup.getAllMembers() ?: emptyList()
+
+        if (allMembers.isEmpty()) {
+            MembersLoadingState()
+        } else {
+            MembersList(
+                allMembers = allMembers,
                 groupMembers = groupMembers,
                 navController = navController
             )
         }
-
-        ActionButtons(
-            currentGroup = currentGroup,
-            isLoading = isLoading,
-            viewModel = viewModel,
-            navController = navController
-        )
     }
-}
 
-@Composable
-private fun GroupHeader() {
-    Spacer(modifier = Modifier.height(16.dp))
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFE596FF), // Light purple
-                        Color(0xFF9D4EDD), // Medium purple
-                        Color(0xFF7B2CBF)  // Dark purple
-                    )
-                ),
-                RoundedCornerShape(16.dp)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Group",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center
-        )
-    }
-    Spacer(modifier = Modifier.height(24.dp))
-}
-
-@Composable
-private fun RestaurantSection(
-    selectedRestaurant: com.example.cpen_321.data.model.Restaurant?,
-    currentGroup: com.example.cpen_321.data.model.Group,
-    currentVotes: Map<String, Int>
-) {
-    val restaurant = selectedRestaurant ?: currentGroup.restaurant
-
-    if (restaurant != null) {
-        RestaurantCard(restaurant = restaurant, currentVotes = currentVotes)
-    } else {
-        NoRestaurantSelected()
-    }
-    Spacer(modifier = Modifier.height(24.dp))
-}
-
-@Composable
-private fun RestaurantCard(
-    restaurant: com.example.cpen_321.data.model.Restaurant,
-    currentVotes: Map<String, Int>
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = GlassWhite),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(2.dp, VividPurple)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            RestaurantPhoto(restaurant = restaurant)
-            RestaurantDetails(restaurant = restaurant)
-            RestaurantVoteCount(restaurant = restaurant, currentVotes = currentVotes)
-        }
-    }
-}
-
-@Composable
-private fun RestaurantPhoto(restaurant: com.example.cpen_321.data.model.Restaurant) {
-    restaurant.getMainPhotoUrl()?.let { photoUrl ->
-        AsyncImage(
-            model = photoUrl,
-            contentDescription = restaurant.name,
-            contentScale = ContentScale.Crop,
+    @Composable
+    private fun MembersLoadingState() {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.LightGray)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun RestaurantDetails(restaurant: com.example.cpen_321.data.model.Restaurant) {
-    Text(
-        text = restaurant.name,
-        fontSize = 22.sp,
-        fontWeight = FontWeight.Bold,
-        color = TextPrimary
-    )
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    Text(
-        text = "📍 ${restaurant.location}",
-        fontSize = 16.sp,
-        color = TextPrimary.copy(alpha = 0.8f)
-    )
-
-    restaurant.rating?.let { rating ->
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = "Rating",
-                tint = Color(0xFF9D4EDD),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = restaurant.getRatingString(),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary
-            )
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
         }
     }
 
-    restaurant.priceLevel?.let {
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Price: ${restaurant.getPriceLevelString()}",
-            fontSize = 16.sp,
-            color = TextPrimary.copy(alpha = 0.8f)
-        )
-    }
-
-    restaurant.phoneNumber?.let { phone ->
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "📞 $phone",
-            fontSize = 16.sp,
-            color = TextPrimary.copy(alpha = 0.8f)
-        )
-    }
-}
-
-@Composable
-private fun RestaurantVoteCount(
-    restaurant: com.example.cpen_321.data.model.Restaurant,
-    currentVotes: Map<String, Int>
-) {
-    restaurant.restaurantId?.let { restId ->
-        val voteCount = currentVotes[restId] ?: 0
-        if (voteCount > 0) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "🏆 Won with $voteCount vote${if (voteCount != 1) "s" else ""}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF9D4EDD)
+    @Composable
+    private fun MembersList(
+        allMembers: List<String>,
+        groupMembers: List<GroupMember>,
+        navController: NavController
+    ) {
+        allMembers.forEach { userId ->
+            val memberDetails = groupMembers.find { it.userId == userId }
+            MemberCard(
+                userId = userId,
+                memberDetails = memberDetails,
+                navController = navController
             )
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
 
-@Composable
-private fun NoRestaurantSelected() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GlassWhite, RoundedCornerShape(16.dp))
-            .border(2.dp, VividPurple, RoundedCornerShape(16.dp))
-            .padding(16.dp)
+    @Composable
+    private fun MemberCard(
+        userId: String,
+        memberDetails: GroupMember?,
+        navController: NavController
     ) {
-        Text(
-            text = "Restaurant: Not selected yet\nWaiting for voting to complete...",
-            fontSize = 16.sp,
-            color = TextPrimary.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun MembersSection(
-    currentGroup: com.example.cpen_321.data.model.Group,
-    groupMembers: List<GroupMember>,
-    navController: NavController
-) {
-    Text(
-        text = "Group Members (${currentGroup.getAllMembers()?.size ?: 0})",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
-        color = TextPrimary
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    val allMembers = currentGroup.getAllMembers() ?: emptyList()
-    
-    if (allMembers.isEmpty()) {
-        MembersLoadingState()
-    } else {
-        MembersList(
-            allMembers = allMembers,
-            groupMembers = groupMembers,
-            navController = navController
-        )
-    }
-}
-
-@Composable
-private fun MembersLoadingState() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun MembersList(
-    allMembers: List<String>,
-    groupMembers: List<GroupMember>,
-    navController: NavController
-) {
-    allMembers.forEach { userId ->
-        val memberDetails = groupMembers.find { it.userId == userId }
-        MemberCard(
-            userId = userId,
-            memberDetails = memberDetails,
-            navController = navController
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun MemberCard(
-    userId: String,
-    memberDetails: GroupMember?,
-    navController: NavController
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GlassWhite, RoundedCornerShape(12.dp))
-            .border(2.dp, VividPurple, RoundedCornerShape(12.dp))
-            .clickable {
-                navController.navigate("member_profile/$userId")
-            }
-            .padding(16.dp)
-    ) {
-        if (memberDetails != null) {
-            MemberDetailsContent(memberDetails)
-        } else {
-            MemberPlaceholderContent(userId)
-        }
-    }
-}
-
-@Composable
-private fun MemberDetailsContent(member: GroupMember) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Profile Picture
-        if (member.profilePicture != null && member.profilePicture.isNotEmpty()) {
-            if (member.profilePicture.startsWith("data:image/")) {
-                // Base64 image - use rememberBase64ImagePainter
-                val painter = rememberBase64ImagePainter(member.profilePicture)
-                Image(
-                    painter = painter,
-                    contentDescription = "Profile picture",
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Color.LightGray),
-                    contentScale = ContentScale.Crop
-                )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(GlassWhite, RoundedCornerShape(12.dp))
+                .border(2.dp, VividPurple, RoundedCornerShape(12.dp))
+                .clickable {
+                    navController.navigate("member_profile/$userId")
+                }
+                .padding(16.dp)
+        ) {
+            if (memberDetails != null) {
+                MemberDetailsContent(memberDetails)
             } else {
-                // Regular URL - use AsyncImage
-                AsyncImage(
-                    model = member.profilePicture,
-                    contentDescription = "Profile picture",
+                MemberPlaceholderContent(userId)
+            }
+        }
+    }
+
+    @Composable
+    private fun MemberDetailsContent(member: GroupMember) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Profile Picture
+            if (member.profilePicture != null && member.profilePicture.isNotEmpty()) {
+                if (member.profilePicture.startsWith("data:image/")) {
+                    // Base64 image - use rememberBase64ImagePainter
+                    val painter = rememberBase64ImagePainter(member.profilePicture)
+                    Image(
+                        painter = painter,
+                        contentDescription = "Profile picture",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.LightGray),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Regular URL - use AsyncImage
+                    AsyncImage(
+                        model = member.profilePicture,
+                        contentDescription = "Profile picture",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.LightGray),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            } else {
+                Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray),
-                    contentScale = ContentScale.Crop
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF9D4EDD),
-                                Color(0xFF7B2CBF)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF9D4EDD),
+                                    Color(0xFF7B2CBF)
+                                )
                             )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Default profile",
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.White
-                )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Default profile",
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.White
+                    )
+                }
             }
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        // Member Info
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = member.name,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Credibility Score: ${member.credibilityScore.toInt()}",
-                fontSize = 14.sp,
-                color = TextPrimary.copy(alpha = 0.8f)
-            )
-            member.phoneNumber?.let { phone ->
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Member Info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = member.name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Phone: $phone",
+                    text = "Credibility Score: ${member.credibilityScore.toInt()}",
                     fontSize = 14.sp,
                     color = TextPrimary.copy(alpha = 0.8f)
                 )
-            }
-            if (member.hasVoted) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "✓ Voted",
-                    fontSize = 14.sp,
-                    color = Color(0xFF9D4EDD),
-                    fontWeight = FontWeight.Bold
-                )
+                member.phoneNumber?.let { phone ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Phone: $phone",
+                        fontSize = 14.sp,
+                        color = TextPrimary.copy(alpha = 0.8f)
+                    )
+                }
+                if (member.hasVoted) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "✓ Voted",
+                        fontSize = 14.sp,
+                        color = Color(0xFF9D4EDD),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
-}
 
 @Composable
 private fun MemberPlaceholderContent(userId: String) {
@@ -608,7 +615,8 @@ private fun ActionButtons(
             .height(60.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = VividPurple
-        )
+        ),
+        shape = RoundedCornerShape(30.dp)
     ) {
         Text(
             text = "Back to View Groups",
@@ -644,6 +652,7 @@ private fun LeaveGroupButton(
             .fillMaxWidth()
             .height(60.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD88BB7)),
+        shape = RoundedCornerShape(30.dp),
         enabled = !isLoading
     ) {
         if (isLoading) {

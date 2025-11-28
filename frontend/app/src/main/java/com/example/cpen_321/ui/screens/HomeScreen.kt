@@ -4,23 +4,28 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,9 +111,42 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(SoftWhite)
+                .background(Color.White)
                 .padding(innerPadding)
         ) {
+            // Credibility Score badge on top left
+            userSettings?.credibilityScore?.let { score ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                        .background(
+                            color = SoftViolet.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Credibility Score",
+                            modifier = Modifier.size(16.dp),
+                            tint = VividPurple
+                        )
+                        Text(
+                            text = "Credibility Score: ${score.toInt()}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                    }
+                }
+            }
+
+            // Profile icon on top right
             IconButton(
                 onClick = {
                     navController.navigate("profile_config")
@@ -134,6 +172,8 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(40.dp))
+                
                 Text(
                     text = "Welcome${userSettings?.name?.let { ", $it" } ?: ""}!",
                     fontSize = 28.sp,
@@ -144,139 +184,137 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                userSettings?.credibilityScore?.let { score ->
-                    Text(
-                        text = "Credibility Score: ${score.toInt()}",
-                        fontSize = 16.sp,
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 // ✅ FIXED: Check if user is in a room and show appropriate button
                 val isInRoom = !userSettings?.roomID.isNullOrEmpty()
                 val isInGroup = currentGroup != null || !userSettings?.groupID.isNullOrEmpty()
 
                 // Start/Resume Matchmaking Button
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = if (isInRoom) {
-                                    // Different gradient for "Resume" state
-                                    listOf(
-                                        Color(0xFFFFB347), // Orange (keep for resume state)
-                                        Color(0xFFFF8C42),
-                                        Color(0xFFFF6B35)
-                                    )
-                                } else {
-                                    listOf(
-                                        SoftViolet,
-                                        MediumPurple,
-                                        VividPurple
-                                    )
-                                }
-                            ),
-                            shape = MaterialTheme.shapes.large
-                        )
-                        .clickable(enabled = !isJoiningMatch) {
-                            if (isJoiningMatch) return@clickable
-
+                Button(
+                    onClick = {
+                        if (!isJoiningMatch) {
                             // ✅ NEW: If already in a room, navigate directly to waiting room
                             if (isInRoom) {
                                 Log.d("HomeScreen", "User already in room, navigating to waiting_room")
                                 navController.navigate("waiting_room")
-                                return@clickable
-                            }
-
-                            // Check if user is in a group
-                            if (isInGroup) {
+                            } else if (isInGroup) {
+                                // Check if user is in a group
                                 scope.launch {
                                     snackbarHostState.showSnackbar("You cannot join matchmaking because you are already in a group")
                                 }
-                                return@clickable
-                            }
-
-                            val cuisines = userSettings?.preference ?: emptyList()
-                            val budget = userSettings?.budget ?: 50.0
-                            val radius = userSettings?.radiusKm ?: 5.0
-
-                            if (cuisines.isEmpty()) {
-                                navController.navigate("preferences")
                             } else {
-                                if (!locationPermissionGranted) {
-                                    locationPermissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
+                                val cuisines = userSettings?.preference ?: emptyList()
+                                val budget = userSettings?.budget ?: 50.0
+                                val radius = userSettings?.radiusKm ?: 5.0
+
+                                if (cuisines.isEmpty()) {
+                                    navController.navigate("preferences")
                                 } else {
-                                    isJoiningMatch = true
-                                    scope.launch {
-                                        try {
-                                            val location = LocationHelper.getCurrentLocation(context)
-                                            if (location != null) {
-                                                val (lat, lng) = location
-                                                Log.d("HomeScreen", "Got location: $lat, $lng")
-                                                matchViewModel.joinMatching(
-                                                    cuisine = cuisines,
-                                                    budget = budget,
-                                                    radiusKm = radius,
-                                                    latitude = lat,
-                                                    longitude = lng
-                                                )
-                                                navController.navigate("waiting_room")
-                                            } else {
-                                                Log.e("HomeScreen", "Could not get location")
+                                    if (!locationPermissionGranted) {
+                                        locationPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    } else {
+                                        isJoiningMatch = true
+                                        scope.launch {
+                                            try {
+                                                val location = LocationHelper.getCurrentLocation(context)
+                                                if (location != null) {
+                                                    val (lat, lng) = location
+                                                    Log.d("HomeScreen", "Got location: $lat, $lng")
+                                                    matchViewModel.joinMatching(
+                                                        cuisine = cuisines,
+                                                        budget = budget,
+                                                        radiusKm = radius,
+                                                        latitude = lat,
+                                                        longitude = lng
+                                                    )
+                                                    navController.navigate("waiting_room")
+                                                } else {
+                                                    Log.e("HomeScreen", "Could not get location")
+                                                    isJoiningMatch = false
+                                                    snackbarHostState.showSnackbar(
+                                                        "Unable to get your location. Please check your GPS settings."
+                                                    )
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("HomeScreen", "Location error", e)
                                                 isJoiningMatch = false
                                                 snackbarHostState.showSnackbar(
-                                                    "Unable to get your location. Please check your GPS settings."
+                                                    "Location error: ${e.message}"
                                                 )
                                             }
-                                        } catch (e: Exception) {
-                                            Log.e("HomeScreen", "Location error", e)
-                                            isJoiningMatch = false
-                                            snackbarHostState.showSnackbar(
-                                                "Location error: ${e.message}"
-                                            )
                                         }
                                     }
                                 }
                             }
-                        },
-                    contentAlignment = Alignment.Center
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(30.dp),
+                            spotColor = VividPurple.copy(alpha = 0.3f)
+                        ),
+                    enabled = !isJoiningMatch,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(30.dp),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    if (isJoiningMatch) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Favorite,
-                                contentDescription = null,
-                                tint = Color.White,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = if (isInRoom) {
+                                        listOf(
+                                            Color(0xFFFFB347),
+                                            Color(0xFFFF8C42)
+                                        )
+                                    } else {
+                                        listOf(
+                                            VividPurple,
+                                            MediumPurple
+                                        )
+                                    }
+                                ),
+                                shape = RoundedCornerShape(30.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isJoiningMatch) {
+                            CircularProgressIndicator(
+                                color = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Start Matching",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Start Match",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
@@ -284,71 +322,78 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Current Groups Button
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = if (currentGroup != null) {
-                                    listOf(
-                                        VividPurple,
-                                        MediumPurple,
-                                        SoftViolet
-                                    )
-                                } else {
-                                    listOf(
-                                        SoftViolet,
-                                        MediumPurple,
-                                        VividPurple
-                                    )
-                                }
-                            ),
-                            shape = MaterialTheme.shapes.large
-                        )
-                        .clickable {
-                            val group = currentGroup
+                OutlinedButton(
+                    onClick = {
+                        val group = currentGroup
 
-                            if (group != null) {
-                                val groupId = group.groupId
+                        if (group != null) {
+                            val groupId = group.groupId
 
-                                if (group.restaurantSelected == false && groupId != null) {
-                                    navController.navigate("sequential_voting/$groupId")
-                                } else if (groupId != null) {
-                                    navController.navigate(NavRoutes.VIEW_GROUPS)
-                                } else {
-                                    navController.navigate(NavRoutes.VIEW_GROUPS)
-                                }
+                            if (group.restaurantSelected == false && groupId != null) {
+                                navController.navigate("sequential_voting/$groupId")
+                            } else if (groupId != null) {
+                                navController.navigate(NavRoutes.VIEW_GROUPS)
                             } else {
                                 navController.navigate(NavRoutes.VIEW_GROUPS)
                             }
+                        } else {
+                            navController.navigate(NavRoutes.VIEW_GROUPS)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .shadow(
+                            elevation = 2.dp,
+                            shape = RoundedCornerShape(30.dp),
+                            spotColor = Color.Black.copy(alpha = 0.1f)
+                        ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (currentGroup != null) {
+                            VividPurple.copy(alpha = 0.1f)
+                        } else {
+                            Color.White
                         },
-                    contentAlignment = Alignment.Center
+                        contentColor = if (currentGroup != null) {
+                            VividPurple
+                        } else {
+                            TextSecondary
+                        }
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (currentGroup != null) {
+                            VividPurple
+                        } else {
+                            LightBorder
+                        }
+                    ),
+                    shape = RoundedCornerShape(30.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp)
                 ) {
                     val group = currentGroup
                     val buttonText = when {
                         group?.restaurantSelected == false -> "Continue Voting"
                         group != null -> "View Active Group"
-                        else -> "Current Group"
+                        else -> "Current Groups"
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Group,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            tint = if (currentGroup != null) VividPurple else TextSecondary,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = buttonText,
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+                            color = if (currentGroup != null) VividPurple else TextSecondary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
