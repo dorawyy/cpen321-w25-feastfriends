@@ -15,22 +15,15 @@ export const initializeFirebase = (): admin.app.App => {
 
     let credential: admin.credential.Credential;
 
-    // Priority 1: Use individual environment variables (PRODUCTION)
     if (projectId && clientEmail && privateKey) {
-      console.log('🔐 Initializing Firebase with environment variables');
       credential = admin.credential.cert({
         projectId: projectId,
         clientEmail: clientEmail,
         privateKey: privateKey.replace(/\\n/g, '\n'),
       });
-    }
-    // Priority 2: Use service account file path (DEVELOPMENT)
-    else if (serviceAccountPath) {
-      console.log('📄 Initializing Firebase with service account file');
+    } else if (serviceAccountPath) {
       credential = admin.credential.cert(serviceAccountPath);
-    }
-    // Fallback: Error
-    else {
+    } else {
       throw new Error(
         'Firebase configuration missing. Set either:\n' +
         '1. FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (recommended for production)\n' +
@@ -43,10 +36,8 @@ export const initializeFirebase = (): admin.app.App => {
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
 
-    console.log('✅ Firebase Admin SDK initialized successfully');
     return firebaseApp;
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase:', error);
     throw error;
   }
 };
@@ -73,7 +64,6 @@ export const sendPushNotification = async (
   try {
     const messaging = getMessaging();
 
-    // Build the message object step by step
     const message: admin.messaging.Message = {
       token,
       notification: {
@@ -81,10 +71,10 @@ export const sendPushNotification = async (
         body: notification.body,
       },
       android: {
-        priority: 'high' as const,
+        priority: 'high',
         notification: { 
           sound: 'default',
-          priority: 'high' as const,
+          priority: 'high',
         },
       },
       apns: { 
@@ -97,23 +87,13 @@ export const sendPushNotification = async (
       },
     };
 
-    // Only add data if it exists and has keys
     if (data && Object.keys(data).length > 0) {
       message.data = data;
     }
 
-    console.log('📤 Sending notification:', {
-      token: token.substring(0, 20) + '...',
-      title: notification.title,
-      body: notification.body,
-      data: data,
-    });
-
     const response = await messaging.send(message);
-    console.log('✅ Push notification sent successfully:', response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending push notification:', error);
     throw error;
   }
 };
@@ -133,10 +113,10 @@ export const sendMulticastNotification = async (
         body: notification.body,
       },
       android: { 
-        priority: 'high' as const,
+        priority: 'high',
         notification: { 
           sound: 'default',
-          priority: 'high' as const,
+          priority: 'high',
         } 
       },
       apns: { 
@@ -149,37 +129,14 @@ export const sendMulticastNotification = async (
       },
     };
 
-    // Only add data if it exists
     if (data && Object.keys(data).length > 0) {
       message.data = data;
     }
 
     const response = await messaging.sendEachForMulticast(message);
 
-    console.log(
-      `✅ Multicast notification sent: ${response.successCount} succeeded, ${response.failureCount} failed`
-    );
-
-    // Log any failures safely
-    if (response.failureCount > 0) {
-      for (let i = 0; i < response.responses.length; i++) {
-        const resp = response.responses[i];
-        if (!resp.success) {
-          if (i >= 0 && i < tokens.length) {
-            const rawToken = tokens[i];
-            if (typeof rawToken === 'string' && rawToken.length > 0) {
-              const tokenSafe = String(rawToken);
-              const errorMessage = resp.error?.message || String(resp.error);
-              console.error(`Failed to send to token ${tokenSafe.substring(0, 20)}...:`, errorMessage);
-            }
-          }
-        }
-      }
-    }
-
     return response;
   } catch (error) {
-    console.error('❌ Error sending multicast notification:', error);
     throw error;
   }
 };
@@ -198,7 +155,7 @@ export const sendTopicNotification = async (
         title: notification.title,
         body: notification.body,
       },
-      android: { priority: 'high' as const },
+      android: { priority: 'high' },
       apns: { payload: { aps: { sound: 'default' } } },
     };
 
@@ -207,10 +164,8 @@ export const sendTopicNotification = async (
     }
 
     const response = await messaging.send(message);
-    console.log(`✅ Topic notification sent to ${topic}:`, response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending topic notification:', error);
     throw error;
   }
 };
@@ -222,15 +177,8 @@ export const subscribeToTopic = async (
   try {
     const messaging = getMessaging();
     const response = await messaging.subscribeToTopic(tokens, topic);
-    console.log(`✅ ${response.successCount} tokens subscribed to topic ${topic}`);
-
-    if (response.failureCount > 0) {
-      console.error(`Failed subscriptions: ${response.failureCount}`);
-    }
-
     return response;
   } catch (error) {
-    console.error('❌ Error subscribing to topic:', error);
     throw error;
   }
 };
@@ -242,10 +190,8 @@ export const unsubscribeFromTopic = async (
   try {
     const messaging = getMessaging();
     const response = await messaging.unsubscribeFromTopic(tokens, topic);
-    console.log(`✅ ${response.successCount} tokens unsubscribed from topic ${topic}`);
     return response;
   } catch (error) {
-    console.error('❌ Error unsubscribing from topic:', error);
     throw error;
   }
 };

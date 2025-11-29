@@ -14,7 +14,6 @@ export class GroupController {
       if (!ensureAuthenticated(req, res)) return;
       const userId = req.user.userId;
 
-      // Get user's current group
       const group = await groupService.getGroupByUserId(userId);
 
       if (!group) {
@@ -25,14 +24,6 @@ export class GroupController {
         });
         return;
       }
-
-      console.log(`🐛 getGroupStatus DEBUG:`, {
-        groupId: group?._id,
-        cuisines: group?.cuisines,
-        averageBudget: group?.averageBudget,
-        averageRadius: group?.averageRadius,
-        fullGroupJSON: group?.toJSON()
-      });
 
       const groupId = String(group._id);
       const status = await groupService.getGroupStatus(groupId);
@@ -59,7 +50,6 @@ async voteForRestaurant(req: AuthRequest, res: Response, next: NextFunction): Pr
     const groupId = requireParam(req, 'groupId');
     const { vote } = req.body;
 
-    // Validate vote is a boolean
     if (typeof vote !== 'boolean') {
       res.status(400).json({
         Status: 400,
@@ -69,14 +59,12 @@ async voteForRestaurant(req: AuthRequest, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // Call sequential voting method
     const result = await groupService.submitSequentialVote(
       userId,
       groupId,
       vote
     );
 
-    // Return sequential voting response
     res.status(200).json({
       Status: 200,
       Message: { text: result.message },

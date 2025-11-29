@@ -23,6 +23,7 @@ module.exports = {
   ],
   
   // Coverage thresholds (adjust as needed)
+  // Revert to global thresholds only; do not enforce 100% on individual files
   coverageThreshold: {
     global: {
       branches: 70,
