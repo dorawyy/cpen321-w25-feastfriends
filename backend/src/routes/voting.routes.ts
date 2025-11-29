@@ -16,7 +16,6 @@ router.post(
     try {
       const { groupId } = req.params;
       
-      // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
         return res.status(401).json({
           Status: 401,
@@ -27,17 +26,13 @@ router.post(
       
       const result = await groupService.initializeSequentialVoting(groupId);
 
-      // ✅ Match Android ApiResponse format with capitals and correct field names
       return res.status(200).json({
         Status: 200,
         Message: { text: result.message },
         Body: result
       });
     } catch (error) {
-      console.error('Error initializing sequential voting:', error);
       const message = error instanceof Error ? error.message : 'Failed to initialize voting';
-      
-      // ✅ Wrap error in correct format
       return res.status(500).json({
         Status: 500,
         Message: { error: message },
@@ -57,9 +52,8 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { groupId } = req.params;
-      const { vote } = req.body; // boolean: true = yes, false = no
+      const { vote } = req.body;
       
-      // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
         return res.status(401).json({
           Status: 401,
@@ -87,10 +81,7 @@ router.post(
         Body: result
       });
     } catch (error) {
-      console.error('Error submitting vote:', error);
       const message = error instanceof Error ? error.message : 'Failed to submit vote';
-      
-      // ✅ Wrap error in correct format
       return res.status(500).json({
         Status: 500,
         Message: { error: message },
@@ -111,7 +102,6 @@ router.get(
     try {
       const { groupId } = req.params;
       
-      // After authMiddleware, user is guaranteed to exist
       if (!req.user) {
         return res.status(401).json({
           Status: 401,
@@ -122,17 +112,13 @@ router.get(
       
       const result = await groupService.getCurrentVotingRound(groupId);
 
-      // ✅ Match Android ApiResponse format
       return res.status(200).json({
         Status: 200,
         Message: { text: 'Success' },
         Body: result
       });
     } catch (error) {
-      console.error('Error getting voting round:', error);
       const message = error instanceof Error ? error.message : 'Failed to get voting round';
-      
-      // ✅ Wrap error in correct format
       return res.status(500).json({
         Status: 500,
         Message: { error: message },

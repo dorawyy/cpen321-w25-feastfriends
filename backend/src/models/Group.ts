@@ -51,7 +51,7 @@ export interface IGroup {
   votes: Map<string, string>;
   restaurantVotes: Map<string, number>;
   
-  // NEW: Sequential voting fields
+ 
   votingMode: 'list' | 'sequential'; // 'list' = old mode, 'sequential' = new mode
   currentRound?: IVotingRound;
   votingHistory: string[]; // restaurantIds already shown
@@ -451,7 +451,7 @@ GroupSchema.methods.endCurrentRound = function(): void {
  */
 GroupSchema.methods.getBestRestaurantFromHistory = function(): IRestaurant | null {
   if (this.votingHistoryDetailed.length === 0) {
-    // Fallback to first restaurant in pool if no history
+    // Fallback to first restaurant in pool if no3 history
     return this.restaurantPool.length > 0 ? this.restaurantPool[0] : null;
   }
   

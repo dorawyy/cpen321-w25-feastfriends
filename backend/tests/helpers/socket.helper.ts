@@ -25,7 +25,7 @@ export async function initializeTestSocket(): Promise<void> {
     httpServer.listen(0, () => {
       const address = httpServer.address();
       const port = typeof address === 'string' ? 0 : address?.port || 0;
-      console.log(`✅ Test Socket.IO server initialized on port ${port}`);
+      console.log(` Test Socket.IO server initialized on port ${port}`);
       resolve();
     });
   });
@@ -37,11 +37,11 @@ export async function initializeTestSocket(): Promise<void> {
 export async function closeTestSocket(): Promise<void> {
   return new Promise((resolve) => {
     io?.close(() => {
-      console.log('✅ Socket.IO server closed');
+      console.log(' Socket.IO server closed');
     });
     
     httpServer?.close(() => {
-      console.log('✅ HTTP server closed');
+      console.log('HTTP server closed');
       resolve();
     });
   });

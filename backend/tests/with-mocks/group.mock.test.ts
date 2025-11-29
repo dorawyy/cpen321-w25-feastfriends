@@ -250,6 +250,38 @@ describe('POST /api/group/vote/:groupId - Sequential Voting Failures', () => {
      */
     // Socket failure should not break restaurant progression
   });
+
+  test('should return 400 when vote is not a boolean for /api/groups/:groupId/voting/vote', async () => {
+    /**
+     * Covers: validation branch in voting.routes.ts for /:groupId/voting/vote
+     * Path:
+     *   if (typeof vote !== 'boolean') {
+     *     return res.status(400).json({
+     *       Status: 400,
+     *       Message: { error: 'Vote must be a boolean (true/false)' },
+     *       Body: null
+     *     });
+     *   }
+     *
+     * We use a valid token so authMiddleware sets req.user, but send an invalid vote payload.
+     */
+    const groupId = 'some-group-id';
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+
+    const response = await request(app)
+      .post(`/api/groups/${groupId}/voting/vote`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vote: 'yes' }); // not a boolean
+
+    expect(response.status).toBe(400);
+    expect(response.body.Status).toBe(400);
+    expect(response.body.Message).toHaveProperty('error', 'Vote must be a boolean (true/false)');
+    expect(response.body.Body).toBeNull();
+  });
 });
 
 describe('POST /api/group/leave/:groupId - External Failures', () => {

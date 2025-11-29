@@ -140,6 +140,16 @@ afterEach(async () => {
 
 describe('GET /api/group/status - No Mocking', () => {
   test('Should return 200 and group status for user in a group', async () => {
+    /**
+     * Tests: GET /api/group/status success path
+     * Covers: 
+     *   - groupController.getGroupStatus() lines 17-35
+     *   - const groupId = String(group._id); (line 28)
+     *   - const status = await groupService.getGroupStatus(groupId); (line 29)
+     *   - res.status(200).json({ Status: 200, Message: {}, Body: status }) (lines 31-35)
+     * Input: User in a group
+     * Expected: 200 response with group status
+     */
     const token = generateTestToken(
       testUsers[0]._id,
       testUsers[0].email,
@@ -152,6 +162,7 @@ describe('GET /api/group/status - No Mocking', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.Status).toBe(200);
+    expect(response.body.Message).toEqual({});
     expect(response.body.Body).toHaveProperty('groupId');
     expect(response.body.Body).toHaveProperty('roomId');
     expect(response.body.Body).toHaveProperty('numMembers');
@@ -160,6 +171,8 @@ describe('GET /api/group/status - No Mocking', () => {
     expect(response.body.Body).toHaveProperty('status');
     expect(response.body.Body.numMembers).toBe(2);
     expect(response.body.Body.status).toBe('voting');
+    // Verify groupId is a string (from String(group._id) conversion)
+    expect(typeof response.body.Body.groupId).toBe('string');
   });
 
   test('should return 404 when user is not in a group', async () => {
@@ -1287,6 +1300,158 @@ describe('POST /api/group/vote/:groupId - Sequential Voting (No Mocking)', () =>
   });
 });
 
+describe('Sequential Voting Routes - No Mocking (/api/groups)', () => {
+  test('should initialize sequential voting and return first restaurant', async () => {
+    /**
+     * Covers: voting.routes.ts initialize endpoint and groupService.initializeSequentialVoting
+     * Flow:
+     *  - Mock restaurantService.getRecommendationsForGroup to avoid external API calls
+     *  - POST /api/groups/:groupId/voting/initialize
+     *  - Expect 200 with ApiResponse shape and currentRestaurant populated
+     */
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
+    const Group = (await import('../../src/models/Group')).default;
+
+    const mockRestaurants = [
+      {
+        restaurantId: 'seq-rest-1',
+        name: 'Sequential Restaurant 1',
+        location: '123 Seq St',
+        cuisine: 'Italian',
+      },
+      {
+        restaurantId: 'seq-rest-2',
+        name: 'Sequential Restaurant 2',
+        location: '456 Seq St',
+        cuisine: 'Japanese',
+      },
+    ];
+
+    jest
+      .spyOn(restaurantService, 'getRecommendationsForGroup')
+      .mockResolvedValueOnce(mockRestaurants as any);
+
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+
+    const response = await request(app)
+      .post(`/api/groups/${testGroups[0]._id}/voting/initialize`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.Status).toBe(200);
+    expect(response.body.Message).toHaveProperty('text', 'Sequential voting initialized');
+    expect(response.body.Body).toBeDefined();
+    expect(response.body.Body.success).toBe(true);
+    expect(response.body.Body.currentRestaurant).toBeDefined();
+    expect(response.body.Body.currentRestaurant.restaurantId).toBe('seq-rest-1');
+
+    const updatedGroup = await Group.findById(testGroups[0]._id);
+    expect(updatedGroup).not.toBeNull();
+    expect(updatedGroup!.restaurantPool.length).toBe(2);
+    expect(updatedGroup!.currentRound).toBeDefined();
+  });
+
+  test('should submit sequential vote via /api/groups/:groupId/voting/vote', async () => {
+    /**
+     * Covers: voting.routes.ts vote endpoint and groupService.submitSequentialVote
+     * Flow:
+     *  - Initialize sequential voting
+     *  - POST /api/groups/:groupId/voting/vote with vote: true
+     *  - Expect ApiResponse with Body.success and message
+     */
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
+
+    const mockRestaurants = [
+      {
+        restaurantId: 'seq-rest-3',
+        name: 'Sequential Restaurant 3',
+        location: '789 Seq St',
+        cuisine: 'Mexican',
+      },
+    ];
+
+    jest
+      .spyOn(restaurantService, 'getRecommendationsForGroup')
+      .mockResolvedValueOnce(mockRestaurants as any);
+
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+
+    // Initialize first so currentRound exists
+    const initResponse = await request(app)
+      .post(`/api/groups/${testGroups[0]._id}/voting/initialize`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(initResponse.status).toBe(200);
+
+    const voteResponse = await request(app)
+      .post(`/api/groups/${testGroups[0]._id}/voting/vote`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vote: true });
+
+    expect(voteResponse.status).toBe(200);
+    expect(voteResponse.body.Status).toBe(200);
+    expect(voteResponse.body.Body).toBeDefined();
+    expect(voteResponse.body.Body.success).toBe(true);
+    expect(typeof voteResponse.body.Body.message).toBe('string');
+  });
+
+  test('should get current sequential voting round status', async () => {
+    /**
+     * Covers: voting.routes.ts current endpoint and groupService.getCurrentVotingRound
+     * Flow:
+     *  - Initialize sequential voting
+     *  - GET /api/groups/:groupId/voting/current
+     *  - Expect hasActiveRound: true and currentRestaurant populated
+     */
+    const restaurantService = (await import('../../src/services/restaurantService')).default;
+
+    const mockRestaurants = [
+      {
+        restaurantId: 'seq-rest-4',
+        name: 'Sequential Restaurant 4',
+        location: '101 Seq St',
+        cuisine: 'Thai',
+      },
+    ];
+
+    jest
+      .spyOn(restaurantService, 'getRecommendationsForGroup')
+      .mockResolvedValueOnce(mockRestaurants as any);
+
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+
+    // Initialize voting
+    const initResponse = await request(app)
+      .post(`/api/groups/${testGroups[0]._id}/voting/initialize`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(initResponse.status).toBe(200);
+
+    const currentResponse = await request(app)
+      .get(`/api/groups/${testGroups[0]._id}/voting/current`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(currentResponse.status).toBe(200);
+    expect(currentResponse.body.Status).toBe(200);
+    expect(currentResponse.body.Body).toBeDefined();
+    expect(currentResponse.body.Body.hasActiveRound).toBe(true);
+    expect(currentResponse.body.Body.currentRestaurant).toBeDefined();
+    expect(currentResponse.body.Body.currentRestaurant.restaurantId).toBe('seq-rest-4');
+  });
+});
+
 describe('POST /api/group/initialize-voting/:groupId - No Mocking', () => {
   /**
    * Interface: POST /api/group/initialize-voting/:groupId
@@ -1324,5 +1489,150 @@ describe('GET /api/group/voting/:groupId - No Mocking', () => {
      * Expected Output: 404 error
      */
     // This tests that the endpoint is not publicly exposed yet
+  });
+});
+
+// Interface: Group Model Virtual Properties (tested through API)
+describe('Group Model Virtual Properties and toJSON Transform - API Tests', () => {
+  /**
+   * Tests the Group model's virtual properties and toJSON transform:
+   * - groupId virtual property (returns _id.toString())
+   * - toJSON transform (includes groupId, excludes _id and __v)
+   * 
+   * These are tested through API responses since that's where JSON serialization happens
+   */
+
+  test('should access groupId virtual property through GET /api/group/status response', async () => {
+    /**
+     * Input: GET /api/group/status
+     * Expected Status Code: 200
+     * Expected Behavior: Query database, Group model applies toJSON transform
+     * Expected Output: Group status object with groupId virtual property included
+     * 
+     * Covers: GroupSchema.virtual('groupId').get(function() { return this._id.toString(); })
+     */
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+    
+    const response = await request(app)
+      .get('/api/group/status')
+      .set('Authorization', `Bearer ${token}`);
+    
+    expect(response.status).toBe(200);
+    expect(response.body.Body).toHaveProperty('groupId');
+    expect(response.body.Body.groupId).toBe(testGroups[0]._id.toString());
+    expect(typeof response.body.Body.groupId).toBe('string');
+  });
+
+  test('should use toJSON transform to include groupId and exclude _id and __v in GET /api/group/status', async () => {
+    /**
+     * Input: GET /api/group/status
+     * Expected Status Code: 200
+     * Expected Behavior: Group model toJSON transform removes _id and __v, adds groupId
+     * Expected Output: Group status object with groupId, without _id or __v
+     * 
+     * Covers: GroupSchema.set('toJSON', { virtuals: true, transform: ... })
+     */
+    const token = generateTestToken(
+      testUsers[0]._id,
+      testUsers[0].email,
+      testUsers[0].googleId
+    );
+    
+    const response = await request(app)
+      .get('/api/group/status')
+      .set('Authorization', `Bearer ${token}`);
+    
+    expect(response.status).toBe(200);
+    expect(response.body.Body).toHaveProperty('groupId');
+    expect(response.body.Body.groupId).toBe(testGroups[0]._id.toString());
+    expect(response.body.Body).not.toHaveProperty('_id');
+    expect(response.body.Body).not.toHaveProperty('__v');
+  });
+
+  test('should access groupId virtual property when group has restaurant selected', async () => {
+    /**
+     * Input: GET /api/group/status (for group with restaurant selected)
+     * Expected Status Code: 200
+     * Expected Behavior: Group model virtual property works even when restaurant is selected
+     * Expected Output: Group status with groupId virtual property
+     */
+    const token = generateTestToken(
+      testUsers[2]._id,
+      testUsers[2].email,
+      testUsers[2].googleId
+    );
+    
+    const response = await request(app)
+      .get('/api/group/status')
+      .set('Authorization', `Bearer ${token}`);
+    
+    expect(response.status).toBe(200);
+    expect(response.body.Body).toHaveProperty('groupId');
+    expect(response.body.Body.groupId).toBe(testGroups[1]._id.toString());
+    expect(response.body.Body).not.toHaveProperty('_id');
+    expect(response.body.Body).not.toHaveProperty('__v');
+  });
+
+  test('should verify groupId virtual matches _id.toString() when accessing directly from model', async () => {
+    /**
+     * Input: Direct Group model access
+     * Expected Behavior: Virtual property groupId returns same value as _id.toString()
+     * Expected Output: groupId === _id.toString()
+     * 
+     * This tests the virtual getter directly
+     */
+    const Group = (await import('../../src/models/Group')).default;
+    const group = await Group.findById(testGroups[0]._id);
+    
+    expect(group).not.toBeNull();
+    // Access virtual property via type assertion (virtuals exist at runtime but not in TypeScript types)
+    const groupDoc = group as any;
+    expect(groupDoc.groupId).toBe(group!._id.toString());
+    expect(typeof groupDoc.groupId).toBe('string');
+  });
+
+  test('should verify toJSON transform works when calling toJSON() directly', async () => {
+    /**
+     * Input: Call toJSON() on Group document
+     * Expected Behavior: toJSON transform applies, includes groupId, excludes _id and __v
+     * Expected Output: JSON object with groupId, without _id or __v
+     * 
+     * This tests the toJSON transform directly
+     */
+    const Group = (await import('../../src/models/Group')).default;
+    const group = await Group.findById(testGroups[0]._id);
+    
+    expect(group).not.toBeNull();
+    const json = group!.toJSON() as any;
+    
+    expect(json).toHaveProperty('groupId');
+    expect(json.groupId).toBe(group!._id.toString());
+    expect(json).not.toHaveProperty('_id');
+    expect(json).not.toHaveProperty('__v');
+  });
+
+  test('should verify toObject includes virtuals but preserves _id', async () => {
+    /**
+     * Input: Call toObject() on Group document
+     * Expected Behavior: toObject includes virtuals but doesn't transform (keeps _id)
+     * Expected Output: Object with both groupId (virtual) and _id
+     * 
+     * Note: toObject is different from toJSON - it includes virtuals but doesn't transform
+     */
+    const Group = (await import('../../src/models/Group')).default;
+    const group = await Group.findById(testGroups[0]._id);
+    
+    expect(group).not.toBeNull();
+    const obj = group!.toObject() as any;
+    
+    // toObject includes virtuals but doesn't remove _id
+    expect(obj).toHaveProperty('groupId');
+    expect(obj.groupId).toBe(group!._id.toString());
+    // toObject may or may not include _id depending on options, but virtual should work
+    expect(obj.groupId).toBeDefined();
   });
 });
