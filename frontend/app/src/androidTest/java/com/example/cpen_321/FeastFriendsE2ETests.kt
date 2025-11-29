@@ -18,7 +18,10 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 
 /**
- * Complete E2E Test Suite - 16 Tests (FULLY FIXED)
+ * Complete E2E Test Suite - 16 Tests
+ * IMPORTANT SETUP INFORMATION AND PRECONDITIONS
+ * Ensure that the app is built onto the emulator and signed in and on HOME SCREEN before testing
+ * Ensure that user starts with NO PREFERENCES selected in the Preferences screen
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -529,51 +532,41 @@ class FeastFriendsE2ETests {
         println("TEST 03: Add Profile Info - Initial Setup")
         println("=".repeat(70))
 
-        ensureOnHomeScreen()
+        println("Step 1: Navigate to Profile Config...")
+        composeTestRule.onNodeWithTag("home_profile", useUnmergedTree = true).performClick()
+        composeTestRule.waitForIdle()
         Thread.sleep(1000)
 
-        println("Step 1: Navigate to Profile Config...")
-        composeTestRule.onNodeWithTag("home_profile", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(3000)
-
-        println("Step 2: Navigate to Profile...")
-        composeTestRule.onNodeWithText("PROFILE", useUnmergedTree = true)
-            .performClick()
+        println("Step 2: Click PROFILE button...")
+        composeTestRule.onNodeWithText("PROFILE", ignoreCase = true).performClick()
+        composeTestRule.waitForIdle()
         Thread.sleep(2000)
 
         waitForProfileScreen()
 
         println("Step 3: Enter name...")
-        try {
-            composeTestRule.onNodeWithTag("name", useUnmergedTree = true)
-                .performClick()
-            Thread.sleep(500)
-            composeTestRule.onNodeWithTag("name", useUnmergedTree = true)
-                .performTextInput("TestUser123")
-            Thread.sleep(2000)
-        } catch (e: Exception) {
-            println("  ⚠ Could not enter name: ${e.message}")
-        }
+        composeTestRule.onAllNodes(
+            hasSetTextAction(),
+            useUnmergedTree = true
+        )[0].performTextInput("TestUser123")
+        composeTestRule.waitForIdle()
+        Thread.sleep(500)
 
         println("Step 4: Enter bio...")
-        try {
-            composeTestRule.onNodeWithTag("bio", useUnmergedTree = true)
-                .performClick()
-            Thread.sleep(500)
-            composeTestRule.onNodeWithTag("bio", useUnmergedTree = true)
-                .performTextInput("This is a test bio for E2E testing")
-            Thread.sleep(2000)
-        } catch (e: Exception) {
-            println("  ⚠ Could not enter bio: ${e.message}")
-        }
+        // ✅ Find second text field (bio field)
+        composeTestRule.onAllNodes(
+            hasSetTextAction(),
+            useUnmergedTree = true
+        )[1].performTextInput("Test bio for E2E testing")
+        composeTestRule.waitForIdle()
+        Thread.sleep(500)
 
         println("Step 5: Save profile...")
-        composeTestRule.onNodeWithText("SAVE PROFILE", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(3000)
+        composeTestRule.onNodeWithText("SAVE PROFILE", ignoreCase = true).performClick()
+        composeTestRule.waitForIdle()
+        Thread.sleep(2000)
 
-        println("✅ TEST 03 PASSED\n")
+        println("✓ Test 03 completed successfully")
     }
 
     @Test
@@ -645,30 +638,42 @@ class FeastFriendsE2ETests {
 
         println("Step 2: Update name...")
         try {
-            composeTestRule.onNodeWithTag("name", useUnmergedTree = true)
-                .performClick()
-            Thread.sleep(500)
-            composeTestRule.onNodeWithTag("name", useUnmergedTree = true)
-                .performTextInput("UpdatedUser456")
-            Thread.sleep(2000)
+            // ✅ FIXED: Find first text field (name) using hasSetTextAction
+            composeTestRule.onAllNodes(
+                hasSetTextAction(),
+                useUnmergedTree = true
+            )[0].performTextClearance()
+            Thread.sleep(300)
+
+            composeTestRule.onAllNodes(
+                hasSetTextAction(),
+                useUnmergedTree = true
+            )[0].performTextInput("UpdatedUser456")
+            Thread.sleep(1000)
         } catch (e: Exception) {
             println("  ⚠ Could not update name: ${e.message}")
         }
 
         println("Step 3: Update bio...")
         try {
-            composeTestRule.onNodeWithTag("bio", useUnmergedTree = true)
-                .performClick()
-            Thread.sleep(500)
-            composeTestRule.onNodeWithTag("bio", useUnmergedTree = true)
-                .performTextInput("Updated bio for testing profile updates")
-            Thread.sleep(2000)
+            // ✅ FIXED: Find second text field (bio) using hasSetTextAction
+            composeTestRule.onAllNodes(
+                hasSetTextAction(),
+                useUnmergedTree = true
+            )[1].performTextClearance()
+            Thread.sleep(300)
+
+            composeTestRule.onAllNodes(
+                hasSetTextAction(),
+                useUnmergedTree = true
+            )[1].performTextInput("Updated bio for testing profile updates")
+            Thread.sleep(1000)
         } catch (e: Exception) {
             println("  ⚠ Could not update bio: ${e.message}")
         }
 
         println("Step 4: Save updated profile...")
-        composeTestRule.onNodeWithText("SAVE PROFILE", useUnmergedTree = true)
+        composeTestRule.onNodeWithText("SAVE PROFILE", ignoreCase = true)
             .performClick()
         Thread.sleep(3000)
 
@@ -793,7 +798,6 @@ class FeastFriendsE2ETests {
         ensureOnHomeScreen()
         Thread.sleep(1000)
 
-        // ✅ FIX: Clear preferences first
         println("Step 1: Navigate to Preferences to clear them...")
         composeTestRule.onNodeWithTag("home_profile", useUnmergedTree = true)
             .performClick()
@@ -804,14 +808,30 @@ class FeastFriendsE2ETests {
 
         waitForPreferencesScreen()
 
-        println("Step 2: Clearing all selected preferences...")
-        clearAllPreferences()
+        println("Step 2: Deselecting previously selected preferences...")
+        val selectedCuisines = listOf("Italian", "Japanese")
+
+        selectedCuisines.forEach { cuisine ->
+            try {
+                composeTestRule.onNodeWithText(cuisine, useUnmergedTree = true)
+                    .performClick()
+                println("  ✓ Deselected $cuisine")
+                Thread.sleep(200)
+            } catch (e: Exception) {
+                println("  ⚠ Could not deselect $cuisine: ${e.message}")
+            }
+        }
         Thread.sleep(1000)
 
         println("Step 3: Save empty preferences...")
         composeTestRule.onNodeWithText("Save Preferences", useUnmergedTree = true)
             .performClick()
-        Thread.sleep(2000)
+
+        // ✅ CRITICAL FIX: Wait for save operation to complete
+        composeTestRule.waitForIdle()
+        Thread.sleep(5000)  // Increased wait time for backend save to complete
+
+        println("  ✓ Waiting for preferences to be saved to backend...")
 
         // Navigate back to home
         device.pressBack()
@@ -824,49 +844,34 @@ class FeastFriendsE2ETests {
         composeTestRule.onNodeWithText("Start Match", useUnmergedTree = true)
             .performClick()
 
+        composeTestRule.waitForIdle()
         Thread.sleep(3000)
 
-        println("Step 5: Checking for preferences prompt...")
-        try {
-            // Look for error message or preferences prompt
-            composeTestRule.onNodeWithText(
-                "Please set your preferences first",
-                substring = true,
-                useUnmergedTree = true
-            ).assertExists()
-            println("✓ Preferences prompt shown correctly")
-        } catch (e: AssertionError) {
-            println("⚠ Preferences prompt not found: ${e.message}")
-            // May have navigated to waiting room anyway
+        println("Step 5: Verifying navigation to preferences screen...")
+
+        var found = false
+        var attempts = 0
+        val maxAttempts = 10
+
+        while (!found && attempts < maxAttempts) {
+            try {
+                composeTestRule.onNodeWithText(
+                    "Preferences (Select)",
+                    substring = true,
+                    useUnmergedTree = true
+                ).assertExists()
+                found = true
+                println("✓ Correctly navigated to preferences screen - preventing matchmaking")
+            } catch (e: AssertionError) {
+                attempts++
+                Thread.sleep(1000)
+                println("  ... waiting for preferences screen (${attempts}s)")
+            }
         }
 
-        // ✅ IMPORTANT: Re-set preferences for remaining tests
-        println("Step 6: Re-setting preferences for remaining tests...")
-        ensureOnHomeScreen()
-        Thread.sleep(1000)
-
-        composeTestRule.onNodeWithTag("home_profile", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(2000)
-
-        composeTestRule.onNodeWithText("PREFERENCES", useUnmergedTree = true)
-            .performClick()
-
-        waitForPreferencesScreen()
-
-        composeTestRule.onNodeWithText("Italian", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(500)
-
-        composeTestRule.onNodeWithText("Japanese", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(500)
-
-        composeTestRule.onNodeWithText("Save Preferences", useUnmergedTree = true)
-            .performClick()
-        Thread.sleep(3000)
-
-        println("✓ Preferences restored")
+        if (!found) {
+            throw AssertionError("Did not navigate to preferences screen after $maxAttempts seconds")
+        }
 
         println("✅ TEST 09 PASSED\n")
     }
