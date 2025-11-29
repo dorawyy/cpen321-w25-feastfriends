@@ -125,9 +125,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    /**
-     * Show notification in system tray
-     */
+
     private fun showNotification(
         title: String,
         body: String,
@@ -146,7 +144,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.drawable.ic_notification) // You'll need to create this
+            .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -157,9 +155,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "✅ Notification shown: $title")
     }
 
-    /**
-     * Create appropriate intent based on notification data
-     */
+
     private fun createIntentForNotification(data: Map<String, String>): Intent {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -194,9 +190,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         return intent
     }
 
-    /**
-     * Handle data-only messages when app is in foreground
-     */
+
     private fun handleDataPayload(data: Map<String, String>) {
         Log.d(TAG, "📦 Handling data payload: $data")
     }

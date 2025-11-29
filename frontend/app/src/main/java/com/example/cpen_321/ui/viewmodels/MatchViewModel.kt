@@ -92,12 +92,7 @@ class MatchViewModel @Inject constructor(
         setupSocketListeners()
     }
 
-    /**
-     * Start the countdown timer - ONLY call this from joinMatching with server time
-     */
-    /**
-     * Start the countdown timer - ONLY call this from joinMatching with server time
-     */
+
     private fun startTimerWithServerTime(completionTime: Long, serverCurrentTimeMillis: Long) {
         timerJob?.cancel()
         val myGeneration = timerGeneration.incrementAndGet()
@@ -163,9 +158,8 @@ class MatchViewModel @Inject constructor(
 
         Log.d(TAG, "✅ Timer job created (gen=$myGeneration)")
     }
-    /**
-     * Check room completion status with backend
-     */
+
+
     private fun checkRoomCompletion(roomId: String) {
         viewModelScope.launch {
             Log.d(TAG, "🔍 Checking room completion for: $roomId")
@@ -458,9 +452,7 @@ class MatchViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handle room update from socket - ONLY updates members, NOT timer
-     */
+
     private fun handleRoomUpdate(data: JSONObject) {
         viewModelScope.launch {
             val members = data.getJSONArraySafe("members")?.toStringList() ?: emptyList()

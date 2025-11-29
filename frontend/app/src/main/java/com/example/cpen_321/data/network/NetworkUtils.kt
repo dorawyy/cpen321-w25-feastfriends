@@ -169,10 +169,7 @@ suspend fun safeSignUpApiCall(signUpApiCall: suspend () -> Response<SignUpRespon
     }
 }
 
-/**
- * Parse error message from backend response
- * Handles both JSON error responses and plain text
- */
+
 private fun parseErrorMessage(errorBody: String?, statusCode: Int): String {
     if (errorBody.isNullOrBlank()) {
         return when (statusCode) {

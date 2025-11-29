@@ -209,15 +209,11 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Check if user is a first-time user (no preferences set)
-     * and set redirect flag if needed
-     */
+
     private suspend fun checkIfFirstTimeUser() {
         when (val settingsResult = userRepository.getUserSettings()) {
             is ApiResult.Success -> {
                 val settings = settingsResult.data
-                // Check if user has no preferences set (empty preference list)
                 val hasNoPreferences = settings.preference.isEmpty()
 
                 if (hasNoPreferences) {
@@ -225,10 +221,8 @@ class AuthViewModel @Inject constructor(
                 }
             }
             is ApiResult.Error -> {
-                // If we can't fetch settings, don't redirect (fail silently)
             }
             is ApiResult.Loading -> {
-                // Ignore
             }
         }
     }
@@ -410,9 +404,6 @@ class AuthViewModel @Inject constructor(
 
     // ==================== NEW: FCM TOKEN METHODS ====================
 
-    /**
-     * Register FCM token with backend after successful login
-     */
     private fun registerFcmTokenAfterLogin() {
         viewModelScope.launch {
             try {
@@ -471,9 +462,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Unregister FCM token from backend before logout
-     */
+
     private suspend fun unregisterFcmTokenBeforeLogout() {
         try {
             val userId = tokenManager.getUserId()
@@ -487,10 +476,8 @@ class AuthViewModel @Inject constructor(
                     }
                     is ApiResult.Error -> {
                         Log.e(TAG, "⚠️ Failed to unregister FCM token: ${result.message}")
-                        // Don't block logout if unregistration fails
                     }
                     is ApiResult.Loading -> {
-                        // Ignore
                     }
                 }
             } else {
@@ -498,7 +485,6 @@ class AuthViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error during FCM token unregistration", e)
-            // Don't throw - FCM unregistration shouldn't block logout
         }
     }
 

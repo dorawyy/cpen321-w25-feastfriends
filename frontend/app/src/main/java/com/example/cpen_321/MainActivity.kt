@@ -84,9 +84,7 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
     }
 
-    /**
-     * Request notification permission (Android 13+) and setup FCM
-     */
+
     private fun requestNotificationPermissionAndSetupFcm() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
@@ -98,9 +96,7 @@ class MainActivity : ComponentActivity() {
                     setupFcmToken()
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Show explanation dialog if needed
                     Log.d(TAG, "ℹ️ Showing permission rationale")
-                    // TODO: Show dialog explaining why we need permission
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
                 else -> {
@@ -114,9 +110,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Get FCM token and register with backend
-     */
+
     private fun setupFcmToken() {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
@@ -150,7 +144,6 @@ class MainActivity : ComponentActivity() {
                             Log.d(TAG, "ℹ️ User not logged in, will register token after login")
                         }
                         if (token != null) {
-                            // Save token locally for later registration
                             tokenManager.saveFcmToken(token)
                         }
                     }
@@ -161,9 +154,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Handle notification intent when app is opened from notification
-     */
     private fun handleNotificationIntent(intent: Intent?) {
         intent?.let {
             val navigateTo = it.getStringExtra("navigate_to")

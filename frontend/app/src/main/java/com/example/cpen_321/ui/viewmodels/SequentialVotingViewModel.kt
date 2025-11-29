@@ -188,9 +188,7 @@ class SequentialVotingViewModel @Inject constructor(
         initializeVotingInternal(groupId)
     }
 
-    /**
-     * Internal initialization - only call this if you know it's not initialized
-     */
+
     private fun initializeVotingInternal(groupId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -380,9 +378,7 @@ class SequentialVotingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * ✅ NEW: Helper function to clear all voting state
-     */
+
     private fun clearVotingState() {
         Log.d(TAG, "🧹 Clearing voting state...")
         _userVote.value = null
