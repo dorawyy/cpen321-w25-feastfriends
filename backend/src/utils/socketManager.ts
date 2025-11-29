@@ -7,7 +7,6 @@ import { RestaurantType } from '../types';
  * Global Socket Manager
  * Singleton pattern for managing socket connections across the app
  */
-
 class SocketManager {
   private static instance: SocketManager | undefined;
   private io: SocketIOServer | null = null;
@@ -27,13 +26,11 @@ class SocketManager {
    */
   public initialize(server: HTTPServer): void {
     if (this.io) {
-      console.warn('⚠️  Socket.IO already initialized');
       return;
     }
 
     this.io = initializeSocket(server);
     this.emitter = new SocketEmitter(this.io);
-    console.log('✅ SocketManager initialized');
   }
 
   /**
@@ -58,9 +55,6 @@ class SocketManager {
 
   // ==================== CONVENIENCE METHODS ====================
 
-  /**
-   * Emit room update to all members in a room
-   */
   public emitRoomUpdate(
     roomId: string,
     members: string[],
@@ -75,23 +69,14 @@ class SocketManager {
     });
   }
 
-  /**
-   * Notify that a group is ready
-   */
   public emitGroupReady(roomId: string, groupId: string, members: string[]): void {
     this.getEmitter().emitGroupReady(roomId, groupId, members);
   }
 
-  /**
-   * Notify that a room has expired
-   */
   public emitRoomExpired(roomId: string, reason?: string): void {
     this.getEmitter().emitRoomExpired(roomId, reason);
   }
 
-  /**
-   * Emit vote update to group (LEGACY - for list-based voting)
-   */
   public emitVoteUpdate(
     groupId: string,
     restaurantId: string,
@@ -100,7 +85,7 @@ class SocketManager {
     totalMembers: number
   ): void {
     const totalVotes = Object.values(votes).reduce((sum, count) => sum + count, 0);
-    
+
     this.getEmitter().emitVoteUpdate(groupId, {
       restaurantId,
       votes,
@@ -110,9 +95,6 @@ class SocketManager {
     });
   }
 
-  /**
-   * Emit restaurant selected to group
-   */
   public emitRestaurantSelected(
     groupId: string,
     restaurantId: string,
@@ -126,9 +108,6 @@ class SocketManager {
     });
   }
 
-  /**
-   * Emit member joined to room
-   */
   public emitMemberJoined(
     roomId: string,
     userId: string,
@@ -144,9 +123,6 @@ class SocketManager {
     });
   }
 
-  /**
-   * Emit member left to room
-   */
   public emitMemberLeft(
     roomId: string,
     userId: string,
@@ -166,24 +142,16 @@ class SocketManager {
   public emitToUser(userId: string, event: string, payload: unknown): void {
     const io = this.getIO();
 
-    // You must make sure your socket connection stores userId on handshake
-    for (const [_, socket] of io.sockets.sockets) {
-      // Access the userId from socket.data where it's actually stored
+    for (const [, socket] of io.sockets.sockets) {
       if (socket.data?.userId === userId) {
         socket.emit(event, payload);
-        console.log(`✅ Emitted ${event} to user ${userId}`);
         return;
       }
     }
-
-    console.warn(`⚠️ emitToUser: No socket found for user ${userId}`);
   }
 
   // ==================== NEW: SEQUENTIAL VOTING METHODS ====================
 
-  /**
-   * Emit new voting round started
-   */
   public emitNewVotingRound(
     groupId: string,
     restaurant: RestaurantType,
@@ -199,12 +167,8 @@ class SocketManager {
       timeoutSeconds,
       expiresAt: new Date(Date.now() + timeoutSeconds * 1000).toISOString(),
     });
-    console.log(`🎯 Emitted new voting round for group ${groupId}: ${restaurant.name}`);
   }
 
-  /**
-   * Emit sequential vote update
-   */
   public emitSequentialVoteUpdate(
     groupId: string,
     userId: string,
@@ -222,12 +186,8 @@ class SocketManager {
       totalMembers,
       votesRemaining: totalMembers - (yesVotes + noVotes),
     });
-    console.log(`✅ Vote update for group ${groupId}: ${yesVotes}/${noVotes} (${vote ? 'yes' : 'no'})`);
   }
 
-  /**
-   * Emit majority reached (restaurant accepted or rejected)
-   */
   public emitMajorityReached(
     groupId: string,
     result: 'yes' | 'no',
@@ -238,12 +198,8 @@ class SocketManager {
       result,
       restaurantId,
     });
-    console.log(`🎉 Majority reached for group ${groupId}: ${result}`);
   }
 
-  /**
-   * Emit voting round timeout
-   */
   public emitVotingRoundTimeout(
     groupId: string,
     restaurantId: string
@@ -252,10 +208,8 @@ class SocketManager {
     io.to(`group_${groupId}`).emit('voting:round_timeout', {
       restaurantId,
     });
-    console.log(`⏰ Voting round timeout for group ${groupId}`);
   }
 }
 
-// Export singleton instance
 export const socketManager = SocketManager.getInstance();
 export default socketManager;

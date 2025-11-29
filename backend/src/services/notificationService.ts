@@ -44,7 +44,7 @@ export const sendNotificationToUser = async (
 
     try {
       await sendPushNotification(user.fcmToken, notification, sanitizeData(notification.data));
-      console.log(`✅ Notification sent to user ${userId}`);
+      console.log(` Notification sent to user ${userId}`);
     } catch (error: any) {
       // Handle invalid token errors from Firebase
       const errorCode = error?.code || error?.errorInfo?.code;

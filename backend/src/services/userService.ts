@@ -45,8 +45,8 @@ export class UserService {
       bio: user.bio,
       preference: user.preference,
       profilePicture: user.profilePicture,
-      credibilityScore: user.credibilityScore,  // ✅ ADD THIS LINE
-      contactNumber: user.contactNumber         // ✅ ADD THIS LINE (if not already there)
+      credibilityScore: user.credibilityScore,  
+      contactNumber: user.contactNumber        
     }));
   }
   /**
