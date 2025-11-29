@@ -96,27 +96,22 @@ class SequentialVotingViewModel @Inject constructor(
     }
 
     private fun setupSocketListeners() {
-        // Listen for new voting round
         socketManager.onNewVotingRound { data ->
             handleNewVotingRound(data)
         }
 
-        // Listen for vote updates
         socketManager.onSequentialVoteUpdate { data ->
             handleVoteUpdate(data)
         }
 
-        // Listen for majority reached
         socketManager.onMajorityReached { data ->
             handleMajorityReached(data)
         }
 
-        // Listen for round timeout
         socketManager.onVotingRoundTimeout { data ->
             handleRoundTimeout(data)
         }
 
-        // Listen for restaurant selected (final)
         socketManager.onRestaurantSelected { data ->
             handleRestaurantSelected(data)
         }
@@ -193,9 +188,7 @@ class SequentialVotingViewModel @Inject constructor(
         initializeVotingInternal(groupId)
     }
 
-    /**
-     * Internal initialization - only call this if you know it's not initialized
-     */
+
     private fun initializeVotingInternal(groupId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -207,17 +200,14 @@ class SequentialVotingViewModel @Inject constructor(
                     if (response.success) {
                         Log.d(TAG, "✅ Voting initialized: ${response.message}")
 
-                        // Subscribe to group for real-time updates
                         socketManager.subscribeToGroup(groupId)
 
-                        // If we got a restaurant in the response, set it
                         response.currentRestaurant?.let { restaurant ->
                             _currentRestaurant.value = restaurant
                             _roundNumber.value = 1
                             Log.d(TAG, "Got restaurant from init: ${restaurant.name}")
                         }
 
-                        // Always load current round details to get full state
                         loadCurrentRound(groupId)
 
                         _successMessage.value = "Voting ready"
@@ -341,7 +331,6 @@ class SequentialVotingViewModel @Inject constructor(
             Log.d(TAG, "   yesVotes: ${_yesVotes.value}")
             Log.d(TAG, "   noVotes: ${_noVotes.value}")
 
-            // ✅ FORCE CLEAR VOTE STATE IMMEDIATELY - before parsing anything
             clearVotingState()
 
             val restaurantJson = data.getJSONObjectSafe("restaurant")
@@ -379,7 +368,6 @@ class SequentialVotingViewModel @Inject constructor(
                 Log.d(TAG, "   restaurant: ${restaurant.name}")
                 Log.d(TAG, "   round: $roundNumber/$totalRounds")
 
-                // Start countdown timer
                 startTimer(timeoutSeconds)
 
                 Log.d(TAG, "═══════════════════════════════════")
@@ -390,9 +378,7 @@ class SequentialVotingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * ✅ NEW: Helper function to clear all voting state
-     */
+
     private fun clearVotingState() {
         Log.d(TAG, "🧹 Clearing voting state...")
         _userVote.value = null
@@ -428,10 +414,8 @@ class SequentialVotingViewModel @Inject constructor(
             val restaurantId = data.getStringSafe("restaurantId")
 
             if (result == "yes") {
-                // Restaurant accepted - wait for restaurant_selected event
                 _successMessage.value = "Majority voted YES!"
             } else {
-                // Restaurant rejected - will get next restaurant from new_round event
                 _successMessage.value = "Moving to next restaurant..."
             }
 

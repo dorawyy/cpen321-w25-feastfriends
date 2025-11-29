@@ -222,14 +222,12 @@ private fun WaitingRoomEffects(
         }
     }
 
-    // ✅ FIX: Track if we've already shown the failure dialog to prevent duplicates
     var hasShownFailureDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentRoom) {
         (currentRoom as? com.example.cpen_321.data.model.Room)?.let { room ->
             Log.d("WaitingRoom", "Loading room status for: ${room.roomId}")
             viewModel.getRoomStatus(room.roomId)
-            // Reset the failure dialog flag when room changes (new room joined)
             hasShownFailureDialog = false
         }
     }
@@ -245,7 +243,6 @@ private fun WaitingRoomEffects(
 
     LaunchedEffect(roomExpired, roomMembers.size, currentRoom) {
         if (roomExpired && !hasShownFailureDialog) {
-            // Check both roomMembers and currentRoom.members to ensure we have the latest count
             val currentRoomMembers = (currentRoom as? com.example.cpen_321.data.model.Room)?.members?.size ?: roomMembers.size
             val memberCount = maxOf(roomMembers.size, currentRoomMembers)
 
@@ -275,7 +272,6 @@ private fun WaitingRoomContent(
     minNumberOfPeople: Int,
     onLeaveClick: () -> Unit
 ) {
-    // Log timeRemaining for debugging
     LaunchedEffect(timeRemaining) {
         Log.d("WaitingRoom", "📺 UI received timeRemaining: ${timeRemaining}ms (${timeRemaining / 1000}s)")
     }
@@ -302,7 +298,6 @@ private fun WaitingRoomContent(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // "X friends joined" badge at the top
             Box(
                 modifier = Modifier
                     .background(
@@ -338,7 +333,6 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // FeastFriends title
             Text(
                 text = "FeastFriends",
                 fontSize = 24.sp,
@@ -350,7 +344,6 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Large circular timer ring with profile pictures around it
             BoxWithConstraints(
                 modifier = Modifier.size(320.dp)
             ) {
@@ -359,10 +352,8 @@ private fun WaitingRoomContent(
 
                 val roomId = (currentRoom as? com.example.cpen_321.data.model.Room)?.roomId ?: ""
 
-                // Track the max timeRemaining we've seen for this room
                 var capturedTotalTime by remember(roomId) { mutableStateOf(0L) }
 
-                // Update totalTime when we get a larger value
                 LaunchedEffect(roomId, timeRemaining) {
                     if (timeRemaining > capturedTotalTime) {
                         capturedTotalTime = timeRemaining
@@ -370,17 +361,14 @@ private fun WaitingRoomContent(
                     }
                 }
 
-                // Use captured total time, or fallback if not yet captured
                 val totalTime = if (capturedTotalTime > 0) capturedTotalTime else 20000L
 
-                // Circular progress ring
                 CircularTimerRing(
                     timeRemaining = timeRemaining,
                     totalTime = totalTime,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Profile pictures positioned on triangular orbit with floating animation
                 roomMembers.forEachIndexed { index, user ->
                     val triangleAngles = listOf(-90f, 30f, 150f)
                     val angle = if (index < 3) {
@@ -429,7 +417,6 @@ private fun WaitingRoomContent(
                     }
                 }
 
-                // "Waiting Room" text and timer in center
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -444,7 +431,6 @@ private fun WaitingRoomContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Display timer - convert milliseconds to minutes:seconds
                     val displaySeconds = (timeRemaining / 1000).toInt().coerceAtLeast(0)
                     val minutes = displaySeconds / 60
                     val seconds = displaySeconds % 60
@@ -472,7 +458,6 @@ private fun WaitingRoomContent(
 
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Leave Room button
             OutlinedButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
@@ -512,15 +497,12 @@ private fun CircularTimerRing(
     totalTime: Long,
     modifier: Modifier = Modifier
 ) {
-    // Total time comes from backend (15 seconds = 15000ms) or initial time remaining
-    // Progress shows remaining time - starts at 1.0 (full) and decreases to 0.0
     val progress = if (totalTime > 0) {
         (timeRemaining.toFloat() / totalTime.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
 
-    // Draw circular progress ring with gradient
     Canvas(
         modifier = modifier
     ) {
@@ -528,7 +510,6 @@ private fun CircularTimerRing(
         val radius = (size.minDimension - strokeWidth) / 2
         val center = Offset(size.width / 2, size.height / 2)
 
-        // Background ring (full circle, very light)
         drawCircle(
             color = LightLavender.copy(alpha = 0.15f),
             radius = radius,
@@ -536,21 +517,13 @@ private fun CircularTimerRing(
             style = Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
         )
 
-        // Progress ring - starts FULL and decreases as time runs out
-        // When progress = 1.0 (full time), sweepAngle = 360f (full circle)
-        // As time decreases, progress decreases, sweepAngle decreases
         val sweepAngle = progress * 360f
 
-        // Always draw the progress ring (even if 0, but we check > 0)
         if (sweepAngle > 0) {
-            // Create gradient effect using the three colors from Figma
-            // Gradient: PinkViolet (#E178C5) → PurplePink (#B56CFF) → LightLavender (#D9B3FF)
-            val startAngle = -90f // Start from top
+            val startAngle = -90f
 
-            // For a full circle (360 degrees), we need to ensure it draws completely
-            // Use enough segments for smooth gradient
             val numSegments = if (sweepAngle >= 359.9f) {
-                120 // More segments for full circle to ensure smoothness
+                120
             } else {
                 90
             }
@@ -560,12 +533,9 @@ private fun CircularTimerRing(
                 val segmentStart = startAngle + (i * anglePerSegment)
                 val segmentSweep = anglePerSegment
 
-                // Calculate color based on position in the gradient (0.0 to 1.0)
-                // Position is based on the FULL circle, not just the current sweep
                 val gradientPosition = (i * anglePerSegment) / 360f
                 val color = when {
                     gradientPosition < 0.4f -> {
-                        // First 40%: PinkViolet to PurplePink
                         val t = gradientPosition / 0.4f
                         Color(
                             red = PinkViolet.red + (PurplePink.red - PinkViolet.red) * t,
@@ -575,7 +545,6 @@ private fun CircularTimerRing(
                         )
                     }
                     else -> {
-                        // Last 60%: PurplePink to LightLavender
                         val t = ((gradientPosition - 0.4f) / 0.6f).coerceIn(0f, 1f)
                         Color(
                             red = PurplePink.red + (LightLavender.red - PurplePink.red) * t,
@@ -610,7 +579,6 @@ private fun ProfilePictureOnRing(
         modifier = Modifier.width(110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Profile picture
         Box(
             modifier = Modifier.size(70.dp)
         ) {
@@ -665,7 +633,6 @@ private fun ProfilePictureOnRing(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Name below avatar with glassmorphism effect
         Box(
             modifier = Modifier
                 .shadow(
@@ -707,7 +674,6 @@ private fun ProfilePictureOnRing(
     }
 }
 
-// NEW: Animated floating bubbles
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun AnimatedUserBubbles(users: List<UserProfile>) {
@@ -716,9 +682,9 @@ private fun AnimatedUserBubbles(users: List<UserProfile>) {
     } else {
         Card(
             modifier = Modifier
-                .size(350.dp), // Changed to size() for a square/circle instead of fillMaxWidth + height
+                .size(350.dp),
             colors = CardDefaults.cardColors(containerColor = GlassWhite),
-            shape = CircleShape, // Changed from RoundedCornerShape to CircleShape
+            shape = CircleShape,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             // ✅ NEW CODE FIX - Using key() to properly use BoxWithConstraints scope
@@ -728,7 +694,7 @@ private fun AnimatedUserBubbles(users: List<UserProfile>) {
                     .border(
                         width = 1.dp,
                         color = GlassBorder,
-                        shape = CircleShape // Changed to CircleShape to match outer shape
+                        shape = CircleShape
                     )
             ) {
                 val containerWidth = constraints.maxWidth.toFloat()
@@ -736,7 +702,6 @@ private fun AnimatedUserBubbles(users: List<UserProfile>) {
                 val bubbleSize = 70.dp
                 val bubbleSizePx = with(LocalDensity.current) { bubbleSize.toPx() }
 
-                // ✅ Using key() composable to iterate - this properly uses the scope
                 users.forEachIndexed { index, user ->
                     key(user.userId) {
                         AnimatedFloatingBubble(
@@ -761,11 +726,9 @@ private fun AnimatedFloatingBubble(
     containerHeight: Float,
     bubbleSize: Float
 ) {
-    // Create unique random seed per user
     val seed = user.userId.hashCode() + index
     val random = remember(seed) { Random(seed) }
 
-    // Initialize random starting position
     val initialX = remember(seed) {
         random.nextFloat() * (containerWidth - bubbleSize)
     }
@@ -773,21 +736,18 @@ private fun AnimatedFloatingBubble(
         random.nextFloat() * (containerHeight - bubbleSize)
     }
 
-    // Animated position
     val offsetX = remember { Animatable(initialX) }
     val offsetY = remember { Animatable(initialY) }
 
-    // Animated scale for pulsing effect
     val scale = remember { Animatable(1f) }
 
-    // Start animations
     LaunchedEffect(user.userId) {
 
         launch {
             while (true) {
                 val targetX = random.nextFloat() * (containerWidth - bubbleSize)
                 val targetY = random.nextFloat() * (containerHeight - bubbleSize)
-                val duration = 2000 + random.nextInt(2000) // 2-4 seconds
+                val duration = 2000 + random.nextInt(2000)
 
                 launch {
                     offsetX.animateTo(
@@ -809,7 +769,6 @@ private fun AnimatedFloatingBubble(
             }
         }
 
-        // Scale animation - gentle pulsing
         launch {
             while (true) {
                 scale.animateTo(
@@ -830,7 +789,6 @@ private fun AnimatedFloatingBubble(
         }
     }
 
-    // Render the bubble with animations
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
@@ -847,7 +805,6 @@ private fun UserBubbleAnimated(user: UserProfile) {
         modifier = Modifier.width(90.dp)
     ) {
         Box {
-            // Outer glow effect
             Box(
                 modifier = Modifier
                     .size(78.dp)
@@ -862,7 +819,6 @@ private fun UserBubbleAnimated(user: UserProfile) {
                     )
             )
 
-            // Profile picture with glass border
             if (user.profilePicture?.isNotEmpty() == true) {
                 if (user.profilePicture.startsWith("data:image/")) {
                     val painter = rememberBase64ImagePainter(user.profilePicture)
@@ -897,7 +853,6 @@ private fun UserBubbleAnimated(user: UserProfile) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Glass effect text background
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
@@ -1004,9 +959,9 @@ fun UserBubbleRow(users: List<UserProfile>) {
 private fun EmptyMembersPlaceholder() {
     Card(
         modifier = Modifier
-            .size(350.dp), // Changed to size() for circular shape
+            .size(350.dp),
         colors = CardDefaults.cardColors(containerColor = GlassWhite),
-        shape = CircleShape, // Changed to CircleShape
+        shape = CircleShape,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
@@ -1015,7 +970,7 @@ private fun EmptyMembersPlaceholder() {
                 .border(
                     width = 1.dp,
                     color = GlassBorder,
-                    shape = CircleShape // Changed to CircleShape
+                    shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {

@@ -163,10 +163,7 @@ export class GroupService {
               group.votingTimeoutSeconds
             );
           } catch (error) {
-            console.error('Failed to emit new voting round:', error);
           }
-
-          console.log(`🎯 Started sequential voting for group ${groupId} with ${restaurants.length} restaurants`);
 
           return {
             success: true,
@@ -177,21 +174,15 @@ export class GroupService {
         } catch (error: any) {
           lastError = error;
           
-          // If it's a version error and we have retries left, try again
           if (error.name === 'VersionError' && attempt < maxRetries - 1) {
-            console.log(`⚠️ Version conflict on attempt ${attempt + 1} for group ${groupId}, retrying...`);
-            // Small exponential backoff delay
             await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt)));
             continue;
           }
           
-          // For non-version errors or exhausted retries, throw immediately
           throw error;
         }
       }
 
-      // If we get here, all retries failed
-      console.error(`❌ Failed to initialize voting after ${maxRetries} attempts:`, lastError);
       throw lastError;
     });
   }
@@ -257,7 +248,6 @@ export class GroupService {
               group.members.length
             );
           } catch (error) {
-            console.error('Failed to emit vote update:', error);
           }
 
           // Check for majority
@@ -285,7 +275,6 @@ export class GroupService {
           
           // If it's a version error and we have retries left, try again
           if (error.name === 'VersionError' && attempt < maxRetries - 1) {
-            console.log(`⚠️ Version conflict on attempt ${attempt + 1} for group ${groupId}, retrying...`);
             await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt)));
             continue;
           }
@@ -294,7 +283,6 @@ export class GroupService {
         }
       }
 
-      console.error(`❌ Failed to submit vote after ${maxRetries} attempts:`, lastError);
       throw lastError;
     });
   }
@@ -363,7 +351,6 @@ export class GroupService {
     message: string;
   }> {
     const groupId = this.getGroupId(group);
-    console.log(`⏰ Voting round expired for group ${groupId}`);
     
     return this.withLock(groupId, async () => {
       // Fetch fresh group to avoid stale data
@@ -460,7 +447,6 @@ export class GroupService {
         group.votingTimeoutSeconds
       );
     } catch (error) {
-      console.error('Failed to emit new voting round:', error);
     }
 
     return {
@@ -500,7 +486,6 @@ export class GroupService {
         {}
       );
     } catch (error) {
-      console.error('Failed to emit restaurant selected:', error);
     }
 
     try {
@@ -510,10 +495,7 @@ export class GroupService {
         this.getGroupId(group)
       );
     } catch (error) {
-      console.error('Failed to send notification:', error);
     }
-
-    console.log(`✅ Restaurant selected for group ${this.getGroupId(group)}: ${restaurant.name}`);
 
     return {
       success: true,
@@ -535,8 +517,6 @@ export class GroupService {
     votingComplete: boolean;
     message: string;
   }> {
-    console.log(`🎲 Fallback selection for group ${this.getGroupId(group)}`);
-
     // Save current round to history if it exists
     if (group.currentRound) {
       group.votingHistoryDetailed.push({
@@ -561,8 +541,6 @@ export class GroupService {
         message: 'No restaurants available for selection',
       };
     }
-
-    console.log(`📊 Selected restaurant with most yes votes: ${bestRestaurant.name}`);
     
     return await this.selectRestaurant(group, bestRestaurant);
   }
@@ -599,7 +577,6 @@ export class GroupService {
 
       if (group.members.length === 0) {
         await Group.findByIdAndDelete(groupId);
-        console.log(`🗑️ Deleted empty group: ${groupId}`);
       } else {
         group.markModified('currentRound');
         await group.save();
@@ -612,7 +589,6 @@ export class GroupService {
             group.members.length
           );
         } catch (error) {
-          console.error('Failed to emit member left:', error);
         }
 
         // Check if majority can still be reached
@@ -647,7 +623,6 @@ export class GroupService {
                 currentVotes
               );
             } catch (error) {
-              console.error('Failed to emit restaurant selected:', error);
             }
 
             try {
@@ -657,7 +632,6 @@ export class GroupService {
                 groupId
               );
             } catch (error) {
-              console.error('Failed to send notification:', error);
             }
           }
         }
@@ -698,8 +672,6 @@ export class GroupService {
       );
 
       await Group.findByIdAndDelete(groupId);
-
-      console.log(`✅ Closed group: ${groupId}`);
     });
   }
 
@@ -754,7 +726,6 @@ export class GroupService {
               });
             }
 
-            console.log(`⏰ Auto-selected restaurant for expired group: ${groupId}`);
           } else {
             await this.closeGroup(groupId);
             
@@ -767,14 +738,11 @@ export class GroupService {
               },
             });
 
-            console.log(`⏰ Disbanded expired group with no votes: ${groupId}`);
           }
         }
       } catch (error: any) {
         if (error.name === 'VersionError') {
-          console.log(`ℹ️ Group ${groupId} was already processed by another operation`);
         } else {
-          console.error(`❌ Error handling expired group ${groupId}:`, error);
         }
       }
     }
@@ -798,30 +766,22 @@ export class GroupService {
         return; // Silent when nothing to do
       }
 
-      console.log(`🔍 Found ${activeGroups.length} expired voting rounds to process`);
-
       for (const group of activeGroups) {
         const groupId = this.getGroupId(group);
         
-        // Skip if there's already an operation in progress for this group
         if (this.operationLocks.has(groupId)) {
-          console.log(`⏭️ Skipping group ${groupId} - operation already in progress`);
           continue;
         }
 
         try {
           await this.handleExpiredRound(group);
         } catch (error: any) {
-          // Ignore version errors in background task - they mean another process handled it
           if (error.name === 'VersionError') {
-            console.log(`ℹ️ Group ${groupId} was already processed by another operation`);
           } else {
-            console.error(`❌ Error handling expired round for group ${groupId}:`, error);
           }
         }
       }
     } catch (error) {
-      console.error('❌ Error in checkExpiredVotingRounds:', error);
     }
   }
 }

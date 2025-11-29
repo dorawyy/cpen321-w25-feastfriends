@@ -92,14 +92,8 @@ class MatchViewModel @Inject constructor(
         setupSocketListeners()
     }
 
-    /**
-     * Start the countdown timer - ONLY call this from joinMatching with server time
-     */
-    /**
-     * Start the countdown timer - ONLY call this from joinMatching with server time
-     */
+
     private fun startTimerWithServerTime(completionTime: Long, serverCurrentTimeMillis: Long) {
-        // Cancel any existing timer and increment generation
         timerJob?.cancel()
         val myGeneration = timerGeneration.incrementAndGet()
 
@@ -126,7 +120,6 @@ class MatchViewModel @Inject constructor(
             return
         }
 
-        // SET THIS IMMEDIATELY on main thread, before launching coroutine
         _timeRemaining.value = initialRemaining
         Log.d(TAG, "📺 Set initial timeRemaining to ${initialRemaining}ms (${initialRemaining / 1000}s)")
 
@@ -134,13 +127,11 @@ class MatchViewModel @Inject constructor(
             Log.d(TAG, "✅ Timer loop started (gen=$myGeneration)")
 
             while (isActive) {
-                // Check generation FIRST before doing anything
                 if (timerGeneration.get() != myGeneration) {
                     Log.d(TAG, "⏹️ Timer gen=$myGeneration stopped (current gen=${timerGeneration.get()})")
                     break
                 }
 
-                // Wait first, then update (so initial value shows for 1 second)
                 delay(1000)
 
                 val now = System.currentTimeMillis() + serverTimeOffset
@@ -158,7 +149,6 @@ class MatchViewModel @Inject constructor(
 
                 _timeRemaining.value = remaining
 
-                // Log every 5 seconds
                 val remainingSeconds = remaining / 1000
                 if (remainingSeconds % 5 == 0L) {
                     Log.d(TAG, "⏱️ Timer (gen=$myGeneration): ${remainingSeconds}s remaining")
@@ -168,9 +158,8 @@ class MatchViewModel @Inject constructor(
 
         Log.d(TAG, "✅ Timer job created (gen=$myGeneration)")
     }
-    /**
-     * Check room completion status with backend
-     */
+
+
     private fun checkRoomCompletion(roomId: String) {
         viewModelScope.launch {
             Log.d(TAG, "🔍 Checking room completion for: $roomId")
@@ -463,9 +452,7 @@ class MatchViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handle room update from socket - ONLY updates members, NOT timer
-     */
+
     private fun handleRoomUpdate(data: JSONObject) {
         viewModelScope.launch {
             val members = data.getJSONArraySafe("members")?.toStringList() ?: emptyList()
@@ -478,8 +465,6 @@ class MatchViewModel @Inject constructor(
             if (members.isNotEmpty()) {
                 loadRoomMembers(members)
             }
-
-            // DO NOT touch timer from socket - only API has accurate server time
 
             if (status == "matched") {
                 _groupReady.value = true
@@ -522,7 +507,6 @@ class MatchViewModel @Inject constructor(
             val userId = data.getStringSafe("userId")
             Log.d(TAG, "Member joined: $userName ($userId)")
 
-            // Fetch fresh room status instead of updating locally
             _currentRoom.value?.roomId?.let { roomId ->
                 getRoomStatus(roomId, updateTimer = false)
             }

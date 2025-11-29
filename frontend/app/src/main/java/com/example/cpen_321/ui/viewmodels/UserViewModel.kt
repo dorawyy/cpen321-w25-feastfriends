@@ -86,7 +86,6 @@ class UserViewModel @Inject constructor(
         _budget.value = budget
         _radius.value = radius
         
-        // Initialize original values from local preferences
         originalCuisines = cuisines
         originalBudget = budget
         originalRadius = radius

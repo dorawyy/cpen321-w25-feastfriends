@@ -124,9 +124,6 @@ private fun CircularScoreDisplay(credibilityScore: Int) {
         modifier = Modifier.size(220.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Outer glow ring - removed for simpler design
-
-        // Main circular ring with faint purple/pink outline
         Box(
             modifier = Modifier
                 .size(200.dp)
@@ -176,19 +173,16 @@ private fun HowToImproveSection() {
             color = TextPrimary
         )
 
-        // Bullet point 1: Join group matches (checkmark icon)
         ImprovementBulletPoint(
             icon = Icons.Filled.Check,
             text = "Join group matches"
         )
 
-        // Bullet point 2: Show up on time (clock icon)
         ImprovementBulletPoint(
             icon = Icons.Filled.AccessTime,
             text = "Show up on time"
         )
 
-        // Bullet point 3: Don't leave mid-session (two-person icon)
         ImprovementBulletPoint(
             icon = Icons.Filled.People,
             text = "Don't leave mid-session"

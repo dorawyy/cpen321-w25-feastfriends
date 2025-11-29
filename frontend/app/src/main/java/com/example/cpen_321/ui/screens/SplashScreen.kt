@@ -24,7 +24,6 @@ import kotlinx.coroutines.withContext
 
 private fun isTestEnvironment(): Boolean {
     return try {
-        // This class only exists when running tests
         Class.forName("androidx.test.espresso.Espresso")
         true
     } catch (e: ClassNotFoundException) {

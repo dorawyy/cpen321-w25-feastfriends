@@ -116,8 +116,6 @@ private fun ProfileConfigContent(
             text = "DELETE ACCOUNT",
             onClick = {
                 authViewModel.deleteAccount() {
-                    // Auth data already cleared in repository
-                    // Navigate to splash screen
                     navController.navigate(NavRoutes.SPLASH_SCREEN) {
                         popUpTo(0) { inclusive = true }
                     }

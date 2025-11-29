@@ -143,7 +143,6 @@ private fun VotingContent(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-        // Progress indicator
         ProgressIndicator(
             roundNumber = roundNumber,
             totalRounds = totalRounds,
@@ -152,7 +151,6 @@ private fun VotingContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Countdown timer
         CountdownTimer(
             timeRemaining = timeRemaining,
             modifier = Modifier.fillMaxWidth()
@@ -160,7 +158,6 @@ private fun VotingContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Restaurant card
         RestaurantVoteCard(
             restaurant = restaurant,
             modifier = Modifier
@@ -170,7 +167,6 @@ private fun VotingContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Vote status
         VoteStatus(
             yesVotes = yesVotes,
             noVotes = noVotes,
@@ -181,7 +177,6 @@ private fun VotingContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Vote buttons
         VoteButtons(
             userVote = userVote,
             isLoading = isLoading,
@@ -244,7 +239,6 @@ private fun CountdownTimer(
         else -> VividPurple
     }
 
-    // Pulse animation when time is low
     val infiniteTransition = rememberInfiniteTransition(label = "timer")
     val alpha by infiniteTransition.animateFloat(
         initialValue = if (timeRemaining <= 10) 0.3f else 1f,
@@ -294,7 +288,6 @@ private fun RestaurantVoteCard(
     restaurant: Restaurant,
     modifier: Modifier = Modifier
 ) {
-    // ✅ ADD THIS LOGGING HERE - right at the start
     val photoUrl = restaurant.getMainPhotoUrl()
     android.util.Log.d("RestaurantCard", "🖼️ Restaurant: ${restaurant.name}")
     android.util.Log.d("RestaurantCard", "🖼️ Photo URL: $photoUrl")
@@ -311,7 +304,6 @@ private fun RestaurantVoteCard(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Restaurant image
             restaurant.getMainPhotoUrl()?.let { photoUrl ->
                 AsyncImage(
                     model = photoUrl,
@@ -345,7 +337,6 @@ private fun RestaurantVoteCard(
                 )
             }
 
-            // Restaurant info
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -362,7 +353,6 @@ private fun RestaurantVoteCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Rating and price
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -396,7 +386,6 @@ private fun RestaurantVoteCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Location
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -542,11 +531,10 @@ private fun VoteButtons(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // NO button (with ThumbDown icon but YES text)
         val noButtonColor = if (userVote == false) {
-            VividPurple // Dark when selected
+            VividPurple
         } else {
-            LightBorder // Light color when not selected
+            LightBorder
         }
         Button(
             onClick = onVoteNo,
@@ -581,7 +569,7 @@ private fun VoteButtons(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "NO", // Reversed text
+                        text = "NO",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (userVote == false) Color.White else TextSecondary
@@ -590,11 +578,11 @@ private fun VoteButtons(
             }
         }
 
-        // YES button (with ThumbUp icon but NO text)
+        
         val yesButtonColor = if (userVote == true) {
-            VividPurple // Dark when selected
+            VividPurple
         } else {
-            LightBorder // Light color when not selected
+            LightBorder
         }
         Button(
             onClick = onVoteYes,
@@ -629,7 +617,7 @@ private fun VoteButtons(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "YES", // Reversed text
+                        text = "YES",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (userVote == true) Color.White else TextSecondary
@@ -676,7 +664,6 @@ private fun RestaurantSelectedScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            // Success icon with animation
             val infiniteTransition = rememberInfiniteTransition(label = "success")
             val scale by infiniteTransition.animateFloat(
                 initialValue = 1f,

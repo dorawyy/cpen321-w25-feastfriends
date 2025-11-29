@@ -84,9 +84,7 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
     }
 
-    /**
-     * Request notification permission (Android 13+) and setup FCM
-     */
+
     private fun requestNotificationPermissionAndSetupFcm() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
@@ -98,9 +96,7 @@ class MainActivity : ComponentActivity() {
                     setupFcmToken()
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Show explanation dialog if needed
                     Log.d(TAG, "ℹ️ Showing permission rationale")
-                    // TODO: Show dialog explaining why we need permission
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
                 else -> {
@@ -109,15 +105,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         } else {
-            // Permission not needed for Android 12 and below
             Log.d(TAG, "✅ Notification permission not required (Android < 13)")
             setupFcmToken()
         }
     }
 
-    /**
-     * Get FCM token and register with backend
-     */
+
     private fun setupFcmToken() {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
@@ -128,7 +121,6 @@ class MainActivity : ComponentActivity() {
             val token = task.result
             Log.d(TAG, "✅ FCM Token: ${token?.take(20)}...")
 
-            // Register token with backend if user is logged in
             lifecycleScope.launch {
                 try {
                     val tokenManager = TokenManager.getInstance(applicationContext)
@@ -152,7 +144,6 @@ class MainActivity : ComponentActivity() {
                             Log.d(TAG, "ℹ️ User not logged in, will register token after login")
                         }
                         if (token != null) {
-                            // Save token locally for later registration
                             tokenManager.saveFcmToken(token)
                         }
                     }
@@ -163,9 +154,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Handle notification intent when app is opened from notification
-     */
     private fun handleNotificationIntent(intent: Intent?) {
         intent?.let {
             val navigateTo = it.getStringExtra("navigate_to")
@@ -178,25 +166,17 @@ class MainActivity : ComponentActivity() {
                         val roomId = it.getStringExtra("room_id")
                         val groupId = it.getStringExtra("group_id")
                         Log.d(TAG, "→ Navigate to voting: roomId=$roomId, groupId=$groupId")
-                        // TODO: Navigate to voting screen
-                        // navController.navigate("voting/$groupId")
                     }
                     "matching" -> {
                         Log.d(TAG, "→ Navigate to matching screen")
-                        // TODO: Navigate to matching screen
-                        // navController.navigate("matching")
                     }
                     "group_details" -> {
                         val groupId = it.getStringExtra("group_id")
                         Log.d(TAG, "→ Navigate to group details: groupId=$groupId")
-                        // TODO: Navigate to group details screen
-                        // navController.navigate("group/$groupId")
                     }
                     "waiting_room" -> {
                         val roomId = it.getStringExtra("room_id")
                         Log.d(TAG, "→ Navigate to waiting room: roomId=$roomId")
-                        // TODO: Navigate to waiting room screen
-                        // navController.navigate("waiting_room/$roomId")
                     }
                 }
             }

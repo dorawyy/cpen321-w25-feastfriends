@@ -125,9 +125,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    /**
-     * Show notification in system tray
-     */
+
     private fun showNotification(
         title: String,
         body: String,
@@ -135,7 +133,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create intent based on notification type
         val intent = createIntentForNotification(data)
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -144,31 +141,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Build notification
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.drawable.ic_notification) // You'll need to create this
+            .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
 
-        // Show notification
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
         Log.d(TAG, "✅ Notification shown: $title")
     }
 
-    /**
-     * Create appropriate intent based on notification data
-     */
+
     private fun createIntentForNotification(data: Map<String, String>): Intent {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 
-        // Add navigation data based on notification type
         when (data["type"]) {
             "room_matched" -> {
                 intent.putExtra("navigate_to", "voting")
@@ -198,12 +190,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         return intent
     }
 
-    /**
-     * Handle data-only messages when app is in foreground
-     */
+
     private fun handleDataPayload(data: Map<String, String>) {
-        // You can handle in-app updates here
-        // For example, show a dialog or update UI
         Log.d(TAG, "📦 Handling data payload: $data")
     }
 
