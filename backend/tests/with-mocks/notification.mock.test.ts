@@ -15,6 +15,7 @@ jest.mock('../../src/utils/tokenManager');
 const mockUserFindById = User.findById as jest.Mock;
 const mockUserFind = User.find as jest.Mock; 
 const mockSendPushNotification = firebase.sendPushNotification as jest.Mock;
+const mockSendMulticastNotification = firebase.sendMulticastNotification as jest.Mock;
 const mockRemoveInvalidToken = tokenManager.removeInvalidToken as jest.Mock;
 const mockUpdateUserToken = tokenManager.updateUserToken as jest.Mock;
 const mockClearUserToken = tokenManager.clearUserToken as jest.Mock;
@@ -103,100 +104,107 @@ describe('Notification Service Helper Wrappers - Success Paths', () => {
   });
 
   it('notifyRoomMembers should delegate to sendNotificationToUsers with same memberIds and payload', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUsers')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFind.mockResolvedValueOnce([
+      { fcmToken: 'token-1' },
+      { fcmToken: 'token-2' },
+    ]);
+    const multicastSpy = mockSendMulticastNotification.mockResolvedValueOnce(undefined as any);
 
     const notification = { title: 't', body: 'b', data: { type: 'room' } };
     await service.notifyRoomMembers(memberIds, notification);
 
-    expect(spy).toHaveBeenCalledWith(memberIds, notification);
-    spy.mockRestore();
+    expect(mockUserFind).toHaveBeenCalledWith({ _id: { $in: memberIds } });
+    expect(multicastSpy).toHaveBeenCalled();
   });
 
   it('notifyGroupMembers should delegate to sendNotificationToUsers with same memberIds and payload', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUsers')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFind.mockResolvedValueOnce([
+      { fcmToken: 'token-1' },
+      { fcmToken: 'token-2' },
+    ]);
+    const multicastSpy = mockSendMulticastNotification.mockResolvedValueOnce(undefined as any);
 
     const notification = { title: 't2', body: 'b2', data: { type: 'group' } };
     await service.notifyGroupMembers(memberIds, notification);
 
-    expect(spy).toHaveBeenCalledWith(memberIds, notification);
-    spy.mockRestore();
+    expect(mockUserFind).toHaveBeenCalledWith({ _id: { $in: memberIds } });
+    expect(multicastSpy).toHaveBeenCalled();
   });
 
   it('notifyRoomExpired should build the correct payload and call sendNotificationToUser', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUser')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFindById.mockResolvedValueOnce({ fcmToken: 'token-x' });
+    const pushSpy = mockSendPushNotification.mockResolvedValueOnce(undefined as any);
 
     await service.notifyRoomExpired(userId, roomId);
 
-    expect(spy).toHaveBeenCalledWith(userId, {
+    expect(mockUserFindById).toHaveBeenCalledWith(userId);
+    expect(pushSpy).toHaveBeenCalledWith('token-x', {
       title: 'Room Expired ⏰',
       body: 'Your waiting room expired. Try matching again!',
       data: {
         type: 'room_expired',
         roomId,
       },
-    });
-    spy.mockRestore();
+    }, expect.any(Object));
   });
 
   it('notifyUserJoinedRoom should build the correct payload and call sendNotificationToUser', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUser')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFindById.mockResolvedValueOnce({ fcmToken: 'token-x' });
+    const pushSpy = mockSendPushNotification.mockResolvedValueOnce(undefined as any);
 
     await service.notifyUserJoinedRoom(userId, 'Alice', roomId);
 
-    expect(spy).toHaveBeenCalledWith(userId, {
+    expect(mockUserFindById).toHaveBeenCalledWith(userId);
+    expect(pushSpy).toHaveBeenCalledWith('token-x', {
       title: 'Someone Joined! 👋',
       body: 'Alice joined your waiting room',
       data: {
         type: 'user_joined',
         roomId,
       },
-    });
-    spy.mockRestore();
+    }, expect.any(Object));
   });
 
   it('notifyGroupExpired should build the correct payload and call sendNotificationToUser', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUser')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFindById.mockResolvedValueOnce({ fcmToken: 'token-x' });
+    const pushSpy = mockSendPushNotification.mockResolvedValueOnce(undefined as any);
 
     await service.notifyGroupExpired(userId, groupId);
 
-    expect(spy).toHaveBeenCalledWith(userId, {
+    expect(mockUserFindById).toHaveBeenCalledWith(userId);
+    expect(pushSpy).toHaveBeenCalledWith('token-x', {
       title: 'Group Expired ⏰',
       body: 'Your group expired without selecting a restaurant.',
       data: {
         type: 'group_expired',
         groupId,
       },
-    });
-    spy.mockRestore();
+    }, expect.any(Object));
   });
 
   it('notifyVotingTimeExpired should build the correct payload and call sendNotificationToUsers', async () => {
-    const spy = jest
-      .spyOn(service, 'sendNotificationToUsers')
-      .mockResolvedValueOnce(undefined as any);
+    mockUserFind.mockResolvedValueOnce([
+      { fcmToken: 'token-1' },
+      { fcmToken: 'token-2' },
+    ]);
+    const multicastSpy = mockSendMulticastNotification.mockResolvedValueOnce(undefined as any);
 
     await service.notifyVotingTimeExpired(memberIds, 'Sushi Place', groupId);
 
-    expect(spy).toHaveBeenCalledWith(memberIds, {
-      title: 'Voting Time Expired ⏰',
-      body: 'Sushi Place was selected based on the votes received.',
-      data: {
-        type: 'restaurant_selected',
-        groupId,
-        restaurantName: 'Sushi Place',
+    expect(mockUserFind).toHaveBeenCalledWith({ _id: { $in: memberIds } });
+    expect(multicastSpy).toHaveBeenCalledWith(
+      ['token-1', 'token-2'],
+      {
+        title: 'Voting Time Expired ⏰',
+        body: 'Sushi Place was selected based on the votes received.',
+        data: {
+          type: 'restaurant_selected',
+          groupId,
+          restaurantName: 'Sushi Place',
+        },
       },
-    });
-    spy.mockRestore();
+      expect.any(Object),
+    );
   });
 });
 
