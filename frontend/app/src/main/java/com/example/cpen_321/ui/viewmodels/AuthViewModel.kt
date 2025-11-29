@@ -418,12 +418,10 @@ class AuthViewModel @Inject constructor(
             try {
                 Log.d(TAG, "🔍 Checking for FCM token...")
 
-                // First check if we have a saved token
                 var fcmToken = tokenManager.getFcmToken()
                 val userId = tokenManager.getUserId()
 
                 if (fcmToken != null && userId != null) {
-                    // We have a token, register it
                     Log.d(TAG, "📤 Found saved FCM token, registering...")
 
                     when (val result = userRepository.registerFcmToken(userId, fcmToken)) {
@@ -434,11 +432,9 @@ class AuthViewModel @Inject constructor(
                             Log.e(TAG, "⚠️ Failed to register FCM token: ${result.message}")
                         }
                         is ApiResult.Loading -> {
-                            // Ignore
                         }
                     }
                 } else {
-                    // No saved token, request a fresh one from Firebase
                     Log.d(TAG, "📲 No saved token, requesting fresh token from Firebase...")
 
                     com.google.firebase.messaging.FirebaseMessaging.getInstance().token
@@ -452,10 +448,8 @@ class AuthViewModel @Inject constructor(
                             if (token != null && userId != null) {
                                 Log.d(TAG, "✅ Fresh FCM token received: ${token.take(20)}...")
 
-                                // Save it locally first
                                 tokenManager.saveFcmToken(token)
 
-                                // Register with backend
                                 viewModelScope.launch {
                                     when (val result = userRepository.registerFcmToken(userId, token)) {
                                         is ApiResult.Success -> {
@@ -465,7 +459,6 @@ class AuthViewModel @Inject constructor(
                                             Log.e(TAG, "⚠️ Failed to register fresh FCM token: ${result.message}")
                                         }
                                         is ApiResult.Loading -> {
-                                            // Ignore
                                         }
                                     }
                                 }

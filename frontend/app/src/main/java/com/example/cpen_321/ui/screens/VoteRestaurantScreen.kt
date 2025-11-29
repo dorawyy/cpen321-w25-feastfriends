@@ -143,7 +143,7 @@ private fun VoteScreenEffects(
     val selectedRestaurant by groupViewModel.selectedRestaurant.collectAsState()
     val restaurantError by restaurantViewModel.errorMessage.collectAsState()
 
-    // ✅ FIXED: Use callback functions for state updates
+    
     LaunchedEffect(Unit) {
         groupViewModel.loadGroupStatus()
 
@@ -191,7 +191,7 @@ private fun VoteScreenEffects(
         }
     }
 
-    // ✅ Search restaurants when location is available
+    
     LaunchedEffect(userLocation, currentGroup) {
         val group = currentGroup
 
@@ -201,9 +201,9 @@ private fun VoteScreenEffects(
             Log.d("VoteDebug", "=== SEARCHING RESTAURANTS WITH FRESH LOCATION ===")
             Log.d("VoteDebug", "Current location: $latitude, $longitude")
 
-            // Use the GROUP's cuisine preference (from the room)
+            
             val cuisineTypes = group.cuisines ?: emptyList()
-            val radius = ((group.averageRadius ?: 5.0) * 1000).toInt() // Convert km to meters
+            val radius = ((group.averageRadius ?: 5.0) * 1000).toInt()
 
             Log.d("VoteDebug", "Group's cuisines: $cuisineTypes")
             Log.d("VoteDebug", "Group's budget: ${group.averageBudget}")

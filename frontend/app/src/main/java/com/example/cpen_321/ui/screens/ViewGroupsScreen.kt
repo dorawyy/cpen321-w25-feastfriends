@@ -230,20 +230,17 @@ private fun GroupContentWithCollapsibleButtons(
     onToggleBottomSheet: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main scrollable content
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-                .padding(bottom = if (isBottomSheetExpanded) 260.dp else 60.dp), // Space for bottom sheet
+                .padding(bottom = if (isBottomSheetExpanded) 260.dp else 60.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Credibility Code Card
             item {
                 CredibilityCodeCard(credibilityState = credibilityState)
             }
 
-            // Group Header Card
             item {
                 GroupHeaderCard(
                     currentGroup = currentGroup,
@@ -251,7 +248,6 @@ private fun GroupContentWithCollapsibleButtons(
                 )
             }
 
-            // Members Section Header
             item {
                 Text(
                     text = "Group Members",
@@ -261,7 +257,6 @@ private fun GroupContentWithCollapsibleButtons(
                 )
             }
 
-            // Member Cards
             items(groupMembers) { member ->
                 MemberCard(
                     member = member,
@@ -269,13 +264,11 @@ private fun GroupContentWithCollapsibleButtons(
                 )
             }
 
-            // Extra spacing at bottom
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
-        // ✅ NEW: Collapsible Bottom Sheet with Action Buttons
         CollapsibleBottomSheet(
             isExpanded = isBottomSheetExpanded,
             onToggle = onToggleBottomSheet,
@@ -296,9 +289,8 @@ private fun CollapsibleBottomSheet(
     onLeaveClick: () -> Unit,
     onVerifyCodeClick: () -> Unit
 ) {
-    // ✅ FIXED: Animate offset so handle always remains visible
     val offsetY by animateDpAsState(
-        targetValue = if (isExpanded) 0.dp else 160.dp, // Show just the handle when collapsed
+        targetValue = if (isExpanded) 0.dp else 160.dp,
         label = "bottomSheetOffset"
     )
 
@@ -339,7 +331,6 @@ private fun CollapsibleBottomSheet(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // ✅ Handle - ALWAYS visible
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -373,7 +364,6 @@ private fun CollapsibleBottomSheet(
                     }
                 }
 
-                // ✅ Only show buttons when expanded
                 if (isExpanded) {
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -716,7 +706,6 @@ private fun GroupActionButtons(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Verify Code Button
         Button(
             onClick = onVerifyCodeClick,
             modifier = Modifier

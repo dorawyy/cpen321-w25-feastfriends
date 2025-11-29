@@ -337,7 +337,7 @@ constructor(
                         GroupMember(
                             userId = profile.userId,
                             name = profile.name,
-                            credibilityScore = profile.credibilityScore,  // ✅ FIXED: Use actual credibility score
+                            credibilityScore = profile.credibilityScore,
                             phoneNumber = profile.contactNumber,
                             profilePicture = profile.profilePicture,
                             hasVoted = votes.containsKey(profile.userId)
@@ -442,7 +442,6 @@ constructor(
         _userVote.value = null
         _timeRemaining.value = 0L
         _credibilityState.value = CredibilityState()
-        // ✅ NEW: Reset verification state when clearing group
         _hasVerifiedCode.value = false
     }
 

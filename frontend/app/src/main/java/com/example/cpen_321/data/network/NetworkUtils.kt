@@ -185,10 +185,8 @@ private fun parseErrorMessage(errorBody: String?, statusCode: Int): String {
     }
 
     return try {
-        // Try to parse as JSON
         val json = JsonParser.parseString(errorBody).asJsonObject
         
-        // Try to get "message" field first, then "error" field
         when {
             json.has("message") && !json.get("message").isJsonNull -> {
                 json.get("message").asString
@@ -201,7 +199,6 @@ private fun parseErrorMessage(errorBody: String?, statusCode: Int): String {
             else -> errorBody
         }
     } catch (e: Exception) {
-        // If parsing fails, return the raw error body or a default message
         if (statusCode == 401) {
             "Please sign in to continue"
         } else {

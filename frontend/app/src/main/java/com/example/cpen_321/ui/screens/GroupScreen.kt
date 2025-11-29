@@ -492,10 +492,8 @@ private fun GroupScreenEffects(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Profile Picture
             if (member.profilePicture != null && member.profilePicture.isNotEmpty()) {
                 if (member.profilePicture.startsWith("data:image/")) {
-                    // Base64 image - use rememberBase64ImagePainter
                     val painter = rememberBase64ImagePainter(member.profilePicture)
                     Image(
                         painter = painter,
@@ -507,7 +505,6 @@ private fun GroupScreenEffects(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Regular URL - use AsyncImage
                     AsyncImage(
                         model = member.profilePicture,
                         contentDescription = "Profile picture",
@@ -544,7 +541,6 @@ private fun GroupScreenEffects(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Member Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = member.name,

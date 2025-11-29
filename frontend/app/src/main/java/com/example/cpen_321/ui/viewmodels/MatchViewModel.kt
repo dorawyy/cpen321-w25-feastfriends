@@ -99,7 +99,6 @@ class MatchViewModel @Inject constructor(
      * Start the countdown timer - ONLY call this from joinMatching with server time
      */
     private fun startTimerWithServerTime(completionTime: Long, serverCurrentTimeMillis: Long) {
-        // Cancel any existing timer and increment generation
         timerJob?.cancel()
         val myGeneration = timerGeneration.incrementAndGet()
 
@@ -126,7 +125,6 @@ class MatchViewModel @Inject constructor(
             return
         }
 
-        // SET THIS IMMEDIATELY on main thread, before launching coroutine
         _timeRemaining.value = initialRemaining
         Log.d(TAG, "📺 Set initial timeRemaining to ${initialRemaining}ms (${initialRemaining / 1000}s)")
 
@@ -134,13 +132,11 @@ class MatchViewModel @Inject constructor(
             Log.d(TAG, "✅ Timer loop started (gen=$myGeneration)")
 
             while (isActive) {
-                // Check generation FIRST before doing anything
                 if (timerGeneration.get() != myGeneration) {
                     Log.d(TAG, "⏹️ Timer gen=$myGeneration stopped (current gen=${timerGeneration.get()})")
                     break
                 }
 
-                // Wait first, then update (so initial value shows for 1 second)
                 delay(1000)
 
                 val now = System.currentTimeMillis() + serverTimeOffset
@@ -158,7 +154,6 @@ class MatchViewModel @Inject constructor(
 
                 _timeRemaining.value = remaining
 
-                // Log every 5 seconds
                 val remainingSeconds = remaining / 1000
                 if (remainingSeconds % 5 == 0L) {
                     Log.d(TAG, "⏱️ Timer (gen=$myGeneration): ${remainingSeconds}s remaining")
@@ -479,8 +474,6 @@ class MatchViewModel @Inject constructor(
                 loadRoomMembers(members)
             }
 
-            // DO NOT touch timer from socket - only API has accurate server time
-
             if (status == "matched") {
                 _groupReady.value = true
                 timerJob?.cancel()
@@ -522,7 +515,6 @@ class MatchViewModel @Inject constructor(
             val userId = data.getStringSafe("userId")
             Log.d(TAG, "Member joined: $userName ($userId)")
 
-            // Fetch fresh room status instead of updating locally
             _currentRoom.value?.roomId?.let { roomId ->
                 getRoomStatus(roomId, updateTimer = false)
             }

@@ -169,12 +169,10 @@ private fun MemberProfileContent(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Profile Picture
         ProfilePictureSection(profilePicture = userProfile.profilePicture)
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Name
         Text(
             text = userProfile.name,
             fontSize = 28.sp,
@@ -185,7 +183,6 @@ private fun MemberProfileContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Profile Details Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = GlassWhite),
@@ -196,7 +193,6 @@ private fun MemberProfileContent(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Credibility Score
                 credibilityScore?.let { score ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -218,7 +214,6 @@ private fun MemberProfileContent(
                     }
                 }
 
-                // Bio
                 userProfile.bio?.let { bio ->
                     if (bio.isNotEmpty()) {
                         Column {
@@ -239,7 +234,6 @@ private fun MemberProfileContent(
                     }
                 }
 
-                // Contact Number
                 userProfile.contactNumber?.let { phone ->
                     if (phone.isNotEmpty()) {
                         Row(
@@ -270,7 +264,6 @@ private fun MemberProfileContent(
 private fun ProfilePictureSection(profilePicture: String?) {
     if (profilePicture != null && profilePicture.isNotEmpty()) {
         if (profilePicture.startsWith("data:image/")) {
-            // Base64 image
             val painter = rememberBase64ImagePainter(profilePicture)
             Image(
                 painter = painter,
@@ -283,7 +276,6 @@ private fun ProfilePictureSection(profilePicture: String?) {
                 contentScale = ContentScale.Crop
             )
         } else {
-            // Regular URL
             AsyncImage(
                 model = profilePicture,
                 contentDescription = "Profile picture",
@@ -296,7 +288,6 @@ private fun ProfilePictureSection(profilePicture: String?) {
             )
         }
     } else {
-        // Default avatar
         Box(
             modifier = Modifier
                 .size(120.dp)

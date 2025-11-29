@@ -347,7 +347,6 @@ private fun ActionButtons(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Save Preferences Button
         Button(
             onClick = onSave,
             enabled = !isLoading,
@@ -374,7 +373,6 @@ private fun ActionButtons(
             }
         }
 
-        // Go Back Button
         Box(
             modifier = Modifier
                 .fillMaxWidth()
